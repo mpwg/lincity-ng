@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace {
 void require(bool condition, const char* message) {
@@ -41,6 +42,9 @@ void checkRocketTiming() {
   rocket.levelStuff(STUFF_STEEL, ROCKET_PAD_STEEL);
   world.do_time_step();
   require(rocket.stage == RocketPad::AWAITING, "pad failed to finish building");
+  const auto ready = dynamic_message_cast<RocketReadyMessage>(world.popMessage());
+  require(ready && ready->getPoint() == site && ready->str() == "a rocket is ready to launch",
+          "rocket readiness event did not identify the completed launchpad");
   world.do_animate(0);
   require(rocket.getFrame().frame == 4, "ready frame");
   require(world.launchRocket(site), "launch command rejected");
@@ -67,7 +71,8 @@ void checkRocketTiming() {
   while(auto message = world.popMessage()) {
     if(auto result = dynamic_message_cast<RocketResultMessage>(message))
       success = result->getPoint() == site &&
-        result->getResult() == RocketResultMessage::LaunchResult::SUCCESS;
+        result->getResult() == RocketResultMessage::LaunchResult::SUCCESS &&
+        result->str() == "the rocket launched successfully";
   }
   require(success, "successful launch result missing");
   world.do_animate(deadline);
@@ -123,6 +128,77 @@ void checkEvacuation(int pool, int residents, bool ended,
   replay.finish();
 }
 
+void checkEvacuationCapacity(int pool, int occupiedHomes, bool ended,
+                             RocketResultMessage::LaunchResult expected) {
+  World world(32);
+  const MapPoint site(8, 8);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.rockets_launched = 10;
+  world.rockets_launched_success = 5;
+  world.people_pool = pool;
+  world.gameEnd = ended;
+  rocketPadConstructionGroup.placeItem(world, site);
+  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->getConstruction());
+  std::vector<Residence*> homes;
+  for(int i = 0; i < occupiedHomes; ++i) {
+    const MapPoint home(18 + 4 * i, 18);
+    residenceLLConstructionGroup.placeItem(world, home);
+    auto* residence = dynamic_cast<Residence*>(world.map(home)->getConstruction());
+    require(residence, "expected a residence at the occupied site");
+    residence->local_population = 1;
+    homes.push_back(residence);
+  }
+
+  rocket.stage = RocketPad::LAUNCH;
+  rocket.update();
+  int housed = 0;
+  for(const auto* home : homes)
+    housed += home->local_population;
+  require(world.stats.population.evacuated_t == 1000 &&
+          world.people_pool + housed == pool + occupiedHomes - 1000,
+          "rocket failed to evacuate exactly its passenger capacity");
+  using Result = RocketResultMessage::LaunchResult;
+  const auto result = dynamic_message_cast<RocketResultMessage>(world.popMessage());
+  require(result && result->getPoint() == site && result->getResult() == expected,
+          "evacuation at capacity reported the wrong victory status");
+  require(result->str() == (expected == Result::EVAC_WIN ?
+            "everyone has been evacuated from the city" : "1000 people were evacuated"),
+          "evacuation event described the wrong outcome");
+  require(world.gameEnd == (ended || expected == Result::EVAC_WIN) && !world.popMessage(),
+          "evacuation at capacity produced an invalid or duplicate ending");
+}
+
+void checkRocketLaunchFunding() {
+  World world(32);
+  const MapPoint site(8, 8);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.rockets_launched = 10;
+  rocketPadConstructionGroup.placeItem(world, site);
+  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->getConstruction());
+  rocket.stage = RocketPad::LAUNCH;
+
+  constexpr int creditLimit = -2000000000;
+  world.total_money = creditLimit + ROCKET_PAD_RUNNING_COST - 1;
+  rocket.update();
+  require(world.rockets_launched == 10 && rocket.stage == RocketPad::LAUNCH &&
+          world.total_money == creditLimit + ROCKET_PAD_RUNNING_COST - 1 &&
+          world.stats.expenses.rockets.acc == 0 && !world.popMessage(),
+          "unfunded launch changed the launch state or finances");
+
+  ++world.total_money;
+  rocket.update();
+  const auto result = dynamic_message_cast<RocketResultMessage>(world.popMessage());
+  require(world.rockets_launched == 11 && rocket.stage == RocketPad::DONE &&
+          world.total_money == creditLimit &&
+          world.stats.expenses.rockets.acc == ROCKET_PAD_RUNNING_COST &&
+          result && result->getPoint() == site && result->getResult() ==
+            RocketResultMessage::LaunchResult::SUCCESS,
+          "launch did not resume once the city could pay its upkeep");
+  rocket.update();
+  require(world.stats.expenses.rockets.acc == ROCKET_PAD_RUNNING_COST && !world.popMessage(),
+          "spent rocket continued charging upkeep or reporting launches");
+}
+
 void checkRocketConstructionLimits() {
   World world(32);
   const MapPoint site(8, 8);
@@ -168,7 +244,8 @@ void checkCrash() {
   std::string tape = "LINCITY-SIMULATION-TRACE 1\nS rocket.success 0\n"
     "S rocket.center-x 10\nS rocket.center-y 10\n";
   for(int i = 0; i < 20; ++i) {
-    tape += "S rocket.fire-x 0\nS rocket.fire-y 0\n";
+    const int x = i == 1 ? -target.x : (i == 2 ? 3 : 0);
+    tape += "S rocket.fire-x " + std::to_string(x) + "\nS rocket.fire-y 0\n";
     if(i == 0)
       for(auto p : {target, target.e(), target.s(), target.se()})
         tape += "P " + std::to_string(1 + (p.x - target.x) + 2 * (p.y - target.y)) + " " +
@@ -179,12 +256,15 @@ void checkCrash() {
   rocket.update();
   trace.finish();
   const auto result = dynamic_message_cast<RocketResultMessage>(world.popMessage());
-  require(result && result->getResult() == RocketResultMessage::LaunchResult::FAIL,
+  require(result && result->getPoint() == site && result->str() == "the rocket crashed" &&
+          result->getResult() == RocketResultMessage::LaunchResult::FAIL,
           "failed launch did not emit its result");
   require(world.rockets_launched_success == 0 && rocket.stage == RocketPad::DONE,
           "failed launch did not reset the success streak");
   for(auto p : {target, target.e(), target.s(), target.se()})
     require(world.map(p)->getGroup() == GROUP_FIRE, "crash did not ignite the footprint");
+  require(world.stats.groupCount[GROUP_FIRE] == 4 && world.map(target.e(3))->is_bare() &&
+          !world.popMessage(), "crash generated extra fires or duplicate launch events");
 }
 
 }
@@ -197,8 +277,18 @@ int main() {
     checkEvacuation(998, 5, false, Result::EVAC);
     checkEvacuation(2, 1, false, Result::EVAC_WIN);
     checkEvacuation(0, 0, true, Result::EVAC);
+    checkEvacuationCapacity(1000, 0, false, Result::EVAC_WIN);
+    checkEvacuationCapacity(999, 1, false, Result::EVAC_WIN);
+    checkEvacuationCapacity(999, 2, false, Result::EVAC);
+    checkEvacuationCapacity(1000, 1, false, Result::EVAC);
+    checkEvacuationCapacity(1001, 0, false, Result::EVAC);
+    checkEvacuationCapacity(1000, 0, true, Result::EVAC);
     checkCrash();
+    checkRocketLaunchFunding();
     checkRocketConstructionLimits();
+  } catch(const Message::Exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
   } catch(const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

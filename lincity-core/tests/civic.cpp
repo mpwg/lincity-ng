@@ -1,4 +1,5 @@
 #include "lincity/ConstructionReport.hpp"
+#include "lincity/UserOperation.hpp"
 #include "lincity/messages.hpp"
 #include "lincity/modules/fire.hpp"
 #include "lincity/modules/health_centre.hpp"
@@ -9,11 +10,13 @@
 #include "lincity/modules/residence.hpp"
 #include "lincity/modules/shanty.hpp"
 #include "lincity/modules/tip.hpp"
+#include "lincity/modules/university.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
 #include "util/simulation_trace.hpp"
 
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -39,6 +42,31 @@ void replayChoices(const std::string& events, Operation operation) {
   operation();
   trace.finish();
 }
+
+class Inspection : public ConstructionReport {
+public:
+  std::pair<int, int> progress;
+  double percentage = 0.0;
+  std::string foodDirection;
+  std::pair<int, int> food;
+
+  void addBlank() override {}
+  void addLabel(const std::string&) override {}
+  void addLabeledText(const std::string&, const std::string&) override {}
+  void addInteger(const std::string&, int) override {}
+  void addDecimal(const std::string&, double) override {}
+  void addPercentage(const std::string&, double value) override { percentage = value; }
+  void addQuantity(const std::string&, int value, int capacity) override {
+    progress = {value, capacity};
+  }
+  void addPrefixedQuantity(const std::string& prefix, const std::string& label,
+                          int value, int capacity) override {
+    if(label == commodityName(STUFF_FOOD)) {
+      foodDirection = prefix;
+      food = {value, capacity};
+    }
+  }
+};
 
 void verifyPark(ConstructionGroup& group) {
   World world(32);
@@ -92,6 +120,9 @@ void verifyMonument() {
           "the final labor batch should reach 100 percent before completion is applied");
   monument.update();
   require(monument.completed && monument.can_bulldoze(message), "finished monument was not usable");
+  monument.animate(0);
+  require(monument.getFrame().resourceGroup == ResourceGroup::resMap.at("Monument") &&
+          monument.getFrame().frame == 0, "completed monument did not switch to its finished appearance");
   constexpr unsigned int evacuation = FLAG_EVACUATE | FLAG_NEVER_EVACUATE;
   require((monument.flags & evacuation) == evacuation && monument.commodityCount[STUFF_LABOR] == 1,
           "finished monument lost its surplus labor or evacuation flags");
@@ -104,6 +135,10 @@ void verifyMonument() {
             "monument research ignored its technology-dependent interval");
   }
   require(monument.tech_made == 1, "monument did not track its technology contribution");
+  Inspection report;
+  monument.report(report, false);
+  require(std::abs(report.percentage - 100.0 / MAX_TECH_LEVEL) < 1e-12,
+          "completed monument report did not show the technology it created");
   world.tech_level = MONUMENT_TECH_EXPIRE * 1000;
   world.total_time += MONUMENT_DAYS_PER_TECH;
   monument.update();
@@ -230,22 +265,6 @@ void verifyResidenceFire() {
   require(world.people_pool == 3, "fire survivors were counted again when the residence was destroyed");
 }
 
-class FireProgressReport : public ConstructionReport {
-public:
-  std::pair<int, int> progress;
-
-  void addBlank() override {}
-  void addLabel(const std::string&) override {}
-  void addLabeledText(const std::string&, const std::string&) override {}
-  void addInteger(const std::string&, int) override {}
-  void addDecimal(const std::string&, double) override {}
-  void addPercentage(const std::string&, double) override {}
-  void addQuantity(const std::string&, int value, int capacity) override {
-    progress = {value, capacity};
-  }
-  void addPrefixedQuantity(const std::string&, const std::string&, int, int) override {}
-};
-
 void verifyFireLifetime(bool covered) {
   World world(32);
   const MapPoint site(12, 12);
@@ -257,7 +276,7 @@ void verifyFireLifetime(bool covered) {
   const int dailyProgress = covered ? 5 : 1;
   const int initialMoney = world.total_money;
 
-  FireProgressReport report;
+  Inspection report;
   fire.report(report, false);
   require(report.progress == std::pair{FIRE_LENGTH - 1, FIRE_LENGTH},
           "active fire report did not show progress through its burning phase");
@@ -400,6 +419,139 @@ void verifyResidenceDensity() {
   }
 }
 
+void verifyUniversityFunding() {
+  World world(32);
+  auto& university = place<University>(world, universityConstructionGroup, MapPoint(12, 12));
+  constexpr int creditLimit = -2000000000;
+  world.total_money = creditLimit + UNIVERSITY_RUNNING_COST - 1;
+  university.levelStuff(STUFF_LABOR, UNIVERSITY_LABOR);
+  university.levelStuff(STUFF_GOODS, UNIVERSITY_GOODS);
+  university.update();
+  require(world.total_money == creditLimit + UNIVERSITY_RUNNING_COST - 1 &&
+          world.stats.expenses.university.acc == 0 && world.tech_level == 0 &&
+          university.commodityCount[STUFF_LABOR] == UNIVERSITY_LABOR &&
+          university.commodityCount[STUFF_GOODS] == UNIVERSITY_GOODS &&
+          university.commodityCount[STUFF_WASTE] == 0 && !world.popMessage(),
+          "university operated when the city could not pay its upkeep");
+
+  ++world.total_money;
+  world.total_time = 99;
+  university.update();
+  require(world.total_money == creditLimit && world.stats.expenses.university.acc == UNIVERSITY_RUNNING_COST &&
+          world.tech_level == UNIVERSITY_TECH_MADE && university.busy == 1 &&
+          university.commodityCount[STUFF_LABOR] == 0 && university.commodityCount[STUFF_GOODS] == 0 &&
+          university.commodityCount[STUFF_WASTE] == UNIVERSITY_GOODS / 3,
+          "fully funded university did not resume research");
+}
+
+void verifyMonthlyInsolvency(int cash) {
+  World world(32);
+  constexpr int creditLimit = -2000000000;
+  world.total_money = cash;
+  world.total_time = NUMOF_DAYS_IN_MONTH - 2;
+  world.stats.population.unnat_deaths_m.acc = 1;
+  world.stats.population.unemployed_m.acc = 100;
+  world.money_rates.dole = 25;
+  world.do_time_step();
+  require(world.total_time == NUMOF_DAYS_IN_MONTH - 1 && !world.gameEnd,
+          "monthly expenses interrupted the city simulation");
+  if(cash == creditLimit) {
+    require(world.total_money == creditLimit && world.stats.expenses.deaths.acc == 0 &&
+            world.stats.expenses.unemployment.acc == 0 && !world.popMessage(),
+            "unpayable monthly expenses changed the city balance or reissued a warning");
+  } else {
+    const auto message = dynamic_message_cast<OutOfMoneyMessage>(world.popMessage());
+    require(world.total_money == -25 && world.stats.expenses.deaths.acc == UNNAT_DEATHS_COST &&
+            world.stats.expenses.unemployment.acc == 25 && message && !message->isOutOfCredit() &&
+            message->str() == "out of money" && !world.popMessage(),
+            "city crossing zero did not pay the expenses and report one loss of cash");
+  }
+}
+
+void verifyMarketClosedTrade() {
+  World world(32);
+  const MapPoint site(2, 2);
+  auto& market = place<Market>(world, marketConstructionGroup, site);
+  market.bootstrap_commodities(70);
+  world.total_time = 17;
+  market.update();
+  require(market.labor == LABOR_MARKET_FULL, "stocked market did not start fully staffed");
+  for(Commodity commodity = STUFF_INIT; commodity < STUFF_COUNT; ++commodity) {
+    if(market.commodityRuleCount[commodity].maxload)
+      require(world.setMarketTrade(site, commodity, false, false), "could not close a commodity trade");
+  }
+
+  world.total_time += 25;
+  market.update();
+  require(market.labor == LABOR_MARKET_EMPTY && market.market_ratio == 0,
+          "market with all trades closed did not return to minimal staffing");
+  Inspection report;
+  market.report(report, false);
+  require(report.foodDirection == "---" && report.food == std::pair{70 * MAX_FOOD_IN_MARKET / 100, MAX_FOOD_IN_MARKET},
+          "closed market report changed the food amount or showed food moving");
+  UserOperation{UserOperation::ACTION_EVACUATE}.execute(world, site.se());
+  market.report(report, false);
+  require(report.foodDirection == "<< " && report.food == std::pair{70 * MAX_FOOD_IN_MARKET / 100, MAX_FOOD_IN_MARKET},
+          "evacuating market report did not show the unchanged food stock as outbound");
+
+  world.total_time = 74;
+  world.do_time_step();
+  require((world.map(MapPoint(1, 1))->flags & FLAG_MARKET_COVER) &&
+          !(world.map(MapPoint(0, 1))->flags & FLAG_MARKET_COVER) &&
+          !(world.map(site.e(GROUP_MARKET_RANGE))->flags & FLAG_MARKET_COVER),
+          "market coverage did not respect the interior border or distance limit");
+}
+
+std::string wasteFireChoices(const char* event, MapPoint site, unsigned int size) {
+  std::ostringstream choices;
+  choices << "S " << event << " 1\n";
+  int id = 0;
+  for(unsigned int y = 0; y < size; ++y)
+    for(unsigned int x = 0; x < size; ++x)
+      choices << "P " << ++id << ' ' << site.x + x << ' ' << site.y + y << ' ' << GROUP_FIRE << '\n';
+  return choices.str();
+}
+
+void verifyMarketWasteFire(bool covered) {
+  World world(32);
+  const MapPoint site(12, 12);
+  auto& market = place<Market>(world, marketConstructionGroup, site);
+  if(covered)
+    world.map(site)->flags |= FLAG_FIRE_COVER;
+  constexpr int threshold = 85 * MAX_WASTE_IN_MARKET / 100;
+  market.levelStuff(STUFF_WASTE, threshold);
+  world.total_time = 50;
+  market.update();
+  require(market.commodityCount[STUFF_WASTE] == threshold && world.map(site.se())->pollution == 0,
+          "market burned waste on the excluded fiftieth day");
+
+  world.total_time = 51;
+  const auto events = covered ? "S market.waste-fire 1\n" :
+    wasteFireChoices("market.waste-fire", site, GROUP_MARKET_SIZE);
+  replayChoices(events, [&] { market.update(); });
+  require(world.map(site.se())->pollution == MAX_WASTE_IN_MARKET / 20 &&
+          market.commodityCount[STUFF_WASTE] == threshold - 7 * MAX_WASTE_IN_MARKET / 10,
+          "market burned the wrong amount of waste or polluted the wrong tile");
+  if(!covered) {
+    const auto message = dynamic_message_cast<FireStartedMessage>(world.popMessage());
+    require(message && message->getPoint() == site && &message->getGroup() == &marketConstructionGroup &&
+            world.stats.groupCount[GROUP_FIRE] == GROUP_MARKET_SIZE * GROUP_MARKET_SIZE &&
+            world.stats.groupCount[GROUP_MARKET] == 0 && !world.popMessage(),
+            "unprotected market fire did not replace the full footprint and identify the market");
+    return;
+  }
+  require(world.map(site)->getConstruction() == &market && !world.popMessage(),
+          "fire coverage did not prevent a market from igniting");
+  const auto& burnFrame = world.map(site)->getFrames()->back();
+  const int frameCount = burnFrame.resourceGroup->frameCount;
+  for(int step = 0; step <= frameCount; ++step) {
+    replayChoices("C 175\n", [&] { market.animate(1000 + step * ANIM_THRESHOLD(200)); });
+    require(burnFrame.frame == step % frameCount, "market waste fire did not cycle its animation");
+  }
+  market.animate(1000 + ANIM_THRESHOLD(6 * WASTE_BURN_TIME));
+  require(burnFrame.frame == -1, "market waste fire stayed visible after its animation ended");
+}
+
 void verifyShantyWaste() {
   World world(32);
   const MapPoint site(12, 12);
@@ -458,15 +610,12 @@ void verifyShantyWaste() {
 
   world.map(site)->flags &= ~FLAG_FIRE_COVER;
   shanty.levelStuff(STUFF_WASTE, MAX_WASTE_AT_SHANTY - 2 * SHANTY_PUT_WASTE);
-  std::ostringstream choices;
-  choices << "S shanty.waste-fire 1\n";
-  int id = 0;
-  for(int y = 0; y < GROUP_SHANTY_SIZE; ++y)
-    for(int x = 0; x < GROUP_SHANTY_SIZE; ++x)
-      choices << "P " << ++id << ' ' << site.x + x << ' ' << site.y + y << ' ' << GROUP_FIRE << '\n';
-  replayChoices(choices.str(), [&] { shanty.update(); });
-  require(world.stats.groupCount[GROUP_SHANTY] == 0 && id == world.stats.groupCount[GROUP_FIRE] &&
-          dynamic_cast<const FireStartedMessage*>(world.popMessage().get()),
+  replayChoices(wasteFireChoices("shanty.waste-fire", site, GROUP_SHANTY_SIZE), [&] { shanty.update(); });
+  const auto message = dynamic_message_cast<FireStartedMessage>(world.popMessage());
+  require(world.stats.groupCount[GROUP_SHANTY] == 0 &&
+          world.stats.groupCount[GROUP_FIRE] == GROUP_SHANTY_SIZE * GROUP_SHANTY_SIZE &&
+          message && message->getPoint() == site && &message->getGroup() == &shantyConstructionGroup &&
+          !world.popMessage(),
           "uncontrolled waste burning did not replace the shanty with fire and report it");
 }
 
@@ -589,6 +738,12 @@ int main() {
     verifyFireLifetime(false);
     verifyFireLifetime(true);
     verifyFireSpreadBarriers();
+    verifyUniversityFunding();
+    verifyMonthlyInsolvency(-2000000000);
+    verifyMonthlyInsolvency(UNNAT_DEATHS_COST);
+    verifyMarketClosedTrade();
+    verifyMarketWasteFire(false);
+    verifyMarketWasteFire(true);
     verifyShantyWaste();
     verifyShantyBulldoze();
     verifyShantyPopulation();

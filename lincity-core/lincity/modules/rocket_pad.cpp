@@ -248,15 +248,22 @@ void RocketPad::remove_people(int num)
       return true;
     });
 
-    if(!housed) {
-      if(!world.gameEnd) {
-        world.gameEnd = true;
-        world.pushMessage(RocketResultMessage::create(
-          point, RocketResultMessage::LaunchResult::EVAC_WIN));
-        return;
-      }
-      break;
-    }
+    if(!housed) break;
+  }
+
+  // A full rocket can stop visiting houses before discovering all remaining
+  // residents, or fill from the pool without visiting houses at all.
+  if(!world.gameEnd && world.people_pool == 0 &&
+    std::none_of(world.map.constructions.begin(), world.map.constructions.end(),
+      [](const Construction* construction) {
+        const auto* residence = dynamic_cast<const Residence*>(construction);
+        return residence && !residence->isDead() && residence->local_population > 0;
+      })
+  ) {
+    world.gameEnd = true;
+    world.pushMessage(RocketResultMessage::create(
+      point, RocketResultMessage::LaunchResult::EVAC_WIN));
+    return;
   }
 
   world.pushMessage(RocketResultMessage::create(

@@ -4,6 +4,8 @@
 #include "lincity/modules/mill.hpp"
 #include "lincity/modules/residence.hpp"
 #include "lincity/modules/solar_power.hpp"
+#include "lincity/modules/power_line.hpp"
+#include "lincity/modules/substation.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
 
@@ -165,6 +167,42 @@ void verifyDetachedConstructionLifetime() {
   require(destructions == 2, "ending the city lost a detached construction");
 }
 
+void verifyPowerCableLimits() {
+  World world(32);
+  const MapPoint site(12, 12);
+  const int size = substationConstructionGroup.size;
+  substationConstructionGroup.placeItem(world, site);
+  struct Cable { MapPoint water; MapPoint pole; int mask; unsigned flag; };
+  const Cable cables[] = {
+    {site.n(), site.n(2), 8, FLAG_POWER_CABLES_0},
+    {site.w(), site.w(2), 4, FLAG_POWER_CABLES_90},
+    {site.e(size), site.e(size + 1), 2, FLAG_POWER_CABLES_90},
+    {site.s(size), site.s(size + 1), 1, FLAG_POWER_CABLES_0},
+  };
+  for(const auto& link : cables) {
+    world.map(link.water)->setTerrain(GROUP_WATER);
+    powerlineConstructionGroup.placeItem(world, link.pole);
+  }
+
+  world.map(site.ne())->setTerrain(GROUP_WATER);
+  powerlineConstructionGroup.placeItem(world, site.n(2).e());
+  world.map.connect_transport(8, 8, 18, 18);
+  auto& station = *world.map(site)->getConstruction();
+  for(const auto& link : cables) {
+    require(station.countPowercables(link.mask) == 1,
+            "power line did not link to the intended side");
+    require(world.map(link.water)->flags & link.flag,
+            "power line did not span the intended water tile");
+  }
+  require(!(world.map(site.ne())->flags & FLAG_POWER_CABLES_0),
+          "two suspended cables were attached on the same side");
+
+  world.bulldozeArea(site.n(2));
+  require(station.countPowercables(8) == 1, "remaining north cable did not take over");
+  require(world.map(site.ne())->flags & FLAG_POWER_CABLES_0, "north cable did not relocate");
+  require(!(world.map(site.n())->flags & FLAG_POWER_CABLES_0), "removed north cable survived");
+}
+
 void verifyModule(ConstructionGroup& group) {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -220,6 +258,7 @@ int main() {
     verifyInventoryAndProductionReport();
     verifyResidenceFootprints();
     verifyDetachedConstructionLifetime();
+    verifyPowerCableLimits();
     verifyMill(STUFF_COAL, COAL_USED_BY_MILL);
     verifyMill(STUFF_LOVOLT, COAL_USED_BY_MILL * MILL_POWER_PER_COAL);
     verifySolarPower(0, POWERS_SOLAR_OUTPUT);
