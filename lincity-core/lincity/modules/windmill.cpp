@@ -75,19 +75,18 @@ Windmill::Windmill(World& world, ConstructionGroup *cstgrp) :
 }
 
 void Windmill::update() {
-  static bool paid = false;
   if(world.total_time % WINDMILL_RCOST == 0)
-    paid = false;
-  if(!paid)
+    world.windmillPaid = false;
+  if(!world.windmillPaid)
     try {
       world.expense(1, world.stats.expenses.windmill);
-      paid = true;
-    } catch (OutOfMoneyMessage ex) { }
+      world.windmillPaid = true;
+    } catch(const OutOfMoneyMessage::Exception&) { }
 
   int lovolt_made = (commodityCount[STUFF_LOVOLT] + lovolt_output <= MAX_LOVOLT_AT_WINDMILL)?lovolt_output:MAX_LOVOLT_AT_WINDMILL-commodityCount[STUFF_LOVOLT];
   int labor_used = WINDMILL_LABOR * lovolt_made / lovolt_output;
 
-  if(paid
+  if(world.windmillPaid
     && commodityCount[STUFF_LABOR] >= labor_used
     && lovolt_made >= WINDMILL_LOVOLT
   ) {

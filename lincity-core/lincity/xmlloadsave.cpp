@@ -42,6 +42,7 @@
 #include <iostream>                       // for basic_ostream, operator<<
 #include <list>                           // for list, _List_iterator
 #include <memory>                         // for allocator, unique_ptr, shar...
+#include <optional>
 #include <regex>                          // for operator==, regex_match, regex
 #include <set>                            // for set
 #include <sstream>                        // for basic_ostringstream
@@ -996,6 +997,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   unsigned int ldsv_version
 ) {
   Map& map = world.map;
+  std::optional<MapPoint> savedRecentPoint;
   std::list<std::pair<Construction *, MapPoint>> constructions;
 
   if(ldsv_version > 2130) {
@@ -1041,6 +1043,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
       constructions.emplace_back(cst, point);
     }
     else if(xmlReader.get_name() == "recentPoint" && ldsv_version > 2130) {
+      savedRecentPoint = map.recentPoint;
       bool found_x = false, found_y = false;
       if(!xmlReader.is_empty_element() && xmlReader.read())
       while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
@@ -1049,11 +1052,11 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
           continue;
         }
         if(xmlReader.get_name() == "x") {
-          map.recentPoint.x = p<int>(xmlReader.read_inner_xml());
+          savedRecentPoint->x = p<int>(xmlReader.read_inner_xml());
           found_x = true;
         }
         else if(xmlReader.get_name() == "y") {
-          map.recentPoint.y = p<int>(xmlReader.read_inner_xml());
+          savedRecentPoint->y = p<int>(xmlReader.read_inner_xml());
           found_y = true;
         }
         else
@@ -1074,6 +1077,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   for(auto& cst : constructions) {
     cst.first->place(cst.second);
   }
+  if(savedRecentPoint) map.recentPoint = *savedRecentPoint;
 
   map.alt_min = map.alt_max = map(MapPoint(0,0))->ground.altitude;
   for(const MapTile& tile : map) {

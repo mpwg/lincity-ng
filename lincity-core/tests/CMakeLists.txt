@@ -26,3 +26,10 @@ add_test(NAME core.modules COMMAND core_modules)
 add_executable(core_world_generation world_generation.cpp)
 target_link_libraries(core_world_generation PRIVATE LinCity::Core randutil)
 add_test(NAME core.world_generation COMMAND core_world_generation)
+
+add_executable(core_characterization characterization.cpp)
+target_link_libraries(core_characterization PRIVATE LinCity::Core randutil)
+foreach(case port vehicles calendar fire windmill saves)
+  add_test(NAME "core.characterization.${case}" COMMAND core_characterization "${case}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" "${CMAKE_CURRENT_BINARY_DIR}/${case}.sav.gz")
+endforeach()

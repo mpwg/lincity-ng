@@ -292,6 +292,8 @@ public:
 private:
   friend class Construction; // dispatches vehicles during trade
   friend class Vehicle; // unregisters itself when removed
+  friend class Windmill; // mills share the operating payment within this city
+  bool windmillPaid = false;
   std::list<Vehicle*> vehicleList;
   std::deque<Message::ptr> messageQueue;
   std::unordered_set<Updatable> updatedSet;

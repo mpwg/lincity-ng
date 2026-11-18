@@ -24,7 +24,8 @@
 
 #include <algorithm>         // for max
 #include <cassert>           // for assert
-#include <climits>           // for INT_MAX
+#include <climits>           // for INT_MAX, INT_MIN
+#include <cstdint>           // for int64_t
 #include <deque>             // for deque
 #include <initializer_list>  // for initializer_list
 #include <optional>          // for optional, nullopt, nullopt_t
@@ -40,28 +41,31 @@
 #include "world.hpp"         // for Map, World, MapTile
 #include "util/randutil.hpp"
 
+static int addClamped(int value, int delta) {
+  return static_cast<int>(std::clamp<std::int64_t>(
+    std::int64_t(value) + delta, INT_MIN, INT_MAX));
+}
+
 void
 World::income(int amt, Stat<int>& account) {
   assert(amt >= 0);
-  int newBal = total_money + amt;
-  if(newBal < total_money)
-    newBal = INT_MAX;
-  total_money = newBal;
-  account -= amt;
+  total_money = addClamped(total_money, amt);
+  account.acc = addClamped(account.acc, -amt);
   setUpdated(Updatable::MONEY);
 }
 
 void
 World::expense(int amt, Stat<int>& account, bool allowCredit) {
   assert(amt >= 0);
-  int newBal = total_money - amt;
-  if(newBal < (allowCredit ? -2000000000 : 0) || newBal > total_money)
-    throw OutOfMoneyMessage::create(allowCredit)->exception();
-  total_money = newBal;
-  account += amt;
+  int oldBal = total_money;
+  std::int64_t newBal = std::int64_t(oldBal) - amt;
+  if(newBal < (allowCredit ? -2000000000 : 0))
+    OutOfMoneyMessage::create(allowCredit)->throwEx();
+  total_money = static_cast<int>(newBal);
+  account.acc = addClamped(account.acc, amt);
   setUpdated(Updatable::MONEY);
   // TODO: move to ng
-  if(total_money > 0 && newBal <= 0)
+  if(oldBal > 0 && newBal <= 0)
     pushMessage(OutOfMoneyMessage::create(false));
 }
 
