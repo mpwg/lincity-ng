@@ -29,10 +29,7 @@
 Stats::Stats() {
   for(unsigned int& gc : groupCount) gc = 0;
 
-  history.pop.resize(190);
-  history.starve.resize(190);
-  history.nojobs.resize(190);
-  history.ppool.resize(190);
+  ensurePopulationHistory(190);
   history.tech.resize(12);
   history.money.resize(12);
   history.pollution.resize(2);
@@ -45,6 +42,13 @@ Stats::Stats() {
 }
 
 Stats::~Stats() { }
+
+void
+Stats::ensurePopulationHistory(std::size_t months) {
+  for(auto* series : {&history.pop, &history.ppool, &history.nojobs, &history.starve})
+    if(series->size() < months)
+      series->resize(months);
+}
 
 void
 Stats::daily() {

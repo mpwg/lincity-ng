@@ -798,7 +798,7 @@ MainMenu::loadGameSaveButtonClicked(Button *) {
     if(i == buttonNames.size() - 1) { assert(false); return; }
 
   assert(!!game);
-  World& world = game->getWorld();
+  const World& world = game->getWorld();
 
   getSound()->playSound( "Click" );
 

@@ -156,12 +156,9 @@ EconomyGraph::drawHistoryLineGraph(Painter& painter, Rect2D space) {
   painter.setFillColor(grey);
   painter.fillRectangle(space);
 
-  auto& history = game->getWorld().stats.history;
   const int w = (int)space.getWidth();
-  if(history.pop.size() < w) history.pop.resize(w);
-  if(history.ppool.size() < w) history.ppool.resize(w);
-  if(history.nojobs.size() < w) history.nojobs.resize(w);
-  if(history.starve.size() < w) history.starve.resize(w);
+  if(w > 0) game->ensurePopulationHistory(w);
+  const auto& history = game->getWorld().stats.history;
 
   // Half needs to be (.0,.0) to avoid gaps in the line from
   // implementation-dependent tie-breaking. If half is (.5,.5) then lines will

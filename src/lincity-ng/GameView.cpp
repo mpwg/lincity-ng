@@ -162,7 +162,7 @@ GameView::setGame(Game *game) {
   });
 }
 
-World&
+const World&
 GameView::getWorld() const {
   return game->getWorld();
 }
@@ -234,7 +234,7 @@ void GameView::readOrigin( bool redraw /* = true */ ) {
  * set main_screen_originx and main_screen_originy
  */
 void GameView::writeOrigin() {
-  getWorld().map.recentPoint = getCenter().x;
+  game->setSavedViewOrigin(MapPoint(getCenter().x, 0));
 }
 
 /*
@@ -1105,7 +1105,7 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
     //Texture* texture = 0;
     MapPoint upperLeft = realTile(tile);
 
-    ConstructionGroup *cstgrp =
+    const ConstructionGroup *cstgrp =
       getWorld().map(upperLeft)->getTopConstructionGroup();
     ResourceGroup *resgrp;
     unsigned short size = cstgrp->size;
@@ -1127,7 +1127,7 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
         }
         GraphicsInfo *graphicsInfo = 0;
         //draw visible tiles underneath constructions
-        if(Construction *cst = getWorld().map(upperLeft)->reportingConstruction;
+        if(const Construction *cst = getWorld().map(upperLeft)->reportingConstruction;
           !cst || (cst->flags & FLAG_TRANSPARENT))
         {
             if (textures_ready && tileImages.at(resgrp).loaded)
@@ -1148,8 +1148,8 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
             draw_colored_site = false;
             if (getWorld().map(upperLeft)->framesptr)
             {
-                for(std::list<ExtraFrame>::iterator frit = getWorld().map(upperLeft)->framesptr->begin();
-                    frit != getWorld().map(upperLeft)->framesptr->end(); std::advance(frit, 1))
+                for(auto frit = getWorld().map(upperLeft)->framesptr->cbegin();
+                    frit != getWorld().map(upperLeft)->framesptr->cend(); ++frit)
                 {
                     if(textures_ready && frit->resourceGroup && tileImages.at(frit->resourceGroup).loaded)
                     {
@@ -1236,13 +1236,13 @@ void GameView::markTile(Painter& painter, MapPoint point) {
     Vector2 tileOnScreenPoint = getScreenPoint(point);
     {
       MapPoint upperLeft = realTile(point);
-      Construction *cst;
+      const Construction *cst;
       if(game->getMpsMap().tile
         && upperLeft == realTile(game->getMpsMap().tile->point)
         && getUserOperation()->action == UserOperation::ACTION_QUERY
         && (cst = getWorld().map(point)->reportingConstruction)
       ) {
-        ConstructionGroup *constructionGroup = cst->constructionGroup;
+        const ConstructionGroup *constructionGroup = cst->constructionGroup;
         int range = constructionGroup->range;
         int edgelen = 2 * range + constructionGroup->size;
         painter.setFillColor(Color(0, 255, 0, 64));

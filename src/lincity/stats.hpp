@@ -26,6 +26,7 @@
 #define __stats_h__
 
 #include <array>
+#include <cstddef>
 #include <deque>  // for deque
 
 #include "commodities.hpp"
@@ -53,7 +54,7 @@ template<typename T = int, T zero = 0>
 class Stat {
 public:
 
-  operator T() { return stat; }
+  operator T() const { return stat; }
   void operator+=(const T& rhs) { acc += rhs; }
   void operator-=(const T& rhs) { acc -= rhs; }
   void operator++(int) { acc++; }
@@ -162,7 +163,7 @@ public:
       return *this;
     }
 
-    int percent() {
+    int percent() const {
       if(capacity == 0) return 0;
       return amount * 1000L / capacity;
     }
@@ -197,6 +198,7 @@ public:
   int tech_level = 0;
   int total_money = 0;
 
+  void ensurePopulationHistory(std::size_t months);
   void daily();
   void monthly();
   void yearly();

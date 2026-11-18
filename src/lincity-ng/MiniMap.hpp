@@ -60,8 +60,8 @@ public:
 
     void setGameViewCorners(Vector2 upperLeft, Vector2 lowerRight);
 
-    Color getColor(MapTile& tile) const;
-    Color getColorNormal(MapTile& tile) const;
+    Color getColor(const MapTile& tile) const;
+    Color getColorNormal(const MapTile& tile) const;
 
     void switchView(const std::string& viewname);
     void scrollPageDown(bool down);
@@ -98,7 +98,7 @@ private:
     void constrainPosition();
 
     Game *game = nullptr;
-    World& getWorld() const;
+    const World& getWorld() const;
 
     Vector2 upperLeft, lowerRight;
 

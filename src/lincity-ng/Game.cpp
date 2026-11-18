@@ -172,10 +172,40 @@ Game::loadGui() {
   gui->resize(width, height);
 }
 
-World&
+const World&
 Game::getWorld() const {
   assert(world);
   return *world;
+}
+
+void
+Game::setMarketTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
+  world->setMarketTrade(point, commodity, buy, sell);
+}
+
+void
+Game::setPortTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
+  world->setPortTrade(point, commodity, buy, sell);
+}
+
+void
+Game::launchRocket(MapPoint point) {
+  world->launchRocket(point);
+}
+
+void
+Game::surveyCoal() {
+  world->do_coal_survey();
+}
+
+void
+Game::setSavedViewOrigin(MapPoint point) {
+  world->map.recentPoint = point;
+}
+
+void
+Game::ensurePopulationHistory(std::size_t months) {
+  world->stats.ensurePopulationHistory(months);
 }
 
 void
@@ -740,7 +770,7 @@ Game::handleMessage(Message::ptr message_) {
       .imageFile("images/gui/dialogs/info.png") // TODO: rocket icon
       .buttonSet(DialogBuilder::ButtonSet::YESNO)
       .onYes([this, point = message->getPoint()]() {
-        getWorld().launchRocket(point);
+        launchRocket(point);
       })
       .build();
   }

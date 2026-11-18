@@ -130,7 +130,7 @@ private:
     float tileWidth, tileHeight, zoom;
 
     Game *game = nullptr;
-    World& getWorld() const;
+    const World& getWorld() const;
     UserOperation *getUserOperation() const;
 
     enum {

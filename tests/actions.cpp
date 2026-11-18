@@ -3,6 +3,7 @@
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/world.hpp"
 
+#include <deque>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -186,6 +187,29 @@ void rocketCommands() {
   CHECK(!world.launchRocket(site));
 }
 
+void populationHistoryWindow() {
+  World world(32);
+  Stats& stats = world.stats;
+  stats.history.pop = {30, 20};
+  stats.history.ppool = {5};
+  stats.history.nojobs = {7, 6, 4};
+  stats.history.starve.clear();
+  stats.ensurePopulationHistory(2);
+  CHECK(stats.history.pop == std::deque<int>({30, 20}));
+  CHECK(stats.history.ppool == std::deque<int>({5, 0}));
+  CHECK(stats.history.nojobs == std::deque<int>({7, 6, 4}));
+  CHECK(stats.history.starve == std::deque<int>({0, 0}));
+  stats.ensurePopulationHistory(300);
+  stats.population.population_m += 45;
+  stats.monthly();
+  CHECK(stats.history.pop.size() == 300 && stats.history.pop[0] == 45);
+  CHECK(stats.history.pop[1] == 30 && stats.history.pop[2] == 20);
+  CHECK(stats.history.ppool.size() == 300 && stats.history.ppool[1] == 5);
+  CHECK(stats.history.nojobs.size() == 300 && stats.history.nojobs[1] == 7);
+  CHECK(stats.history.starve.size() == 300 && stats.history.starve[1] == 0);
+  CHECK(stats.history.tech.size() == 12);
+}
+
 void terrainAndSurvey() {
   World world(32);
   UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
@@ -232,6 +256,7 @@ int main() {
     rocketCommands();
     protectedMonument();
     terrainAndSurvey();
+    populationHistoryWindow();
   } catch(const Message::Exception& e) {
     std::cerr << e.what() << '\n';
     return 1;

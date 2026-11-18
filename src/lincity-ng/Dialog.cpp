@@ -265,7 +265,7 @@ void Dialog::gameStats(){
     }
 
     // Fill in Fields.
-    World& world = game.getWorld();
+    const World& world = game.getWorld();
     int line = 1;
     int maxlength = 567;
     char* outf = (char *) malloc ( maxlength );
@@ -406,7 +406,7 @@ void Dialog::saveGameStats(){
     std::ofstream results(getConfig()->userDataDir.get() / RESULTS_FILENAME);
 
     // Fill in Fields.
-    World& world = game.getWorld();
+    const World& world = game.getWorld();
     int maxlength = 567;
     char* outf = (char *) malloc ( maxlength );
     //int group_count[NUM_OF_GROUPS];
@@ -630,7 +630,7 @@ void Dialog::applyMarketButtonClicked( Button* ){
       if(!marketConstructionGroup.commodityRuleCount[c].maxload) continue;
       auto* buy = getCheckButton(*myDialogComponent, std::string("Buy") + commodityNames[c]);
       auto* sell = getCheckButton(*myDialogComponent, std::string("Sell") + commodityNames[c]);
-      game.getWorld().setMarketTrade(point, c, buy->isChecked(), sell->isChecked());
+      game.setMarketTrade(point, c, buy->isChecked(), sell->isChecked());
     }
     game.getMpsMap().refresh();
     windowManager->removeWindow( myDialogComponent );
@@ -669,7 +669,7 @@ void Dialog::applyPortButtonClicked( Button* ){
         (isGive ? sell : buy) = cb->isChecked();
       }
 
-      game.getWorld().setPortTrade(point, c, buy, sell);
+      game.setPortTrade(point, c, buy, sell);
     }
 
     windowManager->removeWindow( myDialogComponent );
@@ -678,7 +678,7 @@ void Dialog::applyPortButtonClicked( Button* ){
 }
 
 void Dialog::okayLaunchRocketButtonClicked(Button *) {
-  game.getWorld().launchRocket(point);
+  game.launchRocket(point);
   windowManager->removeWindow(myDialogComponent);
   blockingDialogIsOpen = false;
   unRegisterDialog();
@@ -686,7 +686,7 @@ void Dialog::okayLaunchRocketButtonClicked(Button *) {
 
 
 void Dialog::okayCoalSurveyButtonClicked( Button* ){
-    game.getWorld().do_coal_survey();
+    game.surveyCoal();
     windowManager->removeWindow( myDialogComponent );
     blockingDialogIsOpen = false;
     unRegisterDialog();

@@ -296,7 +296,7 @@ ButtonPanel::setGame(Game *game) {
 
 void
 ButtonPanel::updateTech() {
-  World& world = game->getWorld();
+  const World& world = game->getWorld();
   for(auto t : tools){
     Tool *tool = t.second;
     UserOperation& op = tool->operation;

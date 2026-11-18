@@ -167,7 +167,7 @@ MiniMap::toggleStuffID(int step)
     updateStatusMessage();
 }
 
-World&
+const World&
 MiniMap::getWorld() const {
   return game->getWorld();
 }
@@ -667,7 +667,7 @@ void MiniMap::refreshTexture(Painter& painter) {
 
   bool tileMode = mMode == COAL || mMode == POLLUTION;
 
-  for(MapTile& tile : game->getWorld().map) {
+  for(const MapTile& tile : game->getWorld().map) {
     if(!game->getWorld().map.is_visible(tile.point))
       continue;
     if(tile.reportingConstruction && !tile.construction && !tileMode)
@@ -686,7 +686,7 @@ void MiniMap::refreshTexture(Painter& painter) {
   painter.popRenderTarget();
 }
 
-Color MiniMap::getColorNormal(MapTile& tile) const {
+Color MiniMap::getColorNormal(const MapTile& tile) const {
     int mc = tile.getConstructionGroup()->colour;
 
     int red = 0;
@@ -704,7 +704,7 @@ Color MiniMap::getColorNormal(MapTile& tile) const {
 }
 
 Color
-MiniMap::getColor(MapTile& tile) const {
+MiniMap::getColor(const MapTile& tile) const {
 
   switch(mMode)
   {
@@ -753,7 +753,7 @@ MiniMap::getColor(MapTile& tile) const {
   }
   case FIRE:
     if(tile.getGroup() == GROUP_FIRE) {
-      if(!static_cast<Fire*>(tile.reportingConstruction)->smoking_days) {
+      if(!static_cast<const Fire*>(tile.reportingConstruction)->smoking_days) {
         return Color(0xFF,0,0); //still burning (red)
       } else  {
         return Color(0xFF,0x99,0); //unbulldozable (orange)
@@ -886,14 +886,14 @@ MiniMap::getColor(MapTile& tile) const {
     if((conflags & FLAG_IS_TRANSPORT) || (tile.getGroup() == GROUP_POWER_LINE)) {
       float loc_lvl = -1;
       if (conflags & FLAG_IS_TRANSPORT) {
-        Transport *transport =
-          static_cast<Transport *>(tile.reportingConstruction);
+        const Transport *transport =
+          static_cast<const Transport *>(tile.reportingConstruction);
         if(transport->constructionGroup->commodityRuleCount[stuff_ID].maxload)
           loc_lvl = transport->trafficCount[stuff_ID];
       }
       else if(tile.getGroup() == GROUP_POWER_LINE) {
-        Powerline *powerline =
-          static_cast<Powerline *>(tile.reportingConstruction);
+        const Powerline *powerline =
+          static_cast<const Powerline *>(tile.reportingConstruction);
         if(powerline->constructionGroup->commodityRuleCount[stuff_ID].maxload)
           loc_lvl = powerline->trafficCount[stuff_ID];
       }

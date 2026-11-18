@@ -591,9 +591,9 @@ int Construction::countPowercables(int mask)
 
 
 
-int Construction::tellstuff(Commodity stuff_ID, int center_ratio) //called by Minimap and connecttransport
+int Construction::tellstuff(Commodity stuff_ID, int center_ratio) const //called by Minimap and connecttransport
 {
-    CommodityRule& rule = constructionGroup->commodityRuleCount[stuff_ID];
+    const CommodityRule& rule = constructionGroup->commodityRuleCount[stuff_ID];
     if (rule.maxload)
     {
         int loc_lvl = commodityCount[stuff_ID];

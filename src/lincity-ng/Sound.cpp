@@ -59,7 +59,6 @@ Sound::soundThread(void* ptr)
 {
     Sound* sound = (Sound*) ptr;
     sound->loadWaves();
-    sound->soundsReady = true;
     return 0;
 }
 
@@ -139,6 +138,7 @@ Sound::loadWaves() {
       }
       if(!chunk) continue;
       loadedAudio.push_back(chunk);
+      const std::lock_guard<std::mutex> lock(soundTableMutex);
       if (resourceID_level && resGrpVec.size()) {
         for(size_t i=0; i< resGrpVec.size(); ++i)
           tileSounds[resGrpVec[i]].push_back(chunk);
@@ -150,8 +150,6 @@ Sound::loadWaves() {
       key.clear();
     }
   }
-
-
 }
 
  /*
@@ -312,22 +310,22 @@ Sound::playSound(const std::string& name) {
   if(!getConfig()->soundEnabled.get()) {
     return;
   }
-  if(!soundsReady) return;
+  if(!audioOpen) return;
 
-  chunks_t::size_type count = waves.count( name );
-  if(count == 0) {
-    std::cout << "Couldn't find audio file '" << name << "'" << std::endl;
-    return;
+  MIX_Audio* chunk;
+  {
+    const std::lock_guard<std::mutex> lock(soundTableMutex);
+    const auto count = waves.count(name);
+    if(count == 0) {
+      std::cout << "Couldn't find audio file '" << name << "'" << std::endl;
+      return;
+    }
+    auto it = waves.find(name);
+    for(auto offset = rand() % count; offset > 0; --offset)
+      ++it;
+    chunk = it->second;
   }
-
-  chunks_t::iterator it = waves.find(name);
-  for(int i = rand() % count; i > 0; i--) {
-    it++;
-  }
-
-  MIX_SetTrackGain(soundTrack, .01f * getConfig()->soundVolume.get());
-  MIX_SetTrackAudio(soundTrack, it->second);
-  MIX_PlayTrack(soundTrack, 0);
+  playASound(chunk);
 }
 
 void
@@ -337,10 +335,14 @@ Sound::playSound(const MapTile& tile) {
     resourceGroup = tile.reportingConstruction->frameIt->resourceGroup;
   else
     resourceGroup = tile.getTileResourceGroup();
-  if(!soundsReady) return;
-  auto it = tileSounds.find(resourceGroup);
-  if(it != tileSounds.end() && !it->second.empty())
-    playASound(it->second[rand() % it->second.size()]);
+  MIX_Audio* chunk;
+  {
+    const std::lock_guard<std::mutex> lock(soundTableMutex);
+    const auto it = tileSounds.find(resourceGroup);
+    if(it == tileSounds.end() || it->second.empty()) return;
+    chunk = it->second[rand() % it->second.size()];
+  }
+  playASound(chunk);
 }
 
 void Sound::playASound(MIX_Audio *chunk) {

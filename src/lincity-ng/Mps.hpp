@@ -88,12 +88,12 @@ public:
   ~MpsMap() { }
 
   void refresh();
-  void setTile(MapTile *tile);
+  void setTile(const MapTile *tile);
   void scroll();
-  void query(MapTile *tile);
+  void query(const MapTile *tile);
 
   Page page = Page::INVENTORY;
-  MapTile *tile = nullptr;
+  const MapTile *tile = nullptr;
 
 private:
 

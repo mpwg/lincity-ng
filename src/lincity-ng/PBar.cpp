@@ -87,7 +87,7 @@ LCPBar::parse(xmlpp::TextReader& reader) {
 
 void
 LCPBar::refresh() {
-  Stats& stats = game->getWorld().stats;
+  const Stats& stats = game->getWorld().stats;
   for(int b = 0; b < bars.size(); b++) {
     Bar bar = bars[b];
 

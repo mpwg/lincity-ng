@@ -24,11 +24,13 @@
 #define __GAME_HPP__
 
 #include <SDL3/SDL.h>            // for SDL_Window
+#include <cstddef>               // for size_t
 #include <list>                  // for list
 #include <memory>                // for unique_ptr
 #include <string>                // for string
 
 #include "lincity/UserOperation.hpp"     // for UserOperation
+#include "lincity/commodities.hpp"
 #include "gui/Signal.hpp"        // for Signal
 #include "lincity/messages.hpp"  // for Message
 #include "gui/Paragraph.hpp"
@@ -57,11 +59,17 @@ public:
 
     void showHelpWindow(std::string topic);
 
-    World& getWorld() const;
+    const World& getWorld() const;
     void setWorld(std::unique_ptr<World>&& world);
     UserOperation& getUserOperation();
     const UserOperation& getUserOperation() const;
     void executeUserOperation(MapPoint point);
+    void setMarketTrade(MapPoint point, Commodity commodity, bool buy, bool sell);
+    void setPortTrade(MapPoint point, Commodity commodity, bool buy, bool sell);
+    void launchRocket(MapPoint point);
+    void surveyCoal();
+    void setSavedViewOrigin(MapPoint point);
+    void ensurePopulationHistory(std::size_t months);
 
     Component& getGui() const;
     WindowManager& getWindowManager() const;

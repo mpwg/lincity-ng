@@ -226,7 +226,7 @@ MpsMap::refresh() {
 }
 
 void
-MpsMap::setTile(MapTile *tile) {
+MpsMap::setTile(const MapTile *tile) {
   this->tile = tile;
   refresh();
 }
@@ -251,7 +251,7 @@ MpsMap::scroll() {
 }
 
 void
-MpsMap::query(MapTile *tile) {
+MpsMap::query(const MapTile *tile) {
   if(tile == this->tile) {
     scroll();
   }
@@ -262,7 +262,7 @@ MpsMap::query(MapTile *tile) {
 
 void
 MpsMap::refreshInvProd(bool production) {
-  ConstructionGroup *tileCstGrp = tile->getTileConstructionGroup();
+  const ConstructionGroup *tileCstGrp = tile->getTileConstructionGroup();
   if(tile->reportingConstruction) {
     tile->reportingConstruction->report(*this, production);
   }
@@ -397,7 +397,7 @@ MpsFinance::refresh() {
 
 void
 MpsFinance::refreshCashFlow() {
-  Stats& stats = game->getWorld().stats;
+  const Stats& stats = game->getWorld().stats;
   int amt;
   int cashflow = 0;
 
@@ -455,7 +455,7 @@ MpsFinance::refreshCashFlow() {
 
 void
 MpsFinance::refreshCosts() {
-  Stats& stats = game->getWorld().stats;
+  const Stats& stats = game->getWorld().stats;
   addLabel(N_("Other Costs"));
   addInteger(N_("For year"), current_year(game->getWorld().total_time) - 1);
   addBlank();
@@ -473,7 +473,7 @@ MpsFinance::refreshCosts() {
 
 void
 MpsFinance::refreshPopulation() {
-  Stats& stats = game->getWorld().stats;
+  const Stats& stats = game->getWorld().stats;
   addLabel(N_("Population") );
   addBlank();
   addInteger(N_("Total"), stats.population.population_m / NUMOF_DAYS_IN_MONTH);
