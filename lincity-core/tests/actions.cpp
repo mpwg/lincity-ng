@@ -615,13 +615,24 @@ void terrainAndSurvey() {
 
 void protectedMonument() {
   World world(32);
+  world.total_money = 2 * monumentConstructionGroup.bul_cost;
   monumentConstructionGroup.placeItem(world, site);
+  const auto* monument = world.map(site)->getConstruction();
   Message::ptr why;
   UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
-  CHECK(!bulldoze.isAllowedHere(world, site, why));
-  CHECK(dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(why));
-  checkRejected<CannotBulldozeIncompleteMonumentMessage>(bulldoze, world, site);
-  CHECK(world.map(site)->getConstruction() && world.total_money == 0);
+  const MapPoint selected = site.se();
+  CHECK(world.map(selected)->getReportingConstruction() == monument);
+  CHECK(!bulldoze.isAllowedHere(world, selected, why));
+  const auto preview = dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(why);
+  CHECK(preview && preview->getPoint() == site && &preview->getGroup() == &monumentConstructionGroup);
+
+  const auto rejected = checkRejected<CannotBulldozeThisMessage>(bulldoze, world, selected);
+  CHECK(dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(rejected));
+  CHECK(rejected->getPoint() == site && &rejected->getGroup() == &monumentConstructionGroup &&
+        rejected->str() == preview->str());
+  CHECK(world.map(selected)->getReportingConstruction() == monument &&
+        world.total_money == 2 * monumentConstructionGroup.bul_cost &&
+        world.stats.expenses.construction.acc == 0 && !world.popMessage());
 }
 } // namespace
 

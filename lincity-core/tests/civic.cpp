@@ -101,7 +101,8 @@ void verifyPark(ConstructionGroup& group) {
 
 void verifyMonument() {
   World world(32);
-  auto& monument = place<Monument>(world, monumentConstructionGroup, MapPoint(12, 12));
+  const MapPoint site(12, 12);
+  auto& monument = place<Monument>(world, monumentConstructionGroup, site);
   Message::ptr message;
   world.tech_level = 40000;
   world.total_time = 1;
@@ -154,6 +155,13 @@ void verifyMonument() {
   monument.update();
   require(monument.busy == BUILD_MONUMENT_LABOR / MONUMENT_GET_LABOR &&
           monument.working_days == 0, "monument lost its count of construction days");
+
+  world.total_money = GROUP_MONUMENT_BUL_COST;
+  world.bulldozeArea(site.se());
+  require(world.total_money == 0 && world.stats.expenses.construction.acc == GROUP_MONUMENT_BUL_COST &&
+          world.stats.groupCount[GROUP_MONUMENT] == 0 &&
+          !world.map(site)->getConstruction() && !world.map(site.se())->getReportingConstruction(),
+          "bulldozing a completed monument did not clear and charge for its footprint");
 }
 
 void verifyTip() {
@@ -182,9 +190,10 @@ void verifyTip() {
   try {
     world.bulldozeArea(site.se());
     throw std::runtime_error("bulldozing a filled waste tip unexpectedly succeeded");
-  } catch(const CannotBulldozeNonemptyTipMessage::Exception& error) {
+  } catch(const CannotBulldozeThisMessage::Exception& error) {
     const auto refusal = error.getMessage();
-    require(refusal->getPoint() == site && &refusal->getGroup() == &tipConstructionGroup &&
+    require(dynamic_message_cast<CannotBulldozeNonemptyTipMessage>(refusal) &&
+            refusal->getPoint() == site && &refusal->getGroup() == &tipConstructionGroup &&
             refusal->str() == "cannot bulldoze a tip that is full of waste: (12,12)" &&
             world.total_money == 0 && world.map(site)->getConstruction() == &tip,
             "blocked demolition did not identify the tip or altered the city");
@@ -432,6 +441,59 @@ void verifyResidenceDensity() {
             world.stats.population.housing_m.acc == housing.capacity,
             "residence type reported the wrong health, desirability or capacity");
   }
+}
+
+void verifyResidenceAtCapacity() {
+  World world(32);
+  const MapPoint site(12, 12);
+  auto& home = place<Residence>(world, residenceMLConstructionGroup, site);
+  const int capacity = GROUP_RESIDENCE_ML_MAX_POP;
+  home.local_population = capacity;
+  world.people_pool = 1;
+  home.levelStuff(STUFF_FOOD, capacity);
+  home.levelStuff(STUFF_WATER, capacity);
+
+  // A birth takes the residence above capacity even when the draw would not send anyone away.
+  replayChoices("C 1\nC 0\nC 500\n", [&] { home.update(); });
+  require(home.local_population == capacity && world.people_pool == 2 &&
+          world.stats.population.births_t == 1 && world.stats.population.housed_m.acc == capacity,
+          "full residence did not return its additional resident to the pool after a birth");
+
+  home.levelStuff(STUFF_FOOD, capacity);
+  home.levelStuff(STUFF_WATER, capacity);
+  // This migration draw would attract another resident if the house had room.
+  replayChoices("C 1\nC 1\nC 2299\n", [&] { home.update(); });
+  require(home.local_population == capacity && world.people_pool == 2 &&
+          world.stats.population.births_t == 1,
+          "full residence accepted another resident from the pool");
+}
+
+void verifyLastResidentDeath() {
+  World world(32);
+  const MapPoint site(12, 12);
+  world.total_time = NUMOF_DAYS_IN_MONTH - 2;
+  world.people_pool = 0;
+  std::ostringstream choices;
+  choices << "P 1 " << site.x << ' ' << site.y << ' ' << GROUP_RESIDENCE_LL << '\n'
+          << "D " << NUMOF_DAYS_IN_MONTH - 1 << " 1 1\n"
+          << "C 0\nC 1\nC 500\n";
+  replayChoices(choices.str(), [&] {
+    auto& home = place<Residence>(world, residenceLLConstructionGroup, site);
+    home.local_population = 1;
+    home.levelStuff(STUFF_FOOD, 1);
+    home.levelStuff(STUFF_WATER, 1);
+    world.map(site)->pollution = 1600;
+    world.do_time_step();
+  });
+
+  const auto ending = dynamic_message_cast<NoPeopleLeftMessage>(world.popMessage());
+  require(ending && ending->getTime() == NUMOF_DAYS_IN_MONTH - 1 &&
+          ending->str() == "everyone died" && world.gameEnd &&
+          world.stats.population.pollution_deaths_t == 1 && !world.popMessage(),
+          "last resident's death did not emit a single dated city ending");
+  for(int day = 0; day < NUMOF_DAYS_IN_MONTH; ++day)
+    world.do_time_step();
+  require(!world.popMessage(), "empty city repeated the loss event on the next monthly update");
 }
 
 void verifyUniversityFunding() {
@@ -791,6 +853,27 @@ void verifyShantyClusterGrowth() {
           "a growing shanty cluster did not occupy the nearby vacant plot");
 }
 
+void verifyShantySchedule() {
+  World world(32);
+  marketConstructionGroup.placeItem(world, MapPoint(12, 12));
+  world.people_pool = SHANTY_MIN_PP + SHANTY_POP;
+  world.tech_level = GROUP_HEALTH_TECH;
+  world.total_time = 14;
+  world.do_time_step();
+  require(world.stats.groupCount[GROUP_SHANTY] == 0,
+          "shanty growth began at the technology threshold");
+
+  ++world.tech_level;
+  world.total_time = DAYS_BETWEEN_SHANTY + 13;
+  world.do_time_step();
+  require(world.stats.groupCount[GROUP_SHANTY] == 0,
+          "shanty growth began before its next scheduled day");
+  world.do_time_step();
+  require(world.total_time == DAYS_BETWEEN_SHANTY + 15 &&
+          world.stats.groupCount[GROUP_SHANTY] == 1,
+          "shanty growth did not begin on schedule above the technology threshold");
+}
+
 void verifyShantyOnFullMap(bool hasShanty) {
   World world(8);
   const MapPoint market(2, 2);
@@ -882,6 +965,8 @@ int main() {
     verifyResidenceMigration();
     verifyResidencePollution();
     verifyResidenceDensity();
+    verifyResidenceAtCapacity();
+    verifyLastResidentDeath();
     verifyResidenceFire();
     verifyFireLifetime(false);
     verifyFireLifetime(true);
@@ -899,6 +984,7 @@ int main() {
     verifyShantyBulldoze();
     verifyShantyPopulation();
     verifyShantyClusterGrowth();
+    verifyShantySchedule();
     verifyShantyOnFullMap(false);
     verifyShantyOnFullMap(true);
     verifyShantyAtMapEdge();
