@@ -34,6 +34,7 @@
 #include <map>                 // for map
 #include <string>              // for basic_string, char_traits, operator<
 
+#include "Vehicles.hpp"        // for Vehicle
 #include "all_buildings.hpp"   // for GROUP_WATER_COST
 #include "groups.hpp"          // for GROUP_WATER, GROUP_BARE, GROUP_DESERT
 #include "lin-city.hpp"        // for FLAG_IS_RIVER, FLAG_TRANSPARENT, FLAG_...
@@ -427,6 +428,15 @@ World::World(int mapSize) :
 }
 
 World::~World() {
+  // Vehicles remove their own list entry and animation frame.
+  while(!vehicleList.empty())
+    delete vehicleList.front();
+
+  // Attached buildings belong to their tiles. Demolished buildings remain
+  // registered until the next tick, which may never run when a city closes.
+  for(auto* building : map.constructions)
+    if(building->isDead())
+      delete building;
 }
 
 void

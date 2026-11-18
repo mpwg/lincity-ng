@@ -2,6 +2,7 @@
 #include "lincity/lintypes.hpp"
 #include "lincity/modules/blacksmith.hpp"
 #include "lincity/modules/mill.hpp"
+#include "lincity/modules/residence.hpp"
 #include "lincity/modules/solar_power.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
@@ -9,11 +10,15 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <tuple>
+#include <vector>
 
 namespace {
 class Report : public ConstructionReport {
 public:
   int rows = 0;
+  using Quantity = std::tuple<std::string, std::string, int, int>;
+  std::vector<Quantity> quantities;
 
   void addBlank() override { ++rows; }
   void addLabel(const std::string&) override { ++rows; }
@@ -22,7 +27,9 @@ public:
   void addDecimal(const std::string&, double) override { ++rows; }
   void addPercentage(const std::string&, double) override { ++rows; }
   void addQuantity(const std::string&, int, int) override { ++rows; }
-  void addPrefixedQuantity(const std::string&, const std::string&, int, int) override {
+  void addPrefixedQuantity(const std::string& prefix, const std::string& label,
+                           int value, int capacity) override {
+    quantities.emplace_back(prefix, label, value, capacity);
     ++rows;
   }
 };
@@ -83,6 +90,81 @@ void verifySolarPower(int tech, int output) {
           "idle solar plant consumed labor");
 }
 
+void verifyInventoryAndProductionReport() {
+  World world(32);
+  const MapPoint site(12, 12);
+  blacksmithConstructionGroup.placeItem(world, site);
+  auto& building = *world.map(site)->getConstruction();
+  building.commodityCount[STUFF_COAL] = BLACKSMITH_COAL_USED;
+  building.commodityCount[STUFF_STEEL] = BLACKSMITH_STEEL_USED;
+  building.commodityCount[STUFF_LABOR] = BLACKSMITH_LABOR;
+  world.total_time = 99;
+  building.update();
+
+  Report production;
+  building.report(production, true);
+  const std::vector<Report::Quantity> expectedProduction{
+    {"<-- ", "Goods", GOODS_MADE_BY_BLACKSMITH, building.commodityMaxProd[STUFF_GOODS]},
+    {"--> ", "Labor", -BLACKSMITH_LABOR, -building.commodityMaxCons[STUFF_LABOR]},
+    {"--> ", "Coal", -BLACKSMITH_COAL_USED, -building.commodityMaxCons[STUFF_COAL]},
+    {"--> ", "Steel", -BLACKSMITH_STEEL_USED, -building.commodityMaxCons[STUFF_STEEL]}
+  };
+  require(production.quantities == expectedProduction, "wrong monthly production rows");
+
+  world.evacuateArea(site);
+  Report inventory;
+  building.report(inventory, false);
+  const std::vector<Report::Quantity> expectedInventory{
+    {"<<< ", "Goods", GOODS_MADE_BY_BLACKSMITH, MAX_GOODS_AT_BLACKSMITH},
+    {"<<< ", "Labor", 0, MAX_LABOR_AT_BLACKSMITH},
+    {"<<< ", "Coal", 0, MAX_COAL_AT_BLACKSMITH},
+    {"<<< ", "Steel", 0, MAX_STEEL_AT_BLACKSMITH}
+  };
+  require(inventory.quantities == expectedInventory, "wrong evacuating inventory rows");
+  require(Construction::getStuffName(STUFF_COAL) == "Coal",
+          "invalid commodity display name in the finance report");
+}
+
+void verifyResidenceFootprints() {
+  for(auto* group : {&residenceLLConstructionGroup, &residenceMLConstructionGroup,
+                    &residenceHLConstructionGroup, &residenceLHConstructionGroup,
+                    &residenceMHConstructionGroup, &residenceHHConstructionGroup}) {
+    World world(32);
+    const MapPoint site(12, 12);
+    group->placeItem(world, site);
+    const MapPoint corner = site.e(group->size - 1).s(group->size - 1);
+    require(world.map(site)->is_residence() && world.map(corner)->is_residence(),
+            "residential footprint is not recognized");
+    require(!world.map(site.w())->is_residence(), "a bare tile reported a residence");
+    world.bulldozeArea(corner);
+    require(!world.map(site)->is_residence() && !world.map(corner)->is_residence(),
+            "removed residence kept part of its footprint");
+    world.do_time_step();
+    require(world.map.constructionCount() == 0, "detached residence was not pruned");
+  }
+}
+
+void verifyDetachedConstructionLifetime() {
+  struct ObservedSmithy : Blacksmith {
+    ObservedSmithy(World& world, int& destructions)
+      : Blacksmith(world, &blacksmithConstructionGroup), destructions(destructions) {}
+    ~ObservedSmithy() override { ++destructions; }
+
+    int& destructions;
+  };
+
+  int destructions = 0;
+  {
+    World world(32);
+    const MapPoint site(12, 12);
+    (new ObservedSmithy(world, destructions))->place(site);
+    world.bulldozeArea(site);
+    require(destructions == 0, "detached building deleted before the simulation boundary");
+    (new ObservedSmithy(world, destructions))->place(site);
+  }
+  require(destructions == 2, "ending the city lost a detached construction");
+}
+
 void verifyModule(ConstructionGroup& group) {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -135,6 +217,9 @@ int main() {
   }
   try {
     verifyBlacksmith();
+    verifyInventoryAndProductionReport();
+    verifyResidenceFootprints();
+    verifyDetachedConstructionLifetime();
     verifyMill(STUFF_COAL, COAL_USED_BY_MILL);
     verifyMill(STUFF_LOVOLT, COAL_USED_BY_MILL * MILL_POWER_PER_COAL);
     verifySolarPower(0, POWERS_SOLAR_OUTPUT);
