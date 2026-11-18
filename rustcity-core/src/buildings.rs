@@ -75,6 +75,9 @@ impl<T> Buildings<T> {
             .map(|placed| (placed.origin, &placed.value))
     }
 
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (Point, &mut T)> {
+        self.objects.values_mut().map(|p| (p.origin, &mut p.value))
+    }
     pub(crate) fn iter(&self) -> impl Iterator<Item = (Point, &T)> {
         self.objects.values().map(|p| (p.origin, &p.value))
     }

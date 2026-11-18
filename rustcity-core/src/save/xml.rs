@@ -108,6 +108,35 @@ impl Element {
         }
     }
 
+    pub fn remove_attr(&mut self, name: &str) {
+        self.attributes.retain(|(k, _)| k != name);
+    }
+
+    pub fn retain_elements(&mut self, mut keep: impl FnMut(&Element) -> bool) {
+        self.content.retain(|c| match c {
+            Content::Element(e) => keep(e),
+            _ => true,
+        });
+    }
+
+    pub fn i32(&self) -> io::Result<i32> {
+        i32::try_from(super::integer(&self.text())?).map_err(invalid)
+    }
+
+    pub fn child_i32(&self, name: &str, default: i32) -> io::Result<i32> {
+        self.child(name)
+            .map(Element::i32)
+            .transpose()
+            .map(|v| v.unwrap_or(default))
+    }
+
+    pub fn attr_i32(&self, name: &str) -> io::Result<i32> {
+        let v = self
+            .attr(name)
+            .ok_or_else(|| invalid(format!("missing {} on {}", name, self.name)))?;
+        i32::try_from(super::integer(v)?).map_err(invalid)
+    }
+
     fn append_text(&mut self, text: &str) {
         if let Some(Content::Text(s)) = self.content.last_mut() {
             s.push_str(text);

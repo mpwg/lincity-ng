@@ -116,3 +116,15 @@ fn transactions_that_would_exceed_credit_leave_the_map_and_treasury_untouched() 
     assert_eq!(city.terrain(site), Some(Terrain::Grass));
     assert_eq!(city.balance(), -2_000_000_000);
 }
+
+#[test]
+fn crossing_zero_queues_a_single_event_on_the_affected_city() {
+    use rustcity_core::CityEvent;
+    let input = include_bytes!("../../lincity-core/tests/fixtures/blacksmith-2140.xml");
+    let mut city = City::load(input.as_slice()).unwrap();
+    let p = Point { x: 3, y: 4 };
+    city.apply(Action::Flood, p).unwrap();
+    city.apply(Action::Bulldoze, p).unwrap();
+    assert_eq!(city.pop_event(), Some(CityEvent::OutOfMoney));
+    assert_eq!(city.pop_event(), None);
+}

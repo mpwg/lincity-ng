@@ -1,0 +1,342 @@
+//! Bind the runtime reporting periods to their distinct persisted ledger entries.
+use super::{Element, integer, invalid};
+use crate::Commodity;
+use crate::stats::{Inventory, Stat, Stats};
+use std::{collections::VecDeque, io};
+
+fn periods(s: &mut Stats) -> [(&'static str, &'static str, &mut Stat); 27] {
+    [
+        ("population", "population", &mut s.population.population_m),
+        ("population", "housed", &mut s.population.housed_m),
+        ("population", "starving", &mut s.population.starving_m),
+        ("population", "unemployed", &mut s.population.unemployed_m),
+        ("population", "housing", &mut s.population.housing_m),
+        ("population", "births", &mut s.population.births_m),
+        ("population", "deaths", &mut s.population.deaths_m),
+        (
+            "population",
+            "unnat_deaths",
+            &mut s.population.unnat_deaths_m,
+        ),
+        ("income", "income_tax", &mut s.income.income_tax),
+        ("income", "coal_tax", &mut s.income.coal_tax),
+        ("income", "goods_tax", &mut s.income.goods_tax),
+        ("income", "export_tax", &mut s.income.export_tax),
+        ("expenses", "construction", &mut s.expenses.construction),
+        ("expenses", "coalSurvey", &mut s.expenses.coal_survey),
+        ("expenses", "import", &mut s.expenses.import),
+        ("expenses", "unemployment", &mut s.expenses.unemployment),
+        ("expenses", "transport", &mut s.expenses.transport),
+        ("expenses", "windmill", &mut s.expenses.windmill),
+        ("expenses", "university", &mut s.expenses.university),
+        ("expenses", "recycle", &mut s.expenses.recycle),
+        ("expenses", "deaths", &mut s.expenses.deaths),
+        ("expenses", "health", &mut s.expenses.health),
+        ("expenses", "rockets", &mut s.expenses.rockets),
+        ("expenses", "school", &mut s.expenses.school),
+        ("expenses", "firestation", &mut s.expenses.firestation),
+        ("expenses", "cricket", &mut s.expenses.cricket),
+        ("expenses", "interest", &mut s.expenses.interest),
+    ]
+}
+
+fn counters(s: &mut Stats) -> [(&'static str, &'static str, &mut i32); 17] {
+    [
+        ("", "highest_tech_level", &mut s.highest_tech_level),
+        ("", "total_pollution", &mut s.total_pollution),
+        (
+            "population",
+            "evacuated_total",
+            &mut s.population.evacuated_t,
+        ),
+        ("population", "births_total", &mut s.population.births_t),
+        (
+            "population",
+            "pollution_deaths_total",
+            &mut s.population.pollution_deaths_t,
+        ),
+        (
+            "population",
+            "starve_deaths_total",
+            &mut s.population.starve_deaths_t,
+        ),
+        (
+            "population",
+            "unemployed_days_total",
+            &mut s.population.unemployed_days_t,
+        ),
+        ("population", "max_pop_ever", &mut s.population.max_pop_ever),
+        (
+            "sustainability",
+            "mining_years",
+            &mut s.sustainability.mining_years,
+        ),
+        (
+            "sustainability",
+            "trade_years",
+            &mut s.sustainability.trade_years,
+        ),
+        (
+            "sustainability",
+            "old_money",
+            &mut s.sustainability.old_money,
+        ),
+        (
+            "sustainability",
+            "money_years",
+            &mut s.sustainability.money_years,
+        ),
+        (
+            "sustainability",
+            "old_population",
+            &mut s.sustainability.old_population,
+        ),
+        (
+            "sustainability",
+            "population_years",
+            &mut s.sustainability.population_years,
+        ),
+        ("sustainability", "old_tech", &mut s.sustainability.old_tech),
+        (
+            "sustainability",
+            "tech_years",
+            &mut s.sustainability.tech_years,
+        ),
+        (
+            "sustainability",
+            "fire_years",
+            &mut s.sustainability.fire_years,
+        ),
+    ]
+}
+
+fn decays(s: &mut Stats) -> [(&'static str, &'static str, &mut f32); 3] {
+    [
+        (
+            "population",
+            "unemployed_history",
+            &mut s.population.unemployed_history,
+        ),
+        (
+            "population",
+            "pollution_deaths_history",
+            &mut s.population.pollution_deaths_history,
+        ),
+        (
+            "population",
+            "starve_deaths_history",
+            &mut s.population.starve_deaths_history,
+        ),
+    ]
+}
+
+fn flags(s: &mut Stats) -> [(&'static str, &'static str, &mut bool); 3] {
+    [
+        (
+            "sustainability",
+            "trade_flag",
+            &mut s.sustainability.trade_flag,
+        ),
+        (
+            "sustainability",
+            "mining_flag",
+            &mut s.sustainability.mining_flag,
+        ),
+        (
+            "sustainability",
+            "sustainable",
+            &mut s.sustainability.sustainable,
+        ),
+    ]
+}
+
+fn histories(stats: &mut Stats) -> [(&'static str, &mut VecDeque<i32>); 10] {
+    let h = &mut stats.history;
+    [
+        ("pop", &mut h.pop),
+        ("nojobs", &mut h.nojobs),
+        ("starve", &mut h.starve),
+        ("ppool", &mut h.ppool),
+        ("tech", &mut h.tech),
+        ("money", &mut h.money),
+        ("pollution", &mut h.pollution),
+        ("births", &mut h.births),
+        ("deaths", &mut h.deaths),
+        ("unnat_deaths", &mut h.unnat_deaths),
+    ]
+}
+
+fn subsection<'a>(node: &'a Element, section: &str) -> Option<&'a Element> {
+    if section.is_empty() {
+        Some(node)
+    } else {
+        node.child(section)
+    }
+}
+
+fn read_series<T: Default>(
+    node: &Element,
+    values: &mut VecDeque<T>,
+    grow: bool,
+    mut read: impl FnMut(&Element, &mut T) -> io::Result<()>,
+) -> io::Result<()> {
+    for entry in node.elements() {
+        let Some(i) = entry
+            .name
+            .strip_prefix("index_")
+            .and_then(|n| n.parse::<usize>().ok())
+        else {
+            continue;
+        };
+        if i == values.len() && grow {
+            values.push_back(T::default());
+        }
+        if let Some(value) = values.get_mut(i) {
+            read(entry, value)?;
+        }
+    }
+    Ok(())
+}
+
+fn read_stock(entry: &Element, stock: &mut Inventory) -> io::Result<()> {
+    stock.amount = entry.child_i32("amount", stock.amount)?;
+    stock.capacity = entry.child_i32("capacity", stock.capacity)?;
+    Ok(())
+}
+
+pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
+    if let Some(cash) = root.attr("month_end_money") {
+        s.total_money = i32::try_from(integer(cash)?).map_err(invalid)?;
+    }
+    for (group, key, period) in periods(s) {
+        if let Some(node) = root.child(group) {
+            let (last, acc) = if group == "population" {
+                ("lm", "mtd")
+            } else {
+                ("ly", "ytd")
+            };
+            period.stat = node.child_i32(&format!("{key}_{last}"), period.stat)?;
+            period.acc = node.child_i32(&format!("{key}_{acc}"), period.acc)?;
+        }
+    }
+    for (group, key, n) in counters(s) {
+        if let Some(node) = subsection(root, group) {
+            *n = node.child_i32(key, *n)?;
+        }
+    }
+    for (group, key, n) in decays(s) {
+        if let Some(node) = root.child(group).and_then(|g| g.child(key)) {
+            *n = node.text().parse().map_err(invalid)?;
+        }
+    }
+    for (group, key, b) in flags(s) {
+        if let Some(node) = root.child(group).and_then(|g| g.child(key)) {
+            *b = match node.text().as_ref() {
+                "1" | "true" | "TRUE" | "yes" | "YES" | "y" | "Y" => true,
+                "0" | "false" | "FALSE" | "no" | "NO" | "n" | "N" => false,
+                s => return Err(invalid(format!("invalid boolean {s}"))),
+            };
+        }
+    }
+    if let Some(history) = root.child("history") {
+        for (name, values) in histories(s) {
+            if let Some(node) = history.child(name) {
+                read_series(
+                    node,
+                    values,
+                    matches!(name, "pop" | "ppool" | "starve" | "nojobs"),
+                    |e, n| {
+                        *n = e.i32()?;
+                        Ok(())
+                    },
+                )?;
+            }
+        }
+        for (i, c) in Commodity::ALL.into_iter().enumerate() {
+            if let Some(node) = history.child(c.save_name()) {
+                if node.attr("amount_mtd").is_some() {
+                    s.inventory[i].amount.acc = node.attr_i32("amount_mtd")?;
+                }
+                if node.attr("capacity_mtd").is_some() {
+                    s.inventory[i].capacity.acc = node.attr_i32("capacity_mtd")?;
+                }
+                read_series(node, &mut s.history.inventory[i], false, read_stock)?;
+            }
+        }
+        if let Some(node) = history.child("tenants") {
+            read_series(node, &mut s.history.tenants, false, read_stock)?;
+        }
+    }
+    Ok(())
+}
+
+fn write_series<T>(
+    node: &mut Element,
+    values: &VecDeque<T>,
+    mut set: impl FnMut(&mut Element, &T),
+) {
+    node.set_attr("size", values.len().to_string());
+    for (i, v) in values.iter().enumerate() {
+        set(node.section(&format!("index_{i}")), v);
+    }
+}
+
+fn write_stock(e: &mut Element, stock: &Inventory) {
+    e.set_child("amount", stock.amount);
+    e.set_child("capacity", stock.capacity);
+}
+
+pub(crate) fn store(s: &Stats, root: &mut Element, day: i32, cash: i32) {
+    let end = day % 100 == 99;
+    if end && s.total_money != cash {
+        root.set_attr("month_end_money", s.total_money.to_string());
+    } else {
+        root.remove_attr("month_end_money");
+    }
+    // The same field bindings drive reading and writing; the city remains immutably borrowed.
+    let mut report = s.clone();
+    for (group, key, period) in periods(&mut report) {
+        let node = root.section(group);
+        let (last, acc) = if group == "population" {
+            ("lm", "mtd")
+        } else {
+            ("ly", "ytd")
+        };
+        node.set_child(&format!("{key}_{last}"), period.stat);
+        node.set_child(&format!("{key}_{acc}"), period.acc);
+    }
+    for (group, key, n) in counters(&mut report) {
+        if group.is_empty() {
+            root.set_child(key, n);
+        } else {
+            root.section(group).set_child(key, n);
+        }
+    }
+    for (group, key, n) in decays(&mut report) {
+        root.section(group).set_child(key, n);
+    }
+    for (group, key, b) in flags(&mut report) {
+        root.section(group).set_child(key, b);
+    }
+    let history = root.section("history");
+    for (name, values) in histories(&mut report) {
+        write_series(history.section(name), values, |e, v| {
+            e.set_text(v.to_string())
+        });
+    }
+    for (i, c) in Commodity::ALL.into_iter().enumerate() {
+        let node = history.section(c.save_name());
+        for (key, v) in [
+            ("amount_mtd", s.inventory[i].amount.acc),
+            ("capacity_mtd", s.inventory[i].capacity.acc),
+        ] {
+            if end && v != 0 {
+                node.set_attr(key, v.to_string());
+            } else {
+                node.remove_attr(key);
+            }
+        }
+        write_series(node, &s.history.inventory[i], write_stock);
+    }
+    write_series(history.section("tenants"), &s.history.tenants, write_stock);
+}

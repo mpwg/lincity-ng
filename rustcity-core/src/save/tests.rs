@@ -106,11 +106,9 @@ fn cpp_loads_rust_saves_and_rust_loads_cpp_checkpoints() {
             );
         };
         record("record", &fixture, "reference");
-        let mut game = SaveGame::read(fs::File::open(&fixture).unwrap()).unwrap();
-        game.upgrade().unwrap();
+        let game = crate::City::load(fs::File::open(&fixture).unwrap()).unwrap();
         let candidate = dir.join("candidate.gz");
-        game.write_gzip(fs::File::create(&candidate).unwrap())
-            .unwrap();
+        game.save(fs::File::create(&candidate).unwrap()).unwrap();
         record("replay", &candidate, "candidate");
         assert!(
             Command::new("python3")

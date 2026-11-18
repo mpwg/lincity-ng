@@ -7,9 +7,13 @@ pub use commodity::Commodity;
 mod city;
 mod energy;
 mod stats;
-pub use city::{Action, ActionError, City, MapSizeError, Point, Terrain};
+pub use city::{Action, ActionError, City, CityEvent, MapSizeError, Point, Terrain};
 mod building_kind;
 mod buildings;
 pub use building_kind::{BuildDenial, BuildingKind, BuildingMetadata, CommodityRule};
 
+mod power;
 mod save;
+mod workshop;
+
+pub mod decisions;

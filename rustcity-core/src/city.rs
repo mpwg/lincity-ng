@@ -1,3 +1,4 @@
+mod persistence;
 use crate::buildings::Buildings;
 use crate::stats::Stats;
 use crate::{BuildDenial, BuildingKind};
@@ -41,6 +42,7 @@ pub enum ActionError {
 pub struct MapSizeError;
 #[derive(Clone, Copy)]
 struct Tile {
+    pollution: i32,
     river: bool,
     ore: i32,
     ground: Terrain,
@@ -48,7 +50,22 @@ struct Tile {
     groundwater: bool,
 }
 
+enum Operation {
+    Workshop(crate::workshop::Workshop),
+    Solar(crate::energy::SolarPlant),
+    Station(crate::energy::Substation),
+    Coal(crate::power::CoalPlant),
+    Wind(crate::power::WindGenerator),
+    Line(crate::power::PowerLine),
+    Other,
+}
+
 struct Building {
+    installed_tech: i32,
+    neighbors: Vec<crate::buildings::BuildingId>,
+    partners: Vec<crate::buildings::BuildingId>,
+    operation: Operation,
+    production: crate::power::ProductionCounters,
     stock: [i32; 10],
     saved: Option<crate::save::Element>,
     kind: BuildingKind,
@@ -57,8 +74,27 @@ struct Building {
 
 impl Building {
     fn new(kind: BuildingKind) -> Self {
+        Self::installed(kind, 0)
+    }
+    fn installed(kind: BuildingKind, tech: i32) -> Self {
+        use BuildingKind::*;
+        let operation = match kind {
+            Blacksmith | Mill | Pottery => Operation::Workshop(Default::default()),
+            SolarPower => Operation::Solar(crate::energy::SolarPlant::new(tech)),
+            Substation => Operation::Station(Default::default()),
+            CoalPower => Operation::Coal(crate::power::CoalPlant::new(tech)),
+            Windmill => Operation::Wind(crate::power::WindGenerator::windmill(tech)),
+            WindPower => Operation::Wind(crate::power::WindGenerator::wind_power(tech)),
+            PowerLine => Operation::Line(Default::default()),
+            _ => Operation::Other,
+        };
         Self {
+            installed_tech: tech,
+            operation,
+            production: Default::default(),
             kind,
+            neighbors: Vec::new(),
+            partners: Vec::new(),
             stock: [0; 10],
             saved: None,
             evacuating: false,
@@ -66,11 +102,25 @@ impl Building {
     }
 }
 
+/// An ordered simulation notification for the host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CityEvent {
+    OutOfMoney,
+    NoPeopleLeft(i32),
+}
+
 /// An independent city, including its terrain and financial accounts.
 pub struct City {
+    events: std::collections::VecDeque<CityEvent>,
+    saved: Option<crate::save::SaveGame>,
+    day: i32,
+    tech_level: i32,
+    people_pool: i32,
+    recent_point: Point,
     side: i32,
     tiles: Vec<Tile>,
     buildings: Buildings<Building>,
+    wind_expenses: crate::power::WindExpenses,
     balance: i32,
     stats: Stats,
 }
@@ -92,17 +142,32 @@ impl City {
                 ground: Terrain::Grass,
                 frame: 0,
                 groundwater: false,
+                pollution: 0,
                 river: false,
                 ore: 0,
             },
         );
         Ok(Self {
+            saved: None,
+            day: 0,
+            tech_level: 0,
+            people_pool: 100,
+            recent_point: Point {
+                x: side / 2,
+                y: side / 2,
+            },
             side,
             tiles,
+            events: Default::default(),
             buildings: Buildings::new(side),
+            wind_expenses: Default::default(),
             balance: 0,
             stats: Stats::default(),
         })
+    }
+
+    pub fn pop_event(&mut self) -> Option<CityEvent> {
+        self.events.pop_front()
     }
 
     /// Current treasury balance, including outstanding credit.
@@ -190,7 +255,7 @@ impl City {
                 }
             }
             Windmill | WindPower => {
-                if self.stats.tech_level >= WindPower.metadata().required_tech {
+                if self.tech_level >= WindPower.metadata().required_tech {
                     WindPower
                 } else {
                     Windmill
@@ -204,7 +269,7 @@ impl City {
         use BuildingKind::*;
         let kind = self.actual_kind(kind, point);
         kind.can_build(
-            self.stats.tech_level,
+            self.tech_level,
             self.balance,
             self.stats.group_count[School.id() as usize],
             self.stats.group_count[University.id() as usize],
@@ -245,7 +310,7 @@ impl City {
         {
             return Err(ActionError::RequiresRiver);
         }
-        Ok(kind.cost(self.stats.tech_level))
+        Ok(kind.cost(self.tech_level))
     }
 
     /// Quotes an action against the current city without changing it.
@@ -307,6 +372,9 @@ impl City {
             .checked_sub(cost)
             .filter(|v| *v >= -2_000_000_000)
             .ok_or(ActionError::OutOfMoney)?;
+        if self.balance > 0 && balance <= 0 {
+            self.events.push_back(CityEvent::OutOfMoney);
+        }
         self.balance = balance;
         self.stats.expenses.construction.acc =
             self.stats.expenses.construction.acc.saturating_add(cost);
@@ -326,12 +394,15 @@ impl City {
                 let kind = self.actual_kind(kind, point);
                 size = i32::from(kind.metadata().size);
                 if let Some(id) = self.buildings.at(point) {
+                    self.disconnect_building(id);
                     let replaced = self.buildings.remove(id).unwrap();
                     self.stats.group_count[replaced.kind.id() as usize] -= 1;
                 }
                 self.buildings
-                    .place(point, size, Building::new(kind))
+                    .place(point, size, Building::installed(kind, self.tech_level))
                     .expect("validated footprint");
+                self.connect_building(point);
+                self.recent_point = point;
                 self.stats.group_count[kind.id() as usize] += 1;
                 for y in point.y..point.y + size {
                     for x in point.x..point.x + size {
@@ -357,6 +428,7 @@ impl City {
                     let (kind, corner) = self.building_at(point).unwrap();
                     origin = corner;
                     size = i32::from(kind.metadata().size);
+                    self.disconnect_building(id);
                     self.buildings.remove(id);
                     self.stats.group_count[kind.id() as usize] -= 1;
                 } else {
@@ -378,3 +450,5 @@ impl City {
         Ok(())
     }
 }
+mod simulation;
+mod trading;

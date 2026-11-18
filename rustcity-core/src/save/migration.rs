@@ -268,16 +268,8 @@ pub(super) fn upgrade(game: &mut SaveGame) -> io::Result<()> {
     for e in map.elements_mut() {
         if e.name == "Construction" {
             // Legacy placement overwrote the view position on each building.
-            x = e
-                .attr("map-x")
-                .and_then(|s| integer(s).ok())
-                .and_then(|v| i32::try_from(v).ok())
-                .ok_or_else(|| invalid("invalid construction x"))?;
-            y = e
-                .attr("map-y")
-                .and_then(|s| integer(s).ok())
-                .and_then(|v| i32::try_from(v).ok())
-                .ok_or_else(|| invalid("invalid construction y"))?;
+            x = e.attr_i32("map-x")?;
+            y = e.attr_i32("map-y")?;
         }
         let mask_flags = match e.name.as_str() {
             "MapTile" => tile_flags,

@@ -3,28 +3,32 @@ use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use quick_xml::Writer;
 use std::io::{self, BufReader, Read, Write};
 
+pub(crate) mod accounts;
 mod xml;
 pub use xml::Element;
 mod migration;
 #[cfg(test)]
 mod tests;
 
-fn invalid(message: impl std::fmt::Display) -> io::Error {
+pub(crate) fn invalid(message: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.to_string())
 }
 
-fn integer(s: &str) -> io::Result<i64> {
-    let (sign, digits) = s.strip_prefix('-').map_or((1, s), |d| (-1, d));
-    let value = if let Some(hex) = digits
+pub(crate) fn integer(s: &str) -> io::Result<i64> {
+    let digits = s.strip_prefix(['+', '-']).unwrap_or(s);
+    if let Some(hex) = digits
         .strip_prefix("0x")
         .or_else(|| digits.strip_prefix("0X"))
     {
-        i64::from_str_radix(hex, 16)
-    } else {
-        digits.parse()
+        let magnitude = u64::from_str_radix(hex, 16).map_err(invalid)?;
+        let signed = if s.starts_with('-') {
+            -i128::from(magnitude)
+        } else {
+            i128::from(magnitude)
+        };
+        return i64::try_from(signed).map_err(invalid);
     }
-    .map_err(invalid)?;
-    Ok(sign * value)
+    s.parse().map_err(invalid)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,6 +38,16 @@ pub struct SaveGame {
 }
 
 impl SaveGame {
+    pub fn new(side: i32) -> Self {
+        let mut root = Element::new("lc-game");
+        root.set_attr("ldsv-version", "2140");
+        root.push(Element::new("globals"));
+        root.section("map").set_attr("size", side.to_string());
+        Self {
+            root,
+            version: 2140,
+        }
+    }
     pub fn version(&self) -> u32 {
         self.version
     }
@@ -121,7 +135,7 @@ impl SaveGame {
     }
 
     pub fn upgrade(&mut self) -> io::Result<()> {
-        if self.version == 2130 {
+        if self.version() == 2130 {
             migration::upgrade(self)?;
         }
         self.root.set_attr("ldsv-version", "2140");

@@ -166,6 +166,18 @@ impl BuildingKind {
         self as u16
     }
 
+    pub(crate) fn is_transport(self) -> bool {
+        matches!(
+            self,
+            Self::Road
+                | Self::RoadBridge
+                | Self::Track
+                | Self::TrackBridge
+                | Self::Rail
+                | Self::RailBridge
+        )
+    }
+
     pub fn from_id(id: u16) -> Option<Self> {
         Self::ALL
             .binary_search_by_key(&id, |kind| kind.id())
