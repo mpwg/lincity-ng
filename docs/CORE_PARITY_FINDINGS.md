@@ -218,3 +218,28 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   normaler Transportnachbar Waren aufnehmen kann. #70 betrifft
   negative Arbeitsbestände nach einer Evakuierung.
   [#70](https://github.com/lincity-ng/lincity-ng/issues/70)
+- Kurze Bevölkerungshistorien aus Format 2130 werden mit Nullwerten
+  auf die vorhandene Standardlänge ergänzt. Alle vier Reihen behalten
+  damit ihre erfassten Monate beim ersten Monatswechsel nach Laden oder
+  nach erneutem Speichern. Längere Altbestände bleiben vollständig.
+
+## Offene Abweichungen bei der Fortsetzung eines Spielstands
+
+- Der Monatsabschluss erfasst Bargeld vor einer eventuell folgenden
+  Jahresabrechnung oder einer weiteren Bauausgabe. Ein Spielstand enthält
+  den aktuellen Bargeldwert. Nach dem Laden übernimmt die Monatsstatistik
+  deshalb an Tag 100 bzw. 1200 einen anderen Betrag als im durchgehenden
+  Spiel. Der Effekt tritt auch nach dem Laden von Format 2130 auf, wenn
+  beim Import ausstehende Kosten vom Konto abgehen. Daneben fehlen die
+  beim Monatsabschluss erfassten Warenbestände und Kapazitäten im
+  Spielstand. Optionale Attribute an bestehenden XML-Elementen könnten
+  die fälligen Monatswerte erhalten, ohne ältere Leser vor unbekannte
+  Elemente zu stellen.
+- Die Karte führt eine geordnete Liste der beim letzten Monatsabschluss
+  erfassten verschmutzten Felder. Beim Laden fehlt diese Liste und die
+  Ausbreitung setzt bis zur nächsten Erfassung aus. Der aktuelle
+  Verschmutzungswert je Feld genügt mitten im Monat nicht zur exakten
+  Rekonstruktion der Liste. #338 beschreibt einen neuen
+  Ausbreitungsmechanismus für Wasser. Ein direkter Treffer für die
+  fehlende Liste fand sich im geprüften Issue-Bestand nicht.
+  [#338](https://github.com/lincity-ng/lincity-ng/issues/338)

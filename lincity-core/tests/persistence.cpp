@@ -250,6 +250,34 @@ void migrate2130(const fs::path& fixtures, const fs::path& saved) {
   }
 }
 
+void migratedMonthRollover(const fs::path& fixtures, const fs::path& saved) {
+  auto direct = World::load(fixtures / "migration-2130.xml");
+  direct->total_time = 399;
+  direct->save(saved);
+  auto restored = World::load(saved);
+
+  const auto& before = direct->stats.history;
+  const auto& after = restored->stats.history;
+  const auto checkHistoriesMatch = [&] {
+    CHECK(before.pop == after.pop);
+    CHECK(before.starve == after.starve);
+    CHECK(before.nojobs == after.nojobs);
+    CHECK(before.ppool == after.ppool);
+  };
+  checkHistoriesMatch();
+  CHECK(before.pop.size() == 190 && before.starve.size() == 190);
+  CHECK(before.nojobs.size() == 190 && before.ppool.size() == 190);
+  CHECK(before.pop.at(3) == 0 && before.starve.at(3) == 0);
+  CHECK(before.nojobs.at(3) == 0 && before.ppool.at(3) == 0);
+
+  direct->do_time_step();
+  restored->do_time_step();
+  CHECK(direct->total_time == 400 && restored->total_time == 400);
+  checkHistoriesMatch();
+  CHECK(before.pop.at(3) == 701 && before.starve.at(3) == 11);
+  CHECK(before.nojobs.at(3) == 27 && before.ppool.at(3) == 99);
+}
+
 void checkStatistics2140(const World& world) {
   CHECK(world.given_scene == "Frühjahr in der Altstadt & am Fluss <1900>");
   CHECK(world.total_time == 1249);
@@ -358,6 +386,23 @@ void writeXml(const fs::path& path, std::string_view xml) {
   output.exceptions(std::ios::failbit | std::ios::badbit);
   output << xml;
   output.close();
+}
+
+void longLegacyHistory(const fs::path& saved) {
+  std::ostringstream xml;
+  xml << "<lc-game ldsv-version='2130'><globals><world_side_len>32</world_side_len>"
+         "<monthgraph_pop>";
+  for(int month = 0; month < 240; ++month)
+    xml << 1000 - month << ' ';
+  xml << "</monthgraph_pop></globals><map/></lc-game>";
+  writeXml(saved, xml.str());
+
+  auto world = World::load(saved);
+  const auto& population = world->stats.history.pop;
+  CHECK(population.size() == 240 && population.front() == 1000 && population.back() == 761);
+  world->save(saved);
+  auto restored = World::load(saved);
+  CHECK(restored->stats.history.pop == population);
 }
 
 template<typename Error = std::runtime_error, typename Operation>
@@ -695,6 +740,8 @@ int main(int argc, char** argv) {
     marketDirections(saved);
     saveAfterBulldozing(saved);
     migrate2130(fixtures, saved);
+    migratedMonthRollover(fixtures, saved);
+    longLegacyHistory(saved);
     statistics2140(fixtures, saved);
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);

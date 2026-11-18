@@ -1282,11 +1282,14 @@ static void readArray_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) 
   const std::string field = "<" + xmlReader.get_name() + ">";
   const char *s = str.data();
   const char *e = s + str.size();
+  const auto minimumSize = array.size();
   array.clear();
   while(s < e) {
     if(std::isspace(static_cast<unsigned char>(*s))) { s++; continue; }
     array.push_back(readLegacyNumber(s, e, field));
   }
+  if(array.size() < minimumSize)
+    array.resize(minimumSize);
 }
 
 static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
