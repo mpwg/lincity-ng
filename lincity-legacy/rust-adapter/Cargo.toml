@@ -1,0 +1,17 @@
+[package]
+name = "rustcity-legacy"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-2.0-or-later"
+description = "Removable RustCity bridge for the LinCity legacy desktop"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+rustcity-core = { path = "../../rustcity-core" }
+cxx = "^1.0.205"
+tempfile = "^3.27.0"
+
+[build-dependencies]
+cxx-build = "^1.0.205"

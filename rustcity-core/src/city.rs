@@ -25,13 +25,20 @@ pub struct Point {
     pub y: i32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u16)]
 pub enum Terrain {
-    Grass,
-    Desert,
-    Water,
-    Tree,
-    Tree2,
-    Tree3,
+    Grass = 0,
+    Desert = 42,
+    Water = 21,
+    Tree = 43,
+    Tree2 = 44,
+    Tree3 = 45,
+}
+impl Terrain {
+    /// LinCity terrain group used by the save format and tile resource registry.
+    pub const fn group(self) -> u16 {
+        self as u16
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {

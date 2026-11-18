@@ -37,6 +37,25 @@ to rail crossings and the tax on coal picked up by a consumer. Pass
 `--original` to compare against the pinned rules before both corrections. See the
 [compatibility findings](CORE_PARITY_FINDINGS.md) for the observed difference.
 
+## LINCITY_CORE_BACKEND
+
+Selects the simulation used by the SDL game. The default is `cpp`. Select
+`rust` to run the same interface with RustCity Core. The Rust build requires
+Cargo, a Rust toolchain supporting edition 2024, and a C++20 compiler. The
+desktop adapter keeps the simulation in Rust and supplies the data used by the
+existing SDL widgets. Both backends read and write LinCity save files.
+
+```sh
+cmake -S . -B build/desktop-cpp -DLINCITY_CORE_BACKEND=cpp
+cmake --build build/desktop-cpp --target lincity-ng
+cmake -S . -B build/desktop-rust -DLINCITY_CORE_BACKEND=rust -DBUILD_TESTING=ON
+cmake --build build/desktop-rust
+ctest --test-dir build/desktop-rust -R 'rustcity[.]desktop' --output-on-failure
+```
+
+Applications using the Rust library directly depend on the `rustcity-core` crate.
+Its tests run with `cargo test --manifest-path rustcity-core/Cargo.toml --locked`.
+
 ## CMAKE_BUILD_TYPE
 
 ```

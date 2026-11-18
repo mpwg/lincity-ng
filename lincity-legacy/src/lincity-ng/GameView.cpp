@@ -693,8 +693,7 @@ GameView::event(const Event& event) {
       for(RSelIt it(*this), end(*this, false); it != end; ++it)
         // check if allowed to avoid many dialogs for bulk ops
         if(selectionStart == selectionEnd ||
-          getUserOperation()->isAllowedHere(
-            game->getWorld(), *it, dummyMsg)
+          desktopPreview(game->getWorld(), *getUserOperation(), *it, dummyMsg)
         ) game->executeUserOperation(*it);
     } break;
     case SDL_BUTTON_RIGHT: {
@@ -1271,7 +1270,7 @@ void GameView::markTile(Painter& painter, MapPoint point) {
         Color alphablue( 0, 0, 255, 128 );
         Color alphared( 255, 0, 0, 128 );
         Message::ptr tmpMsg;
-        if(getUserOperation()->isAllowedHere(getWorld(), point, tmpMsg))
+        if(desktopPreview(game->getWorld(), *getUserOperation(), point, tmpMsg))
           painter.setFillColor(alphablue);
         else
           painter.setFillColor(alphared);
@@ -1423,8 +1422,7 @@ void GameView::showToolInfo() {
       int count = 0, cost = 0;
       std::unordered_set<const Construction*> quotedBuildings;
       for(RSelIt it(*this), end(*this, false); it != end; ++it)
-        if(getUserOperation()->isAllowedHere(
-          game->getWorld(), *it, dummyMsg)
+        if(desktopPreview(game->getWorld(), *getUserOperation(), *it, dummyMsg)
         ) {
           count++;
           if(getUserOperation()->action == UserOperation::ACTION_BULLDOZE) {
@@ -1437,10 +1435,10 @@ void GameView::showToolInfo() {
               continue;
             }
           }
-          cost += getUserOperation()->cost(game->getWorld(), *it);
+          cost += desktopCost(game->getWorld(), *getUserOperation(), *it);
         }
       if(!count)
-        cost = getUserOperation()->cost(game->getWorld());
+        cost = desktopCost(game->getWorld(), *getUserOperation());
 
       switch(getUserOperation()->action) {
       case UserOperation::ACTION_BUILD: {

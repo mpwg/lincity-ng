@@ -97,7 +97,7 @@ void Game::quickLoad(){
   //load file
   getStatusParagraph().setText("quick load...");
   std::string filename("quicksave.scn.gz");
-  if(std::unique_ptr<World> world =
+  if(std::unique_ptr<DesktopWorld> world =
     loadCityNG(getConfig()->userDataDir.get() / filename)
   ) {
     setWorld(std::move(world));
@@ -146,6 +146,7 @@ Game::loadGui() {
   minimap->setGame(this);
   buttonpanel->setGame(this);
   economygraph->setGame(this);
+  mpsmap->setGame(this);
   mpsfinance->setGame(this);
   pbar1->setGame(this);
   pbar2->setGame(this);
@@ -172,7 +173,7 @@ Game::loadGui() {
   gui->resize(width, height);
 }
 
-const World&
+const DesktopWorld&
 Game::getWorld() const {
   assert(world);
   return *world;
@@ -200,16 +201,16 @@ Game::surveyCoal() {
 
 void
 Game::setSavedViewOrigin(MapPoint point) {
-  world->map.recentPoint = point;
+  desktopFocus(*world, point);
 }
 
 void
 Game::ensurePopulationHistory(std::size_t months) {
-  world->stats.ensurePopulationHistory(months);
+  desktopHistory(*world, months);
 }
 
 void
-Game::setWorld(std::unique_ptr<World>&& world) {
+Game::setWorld(std::unique_ptr<DesktopWorld>&& world) {
   this->world = std::move(world);
 
   for(auto w : {&warnBullWater, &warnBullShanty, &warnBullMonument})
@@ -307,7 +308,7 @@ Game::executeUserOperation(MapPoint point) {
     }
 
     case UserOperation::ACTION_BULLDOZE: {
-      if(Message::ptr msg; !userOperation.isAllowedHere(*world, point, msg)) {
+      if(Message::ptr msg; !desktopPreview(*world, userOperation, point, msg)) {
         // don't issue a warning if we can't bulldoze anyway
         break;
       }
@@ -336,7 +337,7 @@ Game::executeUserOperation(MapPoint point) {
           && world->map(point)->getGroup() == grp
         ) {
           try{
-            userOperation.execute(*world, point);
+            desktopApply(*world, userOperation, point);
             getMpsMap().setTile(world->map(point));
             getSound()->playSound("Raze");
           } catch(const Message::Exception& ex) {
@@ -381,7 +382,7 @@ Game::executeUserOperation(MapPoint point) {
     }
     }
 
-    userOperation.execute(*world, point);
+    desktopApply(*world, userOperation, point);
 
     getMpsMap().setTile(world->map(point));
     if(userOperation.action != UserOperation::ACTION_BULLDOZE)

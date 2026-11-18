@@ -52,12 +52,12 @@ void setSimulationDelay( int speed )
 /*
  * get Data form Lincity NG and Save City
  */
-void saveCityNG(const World& world, const std::filesystem::path& filename) {
+void saveCityNG(const DesktopWorld& world, const std::filesystem::path& filename) {
   std::filesystem::path fullname = filename;
   try {
     world.save(fullname);
     std::cout << "saved game to '" << fullname << "'" << std::endl;
-  } catch(std::runtime_error err) {
+  } catch(const std::exception& err) {
     std::cerr << "error: failed to save game to '" << fullname << "': "
       << err.what() << std::endl;
     assert(false);
@@ -67,12 +67,12 @@ void saveCityNG(const World& world, const std::filesystem::path& filename) {
 /*
  * Load City and do setup for Lincity NG.
  */
-std::unique_ptr<World> loadCityNG(const std::filesystem::path& filename) {
-  std::unique_ptr<World> world;
+std::unique_ptr<DesktopWorld> loadCityNG(const std::filesystem::path& filename) {
+  std::unique_ptr<DesktopWorld> world;
   try {
-    world = World::load(filename);
+    world = DesktopWorld::load(filename);
     std::cout << "loaded game from " << filename << std::endl;
-  } catch(std::runtime_error& err) {
+  } catch(const std::exception& err) {
     std::cerr << "error: failed to load game from " << filename
       << ": " << err.what() << std::endl;
     DialogBuilder()
@@ -90,6 +90,11 @@ std::unique_ptr<World> loadCityNG(const std::filesystem::path& filename) {
 
 void initLincity()
 {
+#ifdef LINCITY_RUST_BACKEND
+    std::clog << "Simulation backend: RustCity Core" << std::endl;
+#else
+    std::clog << "Simulation backend: LinCity Core (C++)" << std::endl;
+#endif
     /* Set up the paths to certain files and directories */
     // init_path_strings();
 

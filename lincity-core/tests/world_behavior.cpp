@@ -60,6 +60,19 @@ void terrainAndFootprints() {
   CHECK(world.map(dock.e(3))->getLowerstVisibleGroup() == GROUP_WATER);
 }
 
+void discardImmediately() {
+  World w(32);
+  schoolConstructionGroup.placeItem(w,site);
+  roadConstructionGroup.placeItem(w,site.w());
+  auto* school = w.map(site)->getConstruction();
+  w.map.discardConstruction(*school);
+  CHECK(w.map.constructionCount() == 1);
+  CHECK(!w.map(site)->getConstruction() && !w.map(site.se())->getReportingConstruction());
+  CHECK(!w.map(site)->getFrames());
+  CHECK(w.stats.groupCount[GROUP_SCHOOL] == 0);
+  w.do_time_step();
+  CHECK(w.map(site.w())->getConstruction() != nullptr);
+}
 void mapSearchAndTerrain() {
   World world(32);
   auto& map = world.map;
@@ -796,6 +809,7 @@ void randomFireSchedule() {
 int main() {
   try {
     terrainAndFootprints();
+    discardImmediately();
     mapSearchAndTerrain();
     riversAndCables();
     pollutionAndRecovery();

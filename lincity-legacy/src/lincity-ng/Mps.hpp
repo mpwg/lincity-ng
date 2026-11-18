@@ -84,6 +84,7 @@ public:
     INVENTORY, PRODUCTION, GROUND
   };
 
+  void setGame(Game* value) { game = value; }
   MpsMap() { }
   ~MpsMap() { }
 
@@ -97,6 +98,7 @@ public:
 
 private:
 
+  Game* game = nullptr;
   void refreshInvProd(bool production);
   void refreshGround();
 };

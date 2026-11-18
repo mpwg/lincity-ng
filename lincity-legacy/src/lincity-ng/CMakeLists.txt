@@ -58,3 +58,9 @@ include_directories(.)
 
 include(TranslateTarget)
 translate_target(lincity-ng lincity-ng.pot)
+
+
+if(LINCITY_CORE_BACKEND STREQUAL "rust")
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../rust-adapter" rust-adapter)
+  target_link_libraries(lincity-ng PRIVATE rustcity_desktop)
+endif()

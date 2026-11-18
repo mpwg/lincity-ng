@@ -25,27 +25,18 @@ fn location(node: &Element) -> io::Result<Point> {
 }
 
 impl Terrain {
-    pub(super) fn group(self) -> u16 {
-        match self {
-            Self::Grass => 0,
-            Self::Water => 21,
-            Self::Desert => 42,
-            Self::Tree => 43,
-            Self::Tree2 => 44,
-            Self::Tree3 => 45,
-        }
-    }
-
     fn from_group(group: i32) -> io::Result<Self> {
-        match group {
-            0 => Ok(Self::Grass),
-            21 => Ok(Self::Water),
-            42 => Ok(Self::Desert),
-            43 => Ok(Self::Tree),
-            44 => Ok(Self::Tree2),
-            45 => Ok(Self::Tree3),
-            _ => Err(invalid(format!("unknown terrain group {group}"))),
-        }
+        [
+            Self::Grass,
+            Self::Water,
+            Self::Desert,
+            Self::Tree,
+            Self::Tree2,
+            Self::Tree3,
+        ]
+        .into_iter()
+        .find(|terrain| i32::from(terrain.group()) == group)
+        .ok_or_else(|| invalid(format!("unknown terrain group {group}")))
     }
 }
 

@@ -33,6 +33,11 @@ set(APPSTREAM_ID "io.github.lincity_ng.lincity-ng")
 
 
 option(LINCITY_BUILD_GUI "Build the SDL desktop game" ON)
+set(LINCITY_CORE_BACKEND "cpp" CACHE STRING "Simulation core for the legacy SDL interface (cpp or rust)")
+set_property(CACHE LINCITY_CORE_BACKEND PROPERTY STRINGS cpp rust)
+if(NOT LINCITY_CORE_BACKEND MATCHES "^(cpp|rust)$")
+  message(FATAL_ERROR "LINCITY_CORE_BACKEND must be cpp or rust")
+endif()
 include(CTest)
 
 ### dependencies

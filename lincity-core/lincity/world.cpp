@@ -298,6 +298,15 @@ Map::Map(int map_len) :
   }
 }
 
+void Map::discardConstruction(Construction& building) {
+  auto owned = constructions.find(&building);
+  if(owned == constructions.end())
+    throw std::invalid_argument("construction belongs to another map");
+  if(!building.isDead()) building.detach();
+  constructions.erase(owned);
+  delete &building;
+}
+
 Map::~Map() {
   maptile.clear();
 }

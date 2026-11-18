@@ -93,6 +93,10 @@ public:
   unsigned short ore_reserve;           //underground ore
   int pollution;                        //air pollution (under ground pollution is in ground[][])
   const std::list<ExtraFrame>* getFrames() const { return framesptr; }
+  /// Updates existing sprites without transferring ownership of their list nodes.
+  template<class Visitor> void visitFrames(Visitor visitor) {
+    if(framesptr) for(auto& frame : *framesptr) visitor(frame);
+  }
   void moveFrameTo(MapTile& destination, std::list<ExtraFrame>::iterator frame);
 
   void setTerrain(unsigned short group); //places type & group at MapTile
@@ -164,6 +168,8 @@ public:
 
   int alt_min, alt_max, alt_step;
 
+  /// Immediately detach and destroy an owned construction outside any simulation traversal.
+  void discardConstruction(Construction& building);
   std::size_t constructionCount() const { return constructions.size(); }
 
   MapPoint recentPoint;

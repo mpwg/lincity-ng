@@ -296,16 +296,16 @@ ButtonPanel::setGame(Game *game) {
 
 void
 ButtonPanel::updateTech() {
-  const World& world = game->getWorld();
+  const auto& world = game->getWorld();
   for(auto t : tools){
     Tool *tool = t.second;
     UserOperation& op = tool->operation;
 
     if(op.action == UserOperation::ACTION_BUILD)
-      op.constructionGroup = op.actualConstructionGroup(world);
+      op.constructionGroup = desktopBuildGroup(world, op);
 
     Message::ptr msg;
-    if(op.isAllowed(world, msg)) {
+    if(desktopAllowed(world, op, msg)) {
       if(!tool->button->isEnabled() || tool->button->getTooltip() == "") {
         tool->button->setTooltip(createTooltip(tool));
         tool->button->enable();
@@ -336,7 +336,7 @@ ButtonPanel::updateTech() {
       ) {
         os << " (" << _("requires") << " "
           // TODO: format this number properly
-          << _("$") << op.cost(world)
+          << _("$") << desktopCost(world, op)
           << ")";
       }
       else {

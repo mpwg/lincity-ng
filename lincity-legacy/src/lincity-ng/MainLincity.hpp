@@ -26,7 +26,7 @@
 #include <filesystem>  // for path
 #include <memory>
 
-class World;
+#include "DesktopWorld.hpp"
 
 #define SIM_DELAY_PAUSE -1
 #define SIM_DELAY_FAST 0
@@ -44,10 +44,10 @@ void doLincityStep();
 void setSimulationDelay( int speed );
 
 //get Data form Lincity NG and Save City
-void saveCityNG(const World& world, const std::filesystem::path& newFilename);
+void saveCityNG(const DesktopWorld& world, const std::filesystem::path& newFilename);
 
 //Load City and do setup for Lincity NG.
-std::unique_ptr<World> loadCityNG(const std::filesystem::path& filename);
+std::unique_ptr<DesktopWorld> loadCityNG(const std::filesystem::path& filename);
 
 #endif
 

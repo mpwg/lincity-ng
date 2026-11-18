@@ -264,7 +264,11 @@ void
 MpsMap::refreshInvProd(bool production) {
   const ConstructionGroup *tileCstGrp = tile->getTileConstructionGroup();
   if(tile->getReportingConstruction()) {
+#ifdef LINCITY_RUST_BACKEND
+    renderRustReport(game->getWorld().engine(), tile->point, production, *this);
+#else
     tile->getReportingConstruction()->report(*this, production);
+#endif
   }
   else if(tileCstGrp == &waterConstructionGroup) {
     add_sdd(waterConstructionGroup.name, tile->point.x, tile->point.y);

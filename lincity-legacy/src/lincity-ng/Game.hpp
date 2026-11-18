@@ -47,7 +47,7 @@ class MiniMap;
 class MpsFinance;
 class MpsMap;
 class WindowManager;
-class World;
+#include "DesktopWorld.hpp"
 class Paragraph;
 
 class Game {
@@ -59,8 +59,8 @@ public:
 
     void showHelpWindow(std::string topic);
 
-    const World& getWorld() const;
-    void setWorld(std::unique_ptr<World>&& world);
+    const DesktopWorld& getWorld() const;
+    void setWorld(std::unique_ptr<DesktopWorld>&& world);
     UserOperation& getUserOperation();
     const UserOperation& getUserOperation() const;
     void executeUserOperation(MapPoint point);
@@ -84,7 +84,7 @@ public:
     Paragraph& getStatusParagraph() const;
 
 private:
-    std::unique_ptr<World> world;
+    std::unique_ptr<DesktopWorld> world;
 
     std::unique_ptr<Component> gui;
     GameView *gameview = nullptr;

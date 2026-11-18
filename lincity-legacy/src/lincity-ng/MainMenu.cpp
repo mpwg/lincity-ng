@@ -631,7 +631,7 @@ MainMenu::continueButtonClicked(Button* ) {
   state = State::GAME;
 
   if(!game) {
-    std::unique_ptr<World> world;
+    std::unique_ptr<DesktopWorld> world;
     std::filesystem::path file =
       getConfig()->userDataDir.get() / "9_currentGameNG.scn.gz";
     if(std::filesystem::exists(file)) {
@@ -643,7 +643,7 @@ MainMenu::continueButtonClicked(Button* ) {
       city.without_trees = false;
 
       //by default create a new City
-      world = new_city(&city, getConfig()->worldSize.get());
+      world = generateDesktopCity(DesktopClimate::River, &city, getConfig()->worldSize.get());
     }
 
     if(world) {
@@ -721,7 +721,7 @@ MainMenu::newGameStartButtonClicked(Button *) {
 
   getSound()->playSound("Click");
 
-  std::unique_ptr<World> world;
+  std::unique_ptr<DesktopWorld> world;
   auto fileIt = loadFiles.find(sel);
   if(fileIt == loadFiles.end()) {
     const std::string& bName = sel->getName();
@@ -731,13 +731,13 @@ MainMenu::newGameStartButtonClicked(Button *) {
     settings.without_trees =
       getCheckButton(*newGameMenu, "WithoutTrees")->isChecked();
     if(bName == "RiverDelta") {
-      world = new_city(&settings, getConfig()->worldSize.get());
+      world = generateDesktopCity(DesktopClimate::River, &settings, getConfig()->worldSize.get());
     } else if(bName == "DesertArea") {
-      world = new_desert_city(&settings, getConfig()->worldSize.get());
+      world = generateDesktopCity(DesktopClimate::Desert, &settings, getConfig()->worldSize.get());
     } else if(bName == "TemperateArea") {
-      world = new_temperate_city(&settings, getConfig()->worldSize.get());
+      world = generateDesktopCity(DesktopClimate::Temperate, &settings, getConfig()->worldSize.get());
     } else if(bName == "SwampArea") {
-      world = new_swamp_city(&settings, getConfig()->worldSize.get());
+      world = generateDesktopCity(DesktopClimate::Swamp, &settings, getConfig()->worldSize.get());
     }
     assert(world);
   }
@@ -777,7 +777,7 @@ MainMenu::loadGameLoadButtonClicked(Button *) {
   auto fileIt = loadFiles.find(sel);
   if(fileIt == loadFiles.end()) return; // empty slot selected
   getSound()->playSound("Click");
-  if(std::unique_ptr<World> world = loadCityNG(fileIt->second)) {
+  if(std::unique_ptr<DesktopWorld> world = loadCityNG(fileIt->second)) {
     if(!game) game.reset(new Game(window));
     game->setWorld(std::move(world));
     state = State::GAME;
@@ -798,7 +798,7 @@ MainMenu::loadGameSaveButtonClicked(Button *) {
     if(i == buttonNames.size() - 1) { assert(false); return; }
 
   assert(!!game);
-  const World& world = game->getWorld();
+  const auto& world = game->getWorld();
 
   getSound()->playSound( "Click" );
 
