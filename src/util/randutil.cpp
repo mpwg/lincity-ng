@@ -46,3 +46,7 @@ BasicUrbg::result_type
 BasicUrbg::operator()() {
   return base_urbg();
 }
+
+void BasicUrbg::seed(result_type value) {
+  base_urbg.seed(value);
+}

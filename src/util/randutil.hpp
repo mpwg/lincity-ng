@@ -37,6 +37,7 @@ public:
   using result_type = base_engine::result_type;
 
   result_type operator()();
+  void seed(result_type value);
   static constexpr result_type min() { return base_engine::min(); }
   static constexpr result_type max() { return base_engine::max(); }
 
