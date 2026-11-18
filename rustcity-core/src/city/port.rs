@@ -7,7 +7,7 @@ use std::io;
 #[derive(Default)]
 pub(super) struct Port {
     rules: [(bool, bool); Commodity::ALL.len()],
-    tech_made: i32,
+    pub(super) tech_made: i32,
     pence: i32,
     working_days: i32,
     monthly_imports: i32,
@@ -18,6 +18,13 @@ pub(super) struct Port {
 }
 
 impl Port {
+    pub(super) fn policy(&self, c: Commodity) -> Option<crate::TradePolicy> {
+        let (buy, sell) = self.rules[c as usize];
+        PORT_PRICES
+            .iter()
+            .any(|&(kind, _)| kind == c)
+            .then_some(crate::TradePolicy { buy, sell })
+    }
     pub(super) fn load(&mut self, n: &Element) -> io::Result<()> {
         self.tech_made = n.child_i32("tech_made", 0)?;
         for (c, _) in PORT_PRICES {

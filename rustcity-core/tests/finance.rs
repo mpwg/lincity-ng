@@ -80,3 +80,23 @@ fn coal_survey_costs_once_even_after_resuming_a_city() {
     resumed.survey_coal().unwrap();
     assert_eq!(resumed.balance(), -1_000_000);
 }
+
+#[test]
+fn trade_dialog_reads_market_port_and_foreign_policy_separately() {
+    let xml = r#"<lc-game ldsv-version="2140"><globals><tradeRules><export_steel_enable>0</export_steel_enable></tradeRules></globals><map size="24">
+    <Construction group="6" map-x="3" map-y="4"/><Construction group="17" map-x="13" map-y="14"/></map></lc-game>"#;
+    let mut city = City::load(xml.as_bytes()).unwrap();
+    let market = Point { x: 4, y: 5 };
+    let port = Point { x: 14, y: 15 };
+    assert!(city.set_market_trade(market, Commodity::Steel, true, true));
+    assert!(city.set_port_trade(port, Commodity::Steel, true, true));
+    let market_rule = city
+        .building_trade_policy(market, Commodity::Steel)
+        .unwrap();
+    assert!(market_rule.buy && market_rule.sell);
+    let port_rule = city.building_trade_policy(port, Commodity::Steel).unwrap();
+    assert!(!port_rule.buy && !port_rule.sell);
+    assert_eq!(city.building_trade_policy(port, Commodity::Labor), None);
+    let foreign = city.foreign_trade_policy(Commodity::Steel);
+    assert!(foreign.buy && !foreign.sell);
+}
