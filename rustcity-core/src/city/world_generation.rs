@@ -58,7 +58,7 @@ impl City {
             }
             Climate::Temperate => city.decisions.c_modulo(CLIMATE_ARIDITY_RANGE)?,
             Climate::Swamp => {
-                relief /= 5;
+                relief /= SWAMP_RELIEF_DIVISOR;
                 city.decisions.c_modulo(CLIMATE_ARIDITY_RANGE)? - CLIMATE_ARIDITY_RANGE
             }
         };
@@ -104,8 +104,14 @@ impl City {
     }
     fn coal_veins(&mut self) -> io::Result<()> {
         for _ in 0..self.side * self.side / COAL_VEIN_AREA {
-            let mut x = self.decisions.c_modulo(self.side - 12)? + 6;
-            let mut y = self.decisions.c_modulo(self.side - 10)? + 6;
+            let mut x = self
+                .decisions
+                .c_modulo(self.side - coal_veins::X_EXCLUDED_TILES)?
+                + coal_veins::START_MARGIN;
+            let mut y = self
+                .decisions
+                .c_modulo(self.side - coal_veins::Y_EXCLUDED_TILES)?
+                + coal_veins::START_MARGIN;
             let (dx, dy) = loop {
                 let dx = self.decisions.c_modulo(3)? - 1;
                 let dy = self.decisions.c_modulo(3)? - 1;
@@ -113,7 +119,7 @@ impl City {
                     break (dx, dy);
                 }
             };
-            for _ in 0..5 {
+            for _ in 0..coal_veins::VEIN_LENGTH {
                 let i = self.cell(x, y);
                 self.tiles[i].coal += self.decisions.c_modulo(DEPOSIT_CAPACITY)?;
                 x += dx;

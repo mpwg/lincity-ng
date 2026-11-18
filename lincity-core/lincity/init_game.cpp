@@ -628,10 +628,11 @@ static void new_setup_river(Map& map, int global_aridity) {
   std::cout.flush();
 
   for(int i = c; i > 0; i--) {
-    MapPoint start(
-      simulationUniform("river.start-x", 0, map.len()-1),
-      simulationUniform("river.start-y", 0, map.len()-1)
-    );
+    // The reference generator draws y before x. Keep decision tapes portable
+    // across compilers that evaluate function arguments in opposite orders.
+    const int y = simulationUniform("river.start-y", 0, map.len()-1);
+    const int x = simulationUniform("river.start-x", 0, map.len()-1);
+    const MapPoint start(x, y);
     #ifdef DEBUG
     std::cerr << "river starting at " << start << std::endl;
     #endif

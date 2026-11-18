@@ -1,16 +1,21 @@
 use super::*;
+use crate::rules::generation::river::*;
 
 impl City {
     pub(super) fn river_landscape(&mut self, relief: i32) -> io::Result<i32> {
         let n = self.side;
-        let mut x = (n + self.decisions.c_modulo(n)?) / 3;
+        let mut x = (n + self.decisions.c_modulo(n)?) / MOUTH_POSITION_DIVISOR;
         let mut y = n - 1;
-        let length = 1 + n / 18 + self.decisions.c_modulo(n / 8)?;
+        let length = 1
+            + n / MOUTH_BASE_LENGTH_DIVISOR
+            + self
+                .decisions
+                .c_modulo(n / MOUTH_LENGTH_VARIATION_DIVISOR)?;
         for j in (1..=length).rev() {
             for dx in [-1, 0, 1] {
                 self.wet_tile(x + dx, y);
             }
-            if j > 2 {
+            if j > MOUTH_STRAIGHT_END {
                 x += self.decisions.c_modulo(3)? - 1;
             }
             y -= 1;
@@ -61,43 +66,52 @@ impl City {
         for (index, t) in self.tiles.iter_mut().enumerate() {
             let y = index as i32 / n;
             let d = distance[index];
-            t.altitude = ((relief / 10) as f32
-                * (((n - y) * (n - y) / n) as f32 + 8. * d
-                    - 6.5 * d * y as f32 / n as f32
-                    - 1.3 * d * d / n as f32)) as i32;
+            t.altitude = ((relief / SLOPE_DIVISOR) as f32
+                * (((n - y) * (n - y) / n) as f32 + BANK_STEEPNESS * d
+                    - SOUTH_SLOPE_REDUCTION * d * y as f32 / n as f32
+                    - PLAIN_CURVATURE * d * d / n as f32)) as i32;
             low = low.min(t.altitude);
             high = high.max(t.altitude);
         }
-        Ok((high - low) / 10)
+        Ok((high - low) / ALTITUDE_BANDS)
     }
 
     fn tributary(&mut self, mut x: i32, mut y: i32, d: i32) -> io::Result<()> {
         let n = self.side;
-        let length = self
-            .decisions
-            .uniform("river.segment-length", n / 6, n / 2)?;
+        let length = self.decisions.uniform(
+            "river.segment-length",
+            n / SEGMENT_MIN_LENGTH_DIVISOR,
+            n / SEGMENT_MAX_LENGTH_DIVISOR,
+        )?;
         for j in 0..length {
-            let slant = if y < n / 2 { 5. } else { 7. };
-            x += (self.decisions.discrete("river.slant", &[1., 2., slant])? - 1) * d;
-            if x < 4
-                || x >= n - 5
-                || ((j >= 5 || d == -1) && self.tiles[self.cell(x - 2, y)].river)
-                || (d == -1 && x >= 10 && self.tiles[self.cell(x - 10, y)].river)
+            let weights = if y < n / 2 {
+                &NORTHERN_STEP_WEIGHTS
+            } else {
+                &SOUTHERN_STEP_WEIGHTS
+            };
+            x += (self.decisions.discrete("river.slant", weights)? - 1) * d;
+            if x < WEST_MARGIN
+                || x >= n - EAST_MARGIN
+                || ((j >= JOIN_DELAY || d == -1)
+                    && self.tiles[self.cell(x - JOIN_DISTANCE, y)].river)
+                || (d == -1
+                    && x >= WEST_BRANCH_CLEARANCE
+                    && self.tiles[self.cell(x - WEST_BRANCH_CLEARANCE, y)].river)
             {
                 return Ok(());
             }
             self.wet_tile(x, y);
             self.wet_tile(x + 1, y);
             y -= 1;
-            if y < 10 {
+            if y < NORTH_MARGIN {
                 break;
             }
         }
-        if y > 20 {
-            if x >= 6 {
+        if y > FORK_NORTH_MARGIN {
+            if x >= FORK_WEST_MARGIN {
                 self.tributary(x, y, -1)?;
             }
-            if x < n - 7 {
+            if x < n - FORK_EAST_MARGIN {
                 self.tributary(x, y, 1)?;
             }
         }
@@ -106,11 +120,19 @@ impl City {
 
     pub(super) fn lakes(&mut self, aridity: i32) -> io::Result<()> {
         let n = self.side;
-        let density = 5 + self.decisions.binomial("river.lake-count", 10, 0.5)?;
-        let count = i64::from(100 - aridity / 4) * i64::from(density) * i64::from(n) * i64::from(n)
-            / 1_000_000;
+        let density = BASE_LAKE_DENSITY
+            + self.decisions.binomial(
+                "river.lake-count",
+                LAKE_DENSITY_TRIALS,
+                LAKE_DENSITY_PROBABILITY,
+            )?;
+        let count = i64::from(LAKE_MOISTURE_BASE - aridity / LAKE_ARIDITY_DIVISOR)
+            * i64::from(density)
+            * i64::from(n)
+            * i64::from(n)
+            / LAKE_DENSITY_AREA;
         for _ in 0..count {
-            // GCC evaluates the two constructor arguments from right to left.
+            // The reference decision tape records each lake’s y coordinate before x.
             let y = self.decisions.uniform("river.start-y", 0, n - 1)?;
             let x = self.decisions.uniform("river.start-x", 0, n - 1)?;
             let start = self.cell(x, y);

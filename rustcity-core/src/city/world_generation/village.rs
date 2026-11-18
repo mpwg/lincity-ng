@@ -1,4 +1,5 @@
 use super::*;
+use crate::rules::generation::village::*;
 
 impl City {
     pub(super) fn starting_village(&mut self) -> io::Result<()> {
@@ -11,8 +12,7 @@ impl City {
                 let y = self
                     .decisions
                     .c_modulo(self.side - (MIN_VILLAGE_SIDE - 1))?;
-                let near_water = (y + 2..y + 23)
-                    .any(|sy| (x + 2..x + 23).any(|sx| self.tiles[self.cell(sx, sy)].river));
+                let near_water = self.village_has_river(x, y, RIVER_SEARCH);
                 if near_water {
                     break (x, y, true);
                 }
@@ -21,8 +21,7 @@ impl City {
                     break (x, y, false);
                 }
             };
-            let inside = (y + 4..y + 22)
-                .any(|sy| (x + 4..x + 22).any(|sx| self.tiles[self.cell(sx, sy)].river));
+            let inside = self.village_has_river(x, y, RIVER_FREE_INTERIOR);
             if near_water && !inside {
                 break (x, y);
             }
@@ -35,8 +34,8 @@ impl City {
             x: left + x,
             y: top + y,
         };
-        for y in 5..21 {
-            for x in 6..21 {
+        for y in DRAIN_ROWS {
+            for x in DRAIN_COLUMNS {
                 let i = self.cell(left + x, top + y);
                 if self.tiles[i].ground == Terrain::Water {
                     self.tiles[i].ground = Terrain::Grass;
@@ -45,37 +44,50 @@ impl City {
             }
         }
         use BuildingKind::*;
-        for left_x in [6, 17] {
-            for y in 5..9 {
-                for x in left_x..left_x + 4 {
-                    if self.decisions.c_random()? > i32::MAX / 2 {
+        let farm_size = i32::from(OrganicFarm.metadata().size);
+        for left_x in FARM_COLUMNS {
+            for y in FARM_ROW..FARM_ROW + farm_size {
+                for x in left_x..left_x + farm_size {
+                    if self.decisions.c_random()? > FARM_WATER_THRESHOLD {
                         let i = self.cell(left + x, top + y);
                         self.tiles[i].groundwater = true;
                     }
                 }
             }
-            self.village_build(OrganicFarm, p(left_x, 5))?;
+            self.village_build(OrganicFarm, p(left_x, FARM_ROW))?;
         }
-        self.village_build(ResidenceMediumLow, p(10, 6))?;
-        self.village_build(Pottery, p(9, 9))?;
-        let well = self.cell(left + 16, top + 9);
-        self.tiles[well].groundwater = true;
-        self.village_build(Waterwell, p(16, 9))?;
-        self.village_build(ResidenceMediumLow, p(14, 6))?;
-        self.village_build(Market, p(14, 9))?;
-        for q in (2..23)
-            .map(|x| p(x, 11))
-            .chain((2..11).map(|y| p(13, y)))
-            .chain((12..23).map(|y| p(15, y)))
+        for (kind, x, y) in BUILDINGS {
+            let site = p(x, y);
+            if kind == Waterwell {
+                let well = self.cell(site.x, site.y);
+                self.tiles[well].groundwater = true;
+            }
+            self.village_build(kind, site)?;
+        }
+        let (cross_y, cross_columns) = CROSS_TRACK;
+        let (north_x, north_rows) = NORTH_TRACK;
+        let (south_x, south_rows) = SOUTH_TRACK;
+        for q in cross_columns
+            .map(|x| p(x, cross_y))
+            .chain(north_rows.map(|y| p(north_x, y)))
+            .chain(south_rows.map(|y| p(south_x, y)))
         {
             self.village_build(self.actual_kind(Track, q), q)?;
         }
-        for x in [6, 11, 16] {
-            for y in [12, 17] {
+        for x in COMMUNE_COLUMNS {
+            for y in COMMUNE_ROWS {
                 self.village_build(Commune, p(x, y))?;
             }
         }
         Ok(())
+    }
+
+    fn village_has_river(&self, x: i32, y: i32, offsets: std::ops::Range<i32>) -> bool {
+        offsets.clone().any(|dy| {
+            offsets
+                .clone()
+                .any(|dx| self.tiles[self.cell(x + dx, y + dy)].river)
+        })
     }
 
     fn village_build(&mut self, kind: BuildingKind, point: Point) -> io::Result<()> {

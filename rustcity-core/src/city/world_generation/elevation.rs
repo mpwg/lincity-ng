@@ -15,7 +15,7 @@ impl City {
         }
         let sea_sum =
             height[at(0, 0)] + height[at(0, size)] + height[at(size, 0)] + height[at(size, size)];
-        let mut sea = (f64::from(sea_sum) / 5.3) as i32;
+        let mut sea = (f64::from(sea_sum) / SEA_LEVEL_CORNER_DIVISOR) as i32;
         for level in 1..=size.ilog2() {
             let squares = 1 << (level - 1);
             let edge = size / squares;
@@ -98,7 +98,7 @@ impl City {
         let norm = (1. / f64::from(norm)) as f32;
         let mut smooth = vec![0f32; size * size];
         // The second pass keeps the first-pass accumulator, matching LinCity's elevation scale.
-        for _ in 0..2 {
+        for _ in 0..SMOOTHING_PASSES {
             for x in SMOOTHING_RADIUS..size - SMOOTHING_RADIUS {
                 for y in SMOOTHING_RADIUS..size - SMOOTHING_RADIUS {
                     let sum = &mut smooth[x + y * size];
@@ -149,7 +149,7 @@ impl City {
             high = high.max(t.altitude);
         }
         self.lakes(aridity)?;
-        sea = (sea - low).min(high / 3);
+        sea = (sea - low).min(high / MAX_SEA_LEVEL_HEIGHT_DIVISOR);
         for y in 1..self.side - 1 {
             for x in 1..self.side - 1 {
                 let i = self.cell(x, y);
@@ -172,6 +172,6 @@ impl City {
                 }
             }
         }
-        Ok(high / 10)
+        Ok(high / ALTITUDE_BANDS)
     }
 }

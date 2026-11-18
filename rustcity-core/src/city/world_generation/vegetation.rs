@@ -1,4 +1,5 @@
 use super::*;
+use crate::rules::generation::vegetation::*;
 
 impl City {
     pub(super) fn vegetation(&mut self, aridity: i32, step: i32, trees: bool) -> io::Result<()> {
@@ -14,8 +15,9 @@ impl City {
                     water[i] = t.water_alt;
                     queue.push_back((x, y));
                 } else {
-                    distance[i] = 50;
-                    water[i] = 3 * t.altitude / 4;
+                    distance[i] = INITIAL_WATER_DISTANCE;
+                    water[i] =
+                        GROUNDWATER_HEIGHT_NUMERATOR * t.altitude / GROUNDWATER_HEIGHT_DENOMINATOR;
                 }
             }
         }
@@ -28,7 +30,10 @@ impl City {
                 }
                 let j = self.cell(sx, sy);
                 let score = |dist: i32, level: i32| {
-                    dist * dist / 5 + 1 + aridity + (self.tiles[j].altitude - level) * 50 / step
+                    dist * dist / DISTANCE_SQUARED_DIVISOR
+                        + 1
+                        + aridity
+                        + (self.tiles[j].altitude - level) * ALTITUDE_ARIDITY_FACTOR / step
                 };
                 if score(d, water[i]) < score(distance[j], water[j]) {
                     distance[j] = d;
@@ -42,15 +47,16 @@ impl City {
                 continue;
             }
             let d2 = distance[i] * distance[i];
-            let local = if aridity > 0 && d2 < 5 {
-                aridity / 3
-            } else if aridity > 0 && d2 < 17 {
-                aridity * 2 / 3
+            let local = if aridity > 0 && d2 < NEAR_RIVER_DISTANCE_SQUARED {
+                aridity / RIVER_ARIDITY_DENOMINATOR
+            } else if aridity > 0 && d2 < OUTER_RIVER_DISTANCE_SQUARED {
+                aridity * OUTER_RIVER_ARIDITY_NUMERATOR / RIVER_ARIDITY_DENOMINATOR
             } else {
                 aridity
             };
-            let r =
-                self.decisions.c_modulo(d2 / 5 + 1)? + local + (t.altitude - water[i]) * 50 / step;
+            let r = self.decisions.c_modulo(d2 / DISTANCE_SQUARED_DIVISOR + 1)?
+                + local
+                + (t.altitude - water[i]) * ALTITUDE_ARIDITY_FACTOR / step;
             let z = ZONES.iter().find(|z| r >= z.aridity).unwrap();
             let roll = self.decisions.c_modulo(z.outcomes)?;
             t.ground = if roll <= z.water {
