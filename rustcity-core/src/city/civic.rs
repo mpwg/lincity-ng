@@ -138,7 +138,7 @@ impl Civic {
     ) -> io::Result<()> {
         match self {
             Self::Fire(f) => f.animate(time, choices)?,
-            Self::Shanty(f) => f.animate(time, choices)?,
+            Self::Shanty(f) => f.animate(time, WASTE_FIRE_VISIBLE_MS, choices)?,
             Self::Service(s) if s.animate && time >= s.next_frame => {
                 let (delay, count) = if kind == BuildingKind::Cricket {
                     (SPORTS_FRAME_MS, SPORTS_FRAMES)

@@ -168,6 +168,7 @@ impl City {
             };
             match &mut b.operation {
                 Operation::Rocket(r) => r.animate(milliseconds),
+                Operation::Transport(t) => t.animate(milliseconds, &mut self.decisions)?,
                 Operation::Civic(c) => c.animate(b.kind, milliseconds, &mut self.decisions)?,
                 Operation::Commune(c)=>c.animate(milliseconds,&mut self.decisions)?,
                 Operation::Market(m) => m.animate(milliseconds, &mut self.decisions)?,

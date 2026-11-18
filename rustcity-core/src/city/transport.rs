@@ -12,11 +12,11 @@ pub(super) struct Transport {
     pub frame: i32,
     pub transparent: bool,
     pub traffic: [i32; 10],
-    fire: super::civic::WasteFire,
+    pub(super) fire: super::civic::WasteFire,
 }
 impl Transport {
     pub fn animate(&mut self, time: u64, decisions: &mut Decisions) -> io::Result<()> {
-        self.fire.animate(time, decisions)
+        self.fire.animate(time, WASTE_FIRE_VISIBLE_MS, decisions)
     }
 }
 
@@ -184,5 +184,32 @@ mod tests {
         city.animate_vehicles(1).unwrap();
         assert_eq!(city.vehicle_frames().next().unwrap().frame, -1);
         city.finish_decisions().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod waste_fire_tests {
+    use super::*;
+
+    #[test]
+    fn a_transport_waste_fire_appears_on_the_next_animation() {
+        let mut city = City::empty(32).unwrap();
+        let origin = Point { x: 12, y: 12 };
+        let mut road = Building::new(BuildingKind::Road);
+        road.stock[Waste as usize] = BuildingKind::Road.metadata().rule(Waste).max_load;
+        let tile = city.index(origin).unwrap();
+        city.tiles[tile].coverage |= crate::rules::civic::FIRE;
+        let id = city.place_building(origin, 1, road).unwrap();
+        city.tick().unwrap();
+        city.animate(1000).unwrap();
+        let Operation::Transport(t) = &city.buildings.get(id).unwrap().1.operation else {
+            panic!("expected road");
+        };
+        assert!(t.fire.frame.is_some());
+        city.animate(1350).unwrap();
+        let Operation::Transport(t) = &city.buildings.get(id).unwrap().1.operation else {
+            unreachable!()
+        };
+        assert_eq!(t.fire.frame, None);
     }
 }

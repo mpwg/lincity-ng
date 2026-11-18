@@ -10,6 +10,7 @@ pub(crate) const ROAD_GOODS_MASK: i32 = 0x1f;
 pub(crate) const RAIL_GOODS_MASK: i32 = 0xf;
 pub(crate) const RAIL_STEEL_MASK: i32 = 0x7f;
 pub(crate) const VOLTAGE_LOSS: i32 = 3;
+pub(crate) const WASTE_FIRE_VISIBLE_MS: u64 = 350;
 pub(crate) const BURN_WASTE: i32 = 100;
 pub(crate) const BURN_POLLUTION: i32 = BURN_WASTE / 2;
 pub(crate) const UNCONTROLLED_FIRE: f64 = 0.001;

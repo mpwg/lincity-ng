@@ -46,24 +46,25 @@ python3 -B lincity-core/tests/replay/check.py build/core/tests/core_replay diffe
 
 ### Messung am 18. November 2026
 
-Geprüft wurde ein festgehaltenes Linux-Release-Binary mit SHA-256
-`f4ee90a4fcba0f0664eee01b3d66dba1ea54396e073b16e0ee9f7e0cf629a924`.
-Alle zwölf Kombinationen wurden gestartet. Beach erreichte Tag 1201 in beiden
-Verkehrsprofilen. Insgesamt bestanden damit **2 von 12 Läufen mit 2.404
-Tageszuständen und 8 vollständigen Spielständen**.
+Alle zwölf Kombinationen stimmten bis einschließlich Tag 1201 mit der
+C++-Referenz überein. Geprüft wurden **14.424 Tageszustände und 48 vollständige
+XML-Spielstände**. Jede Tabellenzelle gibt die Anzahl übereinstimmender
+Tageszustände und Spielstände an.
 
 | Szenario | Ohne Verkehr | Mit Verkehr |
 | --- | --- | --- |
-| Beach | 1.202 Tageszustände und 4 Spielstände gleich | 1.202 Tageszustände und 4 Spielstände gleich |
-| Rocket_98 | Ereignis 3880, Rust erwartet P, Tape enthält C | Gleicher Unterschied |
-| bad_times | Ereignis 864, Rust erwartet P, Tape enthält C | Gleicher Unterschied |
-| extreme_arid | Ereignis 42, Rust erwartet D, Tape enthält C | Gleicher Unterschied |
-| extreme_wetland | Ereignis 42, Rust erwartet D, Tape enthält C | Gleicher Unterschied |
-| good_times | Ereignis 856, Rust erwartet P, Tape enthält C | Gleicher Unterschied |
+| Beach | 1.202 / 4 | 1.202 / 4 |
+| Rocket_98 | 1.202 / 4 | 1.202 / 4 |
+| bad_times | 1.202 / 4 | 1.202 / 4 |
+| extreme_arid | 1.202 / 4 | 1.202 / 4 |
+| extreme_wetland | 1.202 / 4 | 1.202 / 4 |
+| good_times | 1.202 / 4 | 1.202 / 4 |
 
-P steht für Platzierung, D für den täglichen Besuch und C für eine Ziehung
-aus dem C-Zufallsgenerator. Bei einem Tape-Abbruch werden dem Prüfer für
-dieses Szenario keine erfolgreichen Tage oder Spielstände gutgeschrieben.
+Für alle Läufe wurde dasselbe Linux-Release-Binary von Rust verwendet. Seine
+SHA-256-Prüfsumme war
+`60f39b162915b2e6e20524c001e2bfc44077d17857ed16c497426f2dda8b6be9`.
+Das C++-Referenzprogramm hatte die SHA-256-Prüfsumme
+`50a672eb9dc13fdf4b20e7c2b3a5f66e3198423bd560109d1df4ee7c5d3bae2f`.
 
 Für die Schmiede in Format 2140 bestand außerdem der Vergleich in beiden
 Richtungen. Rust spielte das versionierte C++-Tape ab. Anschließend zeichnete

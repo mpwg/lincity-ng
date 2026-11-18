@@ -2,9 +2,9 @@ use super::*;
 
 pub(in crate::city) struct FireState {
     pub(in crate::city) burning: i32,
-    smoking: i32,
+    pub(in crate::city) smoking: i32,
     spread_in: i32,
-    frame: i32,
+    pub(in crate::city) frame: i32,
     next_frame: u64,
 }
 
@@ -65,11 +65,12 @@ impl WasteFire {
     pub(in crate::city) fn animate(
         &mut self,
         time: u64,
+        visible_ms: u64,
         decisions: &mut Decisions,
     ) -> io::Result<()> {
         if self.start {
             self.start = false;
-            self.until = time + WASTE_FIRE_VISIBLE_MS;
+            self.until = time + visible_ms;
         }
         if time >= self.until {
             self.frame = None;
