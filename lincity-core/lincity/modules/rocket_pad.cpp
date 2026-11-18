@@ -30,7 +30,6 @@
 #include <algorithm>                      // for min
 #include <iostream>                       // for basic_ostream, operator<<
 #include <list>                           // for _List_iterator
-#include <random>                         // for normal_distribution, bernou...
 #include <set>                            // for set
 #include <stdexcept>                      // for runtime_error
 #include <string>                         // for basic_string, char_traits
@@ -45,7 +44,7 @@
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "residence.hpp"                  // for Residence
 #include "util/gettextutil.hpp"           // for N_
-#include "util/randutil.hpp"              // for BasicUrbg
+#include "util/randutil.hpp"
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStrF
 #include "util/simulation_trace.hpp"
 
@@ -183,7 +182,7 @@ void RocketPad::compute_launch_result() {
   double successP =
     (double)std::min({tech, world.tech_level, MAX_TECH_LEVEL}) / MAX_TECH_LEVEL
     * std::min(1., world.rockets_launched * .15 + .25);
-  if(std::bernoulli_distribution(successP)(BasicUrbg::get())) {
+  if(simulationBernoulli("rocket.success", successP)) {
     // TODO: getSound()->playSound( "RocketTakeoff" );
     world.rockets_launched_success++;
     /* TODO: Maybe should generate some pollution ? */
@@ -203,12 +202,12 @@ void RocketPad::compute_launch_result() {
     world.rockets_launched_success = 0;
 
     MapPoint crashCenter = point
-      .e(std::normal_distribution(0., 20.)(BasicUrbg::get()))
-      .s(std::normal_distribution(0., 20.)(BasicUrbg::get()));
+      .e(simulationNormalOffset("rocket.center-x", 20., point.x))
+      .s(simulationNormalOffset("rocket.center-y", 20., point.y));
     for(int i = 0; i < 20; i++) {
       MapPoint crashFire = crashCenter
-        .e(std::normal_distribution(.0, 10.)(BasicUrbg::get()))
-        .s(std::normal_distribution(.0, 10.)(BasicUrbg::get()));
+        .e(simulationNormalOffset("rocket.fire-x", 10., crashCenter.x))
+        .s(simulationNormalOffset("rocket.fire-y", 10., crashCenter.y));
       if(!world.map.is_visible(crashFire)) continue;
       Construction *cst = world.map(crashFire)->getReportingConstruction();
       if(!cst) continue;

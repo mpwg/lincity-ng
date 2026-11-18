@@ -24,6 +24,28 @@ run commands. Each line contains the relative day, verb and x/y coordinates.
 `query`, `evacuate`, `bulldoze` and `flood`. Blank lines and lines starting with
 `#` are ignored. Recording and replay attach before loading the city.
 
+## Decision tape v1
+
+The header is `LINCITY-SIMULATION-TRACE 1`. Each subsequent line records one
+event; integer fields use decimal notation. Reader and writer advance in
+lockstep. The final `Z` must be followed by end of file.
+
+| Record | Meaning |
+| --- | --- |
+| `P id x y group` | Placement. IDs start at one and follow placement order, including buildings loaded from disk. |
+| `A milliseconds count ids…` | Animation visit order. |
+| `D city_day count ids…` | Shuffled daily trade and update order. |
+| `E city_day count ids…` | Visit order for a rocket evacuation pass. |
+| `C value` | Integer returned by the C random source, before the caller's arithmetic. |
+| `S site value` | Outcome consumed from a C++ distribution, identified by its call site. Examples include `vehicle.heading`, `rocket.success`, and `river.segment-length`. |
+
+Replay validates placements, visit membership and sampled outcomes. A heading
+must be available at its intersection. Consumers can apply a recorded choice
+without reimplementing a C++ standard library distribution. Native recordings
+still depend on the originating runtime, including the platform's `rand()`
+range and evaluation order during map generation. The versioned small tape
+does not require either random generator.
+
 ## Expected agreement
 
 - `state.tsv` contains day, entity, field and value separated by tabs. The

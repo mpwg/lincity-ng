@@ -22,10 +22,18 @@
 #ifndef __LINCITYNG_UTIL_RANDUTIL_HPP__
 #define __LINCITYNG_UTIL_RANDUTIL_HPP__
 
-#include <algorithm>
+#include <initializer_list>
 #include <random>
 
 int simulationRand();
+
+// These helpers trace the result consumed by the simulation, including the
+// integer tile offset for rocket crashes. Site names are part of the tape.
+bool simulationBernoulli(const char* site, double probability);
+int simulationBinomial(const char* site, int trials, double probability);
+int simulationUniform(const char* site, int lower, int upper);
+int simulationDiscrete(const char* site, std::initializer_list<double> weights);
+int simulationNormalOffset(const char* site, double deviation, int origin);
 
 class BasicUrbg {
 private:
@@ -43,13 +51,6 @@ public:
   void seed(result_type value);
   static constexpr result_type min() { return base_engine::min(); }
   static constexpr result_type max() { return base_engine::max(); }
-
-  // A construction trace stores the finished permutation. The intermediate
-  // shuffle draws only advance the native generator during recording.
-  template<class Iterator>
-  void shuffle(Iterator begin, Iterator end) {
-    std::shuffle(begin, end, base_urbg);
-  }
 
   static BasicUrbg& get();
 

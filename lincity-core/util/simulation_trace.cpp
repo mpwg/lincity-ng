@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "simulation_trace.hpp"
 
+#include <cstdlib>
 #include <istream>
 #include <ostream>
 #include <stdexcept>
@@ -59,15 +60,30 @@ void SimulationTrace::finish() {
   active = nullptr;
 }
 
-std::uint64_t SimulationTrace::random(char source, std::uint64_t value,
-                                      std::uint64_t minimum, std::uint64_t maximum) {
+int SimulationTrace::cRandom(int value) {
   ++events;
   if(replaying()) {
-    expect(source);
-    if(!(*input >> value) || value < minimum || value > maximum)
+    expect('C');
+    if(!(*input >> value) || value < 0 || value > RAND_MAX)
       mismatch("random draw outside generator range");
   } else {
-    *output << source << ' ' << value << '\n';
+    *output << "C " << value << '\n';
+    checkOutput();
+  }
+  return value;
+}
+
+int SimulationTrace::sample(const char* site, int value, int lower, int upper) {
+  ++events;
+  if(replaying()) {
+    expect('S');
+    std::string recordedSite;
+    if(!(*input >> recordedSite) || recordedSite != site)
+      mismatch("unexpected distribution site");
+    if(!(*input >> value) || value < lower || value > upper)
+      mismatch("distribution outcome out of range");
+  } else {
+    *output << "S " << site << ' ' << value << '\n';
     checkOutput();
   }
   return value;

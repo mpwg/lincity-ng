@@ -23,8 +23,8 @@ public:
   static SimulationTrace* current() { return active; }
   bool replaying() const { return input != nullptr; }
 
-  std::uint64_t random(char source, std::uint64_t value,
-                       std::uint64_t minimum, std::uint64_t maximum);
+  int cRandom(int value);
+  int sample(const char* site, int value, int lower, int upper);
   void placed(const Construction* building, int x, int y, unsigned group);
 
   using Order = std::vector<std::set<Construction*>::iterator>;

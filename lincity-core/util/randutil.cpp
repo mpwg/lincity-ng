@@ -23,6 +23,9 @@
 #include "simulation_trace.hpp"
 
 #include <cstdlib>
+#include <limits>
+#include <stdexcept>
+#include <string>
 
 #include <algorithm>
 #include <time.h>
@@ -47,8 +50,6 @@ BasicUrbg::get() {
 
 BasicUrbg::result_type
 BasicUrbg::operator()() {
-  if(auto trace = SimulationTrace::current())
-    return trace->random('U', trace->replaying() ? 0 : base_urbg(), min(), max());
   return base_urbg();
 }
 
@@ -58,6 +59,44 @@ void BasicUrbg::seed(result_type value) {
 
 int simulationRand() {
   if(auto trace = SimulationTrace::current())
-    return trace->random('C', trace->replaying() ? 0 : std::rand(), 0, RAND_MAX);
+    return trace->cRandom(trace->replaying() ? 0 : std::rand());
   return std::rand();
+}
+
+namespace {
+template<class Distribution>
+int sample(const char* site, Distribution distribution, int lower, int upper) {
+  if(auto trace = SimulationTrace::current()) {
+    int value = trace->replaying() ? 0 : static_cast<int>(distribution(BasicUrbg::get()));
+    return trace->sample(site, value, lower, upper);
+  }
+  return static_cast<int>(distribution(BasicUrbg::get()));
+}
+}
+
+bool simulationBernoulli(const char* site, double probability) {
+  return sample(site, std::bernoulli_distribution(probability), probability == 1, probability != 0);
+}
+
+int simulationBinomial(const char* site, int trials, double probability) {
+  return sample(site, std::binomial_distribution(trials, probability),
+                probability == 1 ? trials : 0, probability == 0 ? 0 : trials);
+}
+
+int simulationUniform(const char* site, int lower, int upper) {
+  return sample(site, std::uniform_int_distribution(lower, upper), lower, upper);
+}
+
+int simulationDiscrete(const char* site, std::initializer_list<double> weights) {
+  int index = sample(site, std::discrete_distribution(weights), 0, static_cast<int>(weights.size()) - 1);
+  if(SimulationTrace::current() && weights.begin()[index] == 0)
+    throw std::runtime_error(std::string("unavailable distribution outcome at ") + site);
+  return index;
+}
+
+int simulationNormalOffset(const char* site, double deviation, int origin) {
+  // An accepted offset must also be safe to add to its map coordinate.
+  int lower = std::numeric_limits<int>::min() - std::min(origin, 0);
+  int upper = std::numeric_limits<int>::max() - std::max(origin, 0);
+  return sample(site, std::normal_distribution(0., deviation), lower, upper);
 }

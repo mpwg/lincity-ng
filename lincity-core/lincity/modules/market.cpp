@@ -29,7 +29,6 @@
 #include <algorithm>                      // for max, min
 #include <cstdlib>                        // for size_t
 #include <map>                            // for map
-#include <random>                         // for bernoulli_distribution
 #include <string>                         // for basic_string, operator<
 #include <vector>                         // for vector
 
@@ -42,7 +41,7 @@
 #include "lincity/resources.hpp"          // for ExtraFrame, ResourceGroup
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "util/gettextutil.hpp"           // for N_
-#include "util/randutil.hpp"              // for BasicUrbg
+#include "util/randutil.hpp"
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlStr, xmlStrF
 
 MarketConstructionGroup marketConstructionGroup(
@@ -172,7 +171,7 @@ void Market::update()
 
       double uncontrolledP = WASTE_BURN_UNCONTROLLED
         * constructionGroup->fire_chance / 100;
-      if(std::bernoulli_distribution(uncontrolledP)(BasicUrbg::get())
+      if(simulationBernoulli("market.waste-fire", uncontrolledP)
         && !(world.map(point)->flags & FLAG_FIRE_COVER)
       ) {
         torch();

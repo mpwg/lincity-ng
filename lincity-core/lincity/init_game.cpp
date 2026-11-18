@@ -34,7 +34,6 @@
 #include <memory>                   // for unique_ptr
 #include <optional>                 // for optional
 #include <queue>                    // for priority_queue
-#include <random>                   // for uniform_int_distribution, bernoul...
 #include <unordered_set>            // for unordered_set
 #include <utility>                  // for pair
 #include <vector>                   // for vector
@@ -45,7 +44,7 @@
 #include "lin-city.hpp"             // for FLAG_HAS_UNDERGROUND_WATER, FLAG_...
 #include "lintypes.hpp"             // for Construction, NUMOF_COAL_RESERVES
 #include "modules/all_modules.hpp"  // for CommuneConstructionGroup, commune...
-#include "util/randutil.hpp"                 // for BasicUrbg
+#include "util/randutil.hpp"
 #include "world.hpp"                // for MapTile, Map, Ground, World
 
 #ifdef DEBUG
@@ -627,7 +626,7 @@ static void new_setup_river_ground(Map& map,
 }
 
 static void new_setup_river(Map& map, int global_aridity) {
-  int r = 5 + std::binomial_distribution(10, 0.5)(BasicUrbg::get());
+  int r = 5 + simulationBinomial("river.lake-count", 10, 0.5);
   int c = (100 - global_aridity/4) * r * map.len()*map.len() / 1000000;
 
   std::cout << "pooring " << c << " lakes ..." << std::endl;
@@ -635,8 +634,8 @@ static void new_setup_river(Map& map, int global_aridity) {
 
   for(int i = c; i > 0; i--) {
     MapPoint start(
-      std::uniform_int_distribution(0, map.len()-1)(BasicUrbg::get()),
-      std::uniform_int_distribution(0, map.len()-1)(BasicUrbg::get())
+      simulationUniform("river.start-x", 0, map.len()-1),
+      simulationUniform("river.start-y", 0, map.len()-1)
     );
     #ifdef DEBUG
     std::cerr << "river starting at " << start << std::endl;
@@ -670,8 +669,8 @@ static void new_setup_river(Map& map, int global_aridity) {
       // this helps with going down hills that are not straight
       int d1 = level - next->ground.altitude;
       int d2 = level - runnerUp->ground.altitude;
-      if(d2 >= 0 && std::bernoulli_distribution(
-        !d1 ? .5 : (double)d2 / (d1 + d2))(BasicUrbg::get())
+      if(d2 >= 0 && simulationBernoulli("river.runner-up",
+        !d1 ? .5 : (double)d2 / (d1 + d2))
       ) {
         edge.pop();
         edge.push(next);
@@ -779,15 +778,14 @@ static void setup_river(Map& map)
 }
 
 static void setup_river2(Map& map, MapPoint p, int d) {
-  int l = std::uniform_int_distribution(map.len()/6, map.len()/2)(
-    BasicUrbg::get());
+  int l = simulationUniform("river.segment-length", map.len()/6, map.len()/2);
 #ifdef DEBUG
   std::cerr << "starting river seg at " << p
     << " with length " << l << std::endl;
 #endif
   for(int j = 0; j < l; j++) {
     double slant = p.y < map.len()/2 ? 5 : 7;
-    p.x += (std::discrete_distribution({1, 2, slant})(BasicUrbg::get()) - 1) * d;
+    p.x += (simulationDiscrete("river.slant", {1, 2, slant}) - 1) * d;
     if(p.x < 4 || p.x >= map.len() - 5) return;
     if((j >= 5 || d == -1) && map(p.w(2))->is_river()) return;
     if(d == -1 && map.is_inside(p.w(10)) && map(p.w(10))->is_river()) return;

@@ -28,7 +28,6 @@
 #include <cassert>          // for assert
 #include <cmath>            // for ceil
 #include <map>              // for map
-#include <random>           // for discrete_distribution
 #include <string>           // for basic_string, operator<
 #include <vector>           // for vector
 
@@ -36,7 +35,7 @@
 #include "groups.hpp"       // for GROUP_ROAD_BRIDGE, GROUP_TRACK_BRIDGE
 #include "lintypes.hpp"     // for Construction
 #include "resources.hpp"    // for ExtraFrame, ResourceGroup
-#include "util/randutil.hpp"         // for BasicUrbg
+#include "util/randutil.hpp"
 #include "world.hpp"        // for World, Map, MapTile
 
 Vehicle::Vehicle(World& world, MapPoint point, VehicleModel model0,
@@ -329,12 +328,12 @@ void Vehicle::getNewHeadings() {
   }
 
   //choose a random branch
-  int choice = std::discrete_distribution({ // std::bitset has no iterator smh
+  int choice = simulationDiscrete("vehicle.heading", { // std::bitset has no iterator smh
     headings[0] ? 1. : 0.,
     headings[1] ? 1. : 0.,
     headings[2] ? 1. : 0.,
     headings[3] ? 1. : 0.
-  })(BasicUrbg::get());
+  });
 
   //set the next destination
   switch(choice) {

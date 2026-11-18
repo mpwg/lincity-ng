@@ -29,7 +29,6 @@
 #include <map>                        // for map
 #include <string>                     // for basic_string, operator<
 #include <vector>                     // for vector
-#include <random>
 
 #include "fire.hpp"                   // for FIRE_ANIMATION_SPEED
 #include "lincity/ConstructionReport.hpp" // for ConstructionReport
@@ -285,7 +284,7 @@ void Transport::update()
 
     double uncontrolledP = WASTE_BURN_UNCONTROLLED
       * constructionGroup->fire_chance / 100;
-    if(std::bernoulli_distribution(uncontrolledP)(BasicUrbg::get())
+    if(simulationBernoulli("transport.waste-fire", uncontrolledP)
       && !(world.map(point)->flags & FLAG_FIRE_COVER)
     ) {
       torch();

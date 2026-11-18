@@ -6,6 +6,8 @@
 #include "lincity/modules/windmill.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
+#include "util/simulation_trace.hpp"
+#include <sstream>
 
 #include <algorithm>
 #include <climits>
@@ -190,6 +192,12 @@ void vehicles() {
       strategy == VEHICLE_STRATEGY_MAXIMIZE ? 150 : 50);
     world.map(site.n())->getConstruction()->levelStuff(STUFF_LABOR, 200);
     auto* car = new Vehicle(world, start, VEHICLE_BLUECAR, strategy);
+    // This fragment starts after placement. Replay the decisions at the
+    // intersection without depending on a particular C++ distribution.
+    const int branch = strategy == VEHICLE_STRATEGY_MAXIMIZE ? 2 : 3;
+    std::istringstream choices("LINCITY-SIMULATION-TRACE 1\n"
+      "S vehicle.heading 0\nS vehicle.heading " + std::to_string(branch) + "\nZ\n");
+    SimulationTrace trace(choices);
     car->update(1);
     CHECK(carFrames(world) == 1);
     CHECK(car->point == site && car->prev == start);
@@ -199,6 +207,7 @@ void vehicles() {
     CHECK(car->direction == (strategy == VEHICLE_STRATEGY_MAXIMIZE ? 3 : 1));
     car->update(3000); // no forward route; update removes the vehicle and its frame
     CHECK(carFrames(world) == 0);
+    trace.finish();
   }
 }
 

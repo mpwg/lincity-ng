@@ -43,6 +43,8 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME "core.replay.${case}" COMMAND "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py" $<TARGET_FILE:core_replay> "${case}")
   endforeach()
+  add_test(NAME core.replay.traffic COMMAND "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py" $<TARGET_FILE:core_replay> scenario --profile traffic)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_library(LINCITY_JEMALLOC NAMES jemalloc libjemalloc.so.2)
     if(LINCITY_JEMALLOC)

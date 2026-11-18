@@ -28,7 +28,6 @@
 #include <cassert>                 // for assert
 #include <map>                     // for map
 #include <optional>                // for optional, operator==
-#include <random>                  // for bernoulli_distribution
 #include <string>                  // for basic_string, operator<
 #include <vector>                  // for vector
 
@@ -44,7 +43,7 @@
 #include "lincity/world.hpp"       // for World, Map, MapTile
 #include "modules_interfaces.hpp"  // for add_a_shanty, update_shanty
 #include "util/gettextutil.hpp"    // for N_
-#include "util/randutil.hpp"       // for BasicUrbg
+#include "util/randutil.hpp"
 
 ShantyConstructionGroup shantyConstructionGroup(
     N_("Shanty Town"),
@@ -211,7 +210,7 @@ void Shanty::update()
 
         double uncontrolledP = WASTE_BURN_UNCONTROLLED
           * constructionGroup->fire_chance / 100;
-        if(std::bernoulli_distribution(uncontrolledP)(BasicUrbg::get())
+        if(simulationBernoulli("shanty.waste-fire", uncontrolledP)
           && !(world.map(point)->flags & FLAG_FIRE_COVER)
         ) {
           torch();

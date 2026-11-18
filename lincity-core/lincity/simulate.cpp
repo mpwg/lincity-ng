@@ -235,12 +235,10 @@ World::simulate_mappoints(void) {
   std::vector<decltype(map.constructions)::iterator> ordering(
     map.constructions.size());
   std::iota(ordering.begin(), ordering.end(), map.constructions.begin());
-  if(auto trace = SimulationTrace::current()) {
-    if(!trace->replaying()) BasicUrbg::get().shuffle(ordering.begin(), ordering.end());
-    trace->visitOrder('D', total_time, ordering);
-  } else {
+  auto trace = SimulationTrace::current();
+  if(!trace || !trace->replaying())
     std::shuffle(ordering.begin(), ordering.end(), BasicUrbg::get());
-  }
+  if(trace) trace->visitOrder('D', total_time, ordering);
   for(auto cstIt : ordering) {
     Construction *cst = *cstIt;
     if(cst->isDead()) {
