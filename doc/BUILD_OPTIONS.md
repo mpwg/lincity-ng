@@ -4,6 +4,17 @@ This is a list of options which may be of interest when configuring the build.
 These options should be passed to `cmake` at the configuration step.
 
 
+## LINCITY_BUILD_GUI
+
+The default, `ON`, builds the SDL game. Set `OFF` to build the
+`LinCity::Core` library and run its tests without SDL.
+
+```sh
+cmake -B build/core -DLINCITY_BUILD_GUI=OFF -DBUILD_TESTING=ON
+cmake --build build/core
+ctest --test-dir build/core --output-on-failure
+```
+
 ## CMAKE_BUILD_TYPE
 
 ```

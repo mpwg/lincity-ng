@@ -18,3 +18,11 @@ add_test(NAME core.actions COMMAND core_actions)
 add_executable(core_animation animation.cpp)
 target_link_libraries(core_animation PRIVATE LinCity::Core)
 add_test(NAME core.animation COMMAND core_animation)
+
+add_executable(core_modules modules.cpp)
+target_link_libraries(core_modules PRIVATE LinCity::Core randutil)
+add_test(NAME core.modules COMMAND core_modules)
+
+add_executable(core_world_generation world_generation.cpp)
+target_link_libraries(core_world_generation PRIVATE LinCity::Core randutil)
+add_test(NAME core.world_generation COMMAND core_world_generation)

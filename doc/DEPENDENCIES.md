@@ -55,7 +55,11 @@ Following is the list of dependencies for building and/or running LinCity-NG.
 
   https://cmake.org/
 
-* xsltproc
+* Python 3
+
+  Used at configure time to extract the animation lengths for the simulation.
+
+* xsltproc (desktop build only)
 
   https://gitlab.gnome.org/GNOME/libxslt
 
@@ -95,9 +99,9 @@ Following is the list of dependencies for building and/or running LinCity-NG.
   in the readme. If sources are obtained via other means, e.g. downloading a
   source package from the LinCity-NG GitHub releases, then git is not needed.
 
-* Python, Bash, Ammonite
+* Bash, Ammonite
 
-  Some helper scripts are written in Python, Bash, and Scala (Ammonite), but
+  Some helper scripts are written in Bash and Scala (Ammonite), but
   none of these scripts are necessary for building the project.
 
 * Docker
