@@ -174,6 +174,14 @@ void coalMineThresholds() {
   mine.update();
   CHECK(stored[STUFF_COAL] == 16000 && stored[STUFF_LABOR] == 0);
   CHECK(world.map(site)->coal_reserve == 20 && world.map(site)->pollution == 3);
+
+  stock(mine, {{STUFF_COAL, 17000}, {STUFF_LABOR, 918}});
+  mine.update();
+  CHECK(world.map(site)->coal_reserve == 21);
+  world.stats.sustainability.mining_flag = true;
+  stock(mine, {{STUFF_COAL, 15000}, {STUFF_LABOR, 918}});
+  mine.update();
+  CHECK(world.map(site)->coal_reserve == 20 && world.stats.sustainability.mining_flag);
 }
 
 void coalMineReturnRetry() {
@@ -234,6 +242,27 @@ void coalMineExhaustion() {
   mine.update();
   CHECK(!world.map(site)->getConstruction());
   world.do_time_step(); // The simulation reclaims the detached construction on the next tick.
+}
+
+void coalMineDeliversLastBatch() {
+  World world(32);
+  auto& mine = place(world, coalmineConstructionGroup);
+  for(int day = 1; day <= 20; ++day) {
+    world.total_time = day;
+    stock(mine, {{STUFF_LABOR, 918}, {STUFF_COAL, 0}});
+    mine.update();
+    CHECK(mine.commodityCount[STUFF_COAL] == 1000);
+    CHECK(world.map(site)->coal_reserve == 20 - day);
+    CHECK(bool(mine.flags & FLAG_EVACUATE) == (day == 20));
+  }
+
+  mine.update();
+  CHECK(world.map(site)->getConstruction() == &mine);
+  CHECK(mine.commodityCount[STUFF_LABOR] == 0 && mine.commodityCount[STUFF_COAL] == 1000);
+  stock(mine, {{STUFF_COAL, 0}});
+  mine.update();
+  CHECK(!world.map(site)->getConstruction());
+  world.do_time_step();
 }
 
 void coalMineMapEdges() {
@@ -349,6 +378,25 @@ void oreMineFullDeposit() {
   CHECK(deposit.ore_reserve == 1500 && world.map(site)->ore_reserve == 1500);
 }
 
+void oreMineReplenishedDeposit() {
+  World world(32);
+  for(int y = 0; y < GROUP_OREMINE_SIZE; ++y)
+    for(int x = 0; x < GROUP_OREMINE_SIZE; ++x)
+      world.map(site.e(x).s(y))->ore_reserve = 1000;
+  auto& mine = place(world, oremineConstructionGroup);
+  stock(mine, {{STUFF_ORE, 85001}, {STUFF_LABOR, 209}});
+  mine.update();
+  CHECK(world.map(site)->ore_reserve == 1001);
+
+  stock(mine, {{STUFF_ORE, 0}, {STUFF_LABOR, 418}});
+  world.stats.sustainability.mining_flag = true;
+  mine.update();
+  CHECK(world.map(site)->ore_reserve == 1000 && world.stats.sustainability.mining_flag);
+  mine.update();
+  CHECK(world.map(site)->ore_reserve == 999 && !world.stats.sustainability.mining_flag);
+  CHECK(mine.commodityCount[STUFF_ORE] == 10000 && mine.commodityCount[STUFF_LABOR] == 0);
+}
+
 void communeProduction() {
   World world(32);
   auto& commune = place(world, communeConstructionGroup);
@@ -358,6 +406,8 @@ void communeProduction() {
   commune.update();
   CHECK(stored[STUFF_COAL] == 1 && stored[STUFF_ORE] == 6);
   CHECK(stored[STUFF_WATER] == 79 && stored[STUFF_WASTE] == 59);
+  commune.animate(1000);
+  CHECK(commune.getFrame().frame == 1);
 
   stock(commune, {{STUFF_WATER, 80}, {STUFF_WASTE, 60}, {STUFF_ORE, 134}});
   world.total_time = 10;
@@ -367,12 +417,18 @@ void communeProduction() {
   CHECK(stored[STUFF_COAL] == 4 && stored[STUFF_ORE] == 140);
   CHECK(stored[STUFF_WATER] == 0 && stored[STUFF_WASTE] == 40 && stored[STUFF_STEEL] == 2);
   CHECK(world.map(site)->pollution == 2 && world.map(site.e())->pollution == 1);
+  commune.animate(1100);
+  CHECK(commune.getFrame().frame == 1);
+  commune.animate(2000);
+  CHECK(commune.getFrame().frame == 7);
 
   stock(commune, {{STUFF_COAL, 60}, {STUFF_ORE, 139}, {STUFF_WASTE, 60}});
   world.total_time = 20;
   commune.update();
   CHECK(stored[STUFF_COAL] == 60 && stored[STUFF_ORE] == 140 && stored[STUFF_STEEL] == 2);
   CHECK(world.map(site)->pollution == 1 && world.map(site.e())->pollution == 0);
+  commune.animate(3000);
+  CHECK(commune.getFrame().frame == 3);
 }
 
 void idleCommuneBecomesParks() {
@@ -435,6 +491,12 @@ void farmWaterAndCapacity() {
   farm.update();
   CHECK(stored[STUFF_FOOD] == 11000 && stored[STUFF_LOVOLT] == 48 && stored[STUFF_LABOR] == 13);
   CHECK(stored[STUFF_WATER] == 100);
+
+  // The 800 remaining units exceed what groundwater alone can produce.
+  stock(farm, {{STUFF_FOOD, 10200}, {STUFF_LOVOLT, 50}, {STUFF_WATER, 500}});
+  farm.update();
+  CHECK(stored[STUFF_FOOD] == 11000 && stored[STUFF_LOVOLT] == 14);
+  CHECK(stored[STUFF_LABOR] == 4 && stored[STUFF_WATER] == 100);
 }
 
 void dryFarmMinimumYield() {
@@ -743,11 +805,13 @@ int main() {
     coalMineReturnRetry();
     coalMineExtractionRetry();
     coalMineExhaustion();
+    coalMineDeliversLastBatch();
     coalMineMapEdges();
     oreMineConstruction();
     oreMineThresholds();
     oreMineExhaustion();
     oreMineFullDeposit();
+    oreMineReplenishedDeposit();
     communeProduction();
     idleCommuneBecomesParks();
     farmWaterAndCapacity();

@@ -15,6 +15,7 @@
 #include "util/simulation_trace.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -30,13 +31,21 @@ public:
   int rows = 0;
   using Quantity = std::tuple<std::string, std::string, int, int>;
   std::vector<Quantity> quantities;
+  std::vector<std::string> labels;
+  std::vector<std::pair<std::string, double>> percentages;
 
   void addBlank() override { ++rows; }
-  void addLabel(const std::string&) override { ++rows; }
+  void addLabel(const std::string& label) override {
+    labels.push_back(label);
+    ++rows;
+  }
   void addLabeledText(const std::string&, const std::string&) override { ++rows; }
   void addInteger(const std::string&, int) override { ++rows; }
   void addDecimal(const std::string&, double) override { ++rows; }
-  void addPercentage(const std::string&, double) override { ++rows; }
+  void addPercentage(const std::string& label, double percentage) override {
+    percentages.emplace_back(label, percentage);
+    ++rows;
+  }
   void addQuantity(const std::string&, int, int) override { ++rows; }
   void addPrefixedQuantity(const std::string& prefix, const std::string& label,
                            int value, int capacity) override {
@@ -376,6 +385,41 @@ void verifyInventoryAndProductionReport() {
           "invalid commodity display name in the finance report");
 }
 
+void verifyTransportReport() {
+  World world(32);
+  const MapPoint site(12, 12);
+  trackConstructionGroup.placeItem(world, site);
+  roadConstructionGroup.placeItem(world, site.e());
+  auto& track = *world.map(site)->getConstruction();
+  auto& road = *world.map(site.e())->getConstruction();
+  track.commodityCount[STUFF_FOOD] = 2048;
+
+  for(const auto& [delivered, percentage] : {std::pair{256, 10.34592}, {512, 19.82968}}) {
+    track.trade();
+    require(track.commodityCount[STUFF_FOOD] == 2048 - delivered && road.commodityCount[STUFF_FOOD] == delivered,
+            "traffic report fixture did not deliver food at the expected rate");
+
+    Report activity;
+    track.report(activity, true);
+    require(activity.labels == std::vector<std::string>{"Track", "Traffic"} && activity.quantities.empty(),
+            "transport activity report did not identify traffic separately from inventory");
+    const auto food = std::find_if(activity.percentages.begin(), activity.percentages.end(), [](const auto& row) {
+      return row.first == "Food";
+    });
+    require(food != activity.percentages.end() && std::abs(food->second - percentage) < 0.000001,
+            "transport traffic report did not smooth food delivery across ticks");
+    require(std::none_of(activity.percentages.begin(), activity.percentages.end(), [](const auto& row) {
+      return row.first == "Hi-Volt";
+    }), "transport traffic reported unsupported high-voltage flow");
+
+    Report inventory;
+    track.report(inventory, false);
+    const Report::Quantity foodStock{"<-> ", "Food", 2048 - delivered, 2048};
+    require(std::find(inventory.quantities.begin(), inventory.quantities.end(), foodStock) != inventory.quantities.end() &&
+              inventory.percentages.empty(), "transport inventory report did not show remaining stock");
+  }
+}
+
 void verifyResidenceFootprints() {
   for(auto* group : {&residenceLLConstructionGroup, &residenceMLConstructionGroup,
                     &residenceHLConstructionGroup, &residenceLHConstructionGroup,
@@ -594,6 +638,7 @@ int main() {
     verifyTransportExchangeNearCapacity();
     verifyOldOverflowCannotSupplyEvacuatingNeighbor();
     verifyInventoryAndProductionReport();
+    verifyTransportReport();
     verifyResidenceFootprints();
     verifyDetachedConstructionLifetime();
     verifyPowerCableLimits();
