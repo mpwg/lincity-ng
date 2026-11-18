@@ -35,6 +35,26 @@ pub struct TileView {
 }
 
 impl City {
+    /// Scenario name saved with this city.
+    pub fn scenario_name(&self) -> &str {
+        &self.scenario_name
+    }
+
+    /// Whether the simulation has issued its end-of-game notification.
+    pub fn game_ended(&self) -> bool {
+        self.game_end
+    }
+
+    /// Saved map position used to center the view when resuming.
+    pub fn focus(&self) -> Point {
+        self.recent_point
+    }
+
+    /// Stores the map position to show when resuming.
+    pub fn set_focus(&mut self, point: Point) {
+        self.recent_point = point;
+    }
+
     /// Width and height of the square map, including its border.
     pub fn side(&self) -> i32 {
         self.side

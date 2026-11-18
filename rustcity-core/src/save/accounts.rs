@@ -233,11 +233,7 @@ pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
     }
     for (group, key, b) in flags(s) {
         if let Some(node) = root.child(group).and_then(|g| g.child(key)) {
-            *b = match node.text().as_ref() {
-                "1" | "true" | "TRUE" | "yes" | "YES" | "y" | "Y" => true,
-                "0" | "false" | "FALSE" | "no" | "NO" | "n" | "N" => false,
-                s => return Err(invalid(format!("invalid boolean {s}"))),
-            };
+            *b = node.boolean()?;
         }
     }
     if let Some(history) = root.child("history") {

@@ -135,6 +135,14 @@ impl Element {
         });
     }
 
+    pub fn boolean(&self) -> io::Result<bool> {
+        match self.text().as_ref() {
+            "1" | "true" | "TRUE" | "yes" | "YES" | "y" | "Y" => Ok(true),
+            "0" | "false" | "FALSE" | "no" | "NO" | "n" | "N" => Ok(false),
+            other => Err(invalid(format!("invalid boolean {other}"))),
+        }
+    }
+
     pub fn i32(&self) -> io::Result<i32> {
         i32::try_from(super::integer(&self.text())?).map_err(invalid)
     }

@@ -117,3 +117,18 @@ fn legacy_rocket_pad_fields_follow_the_cpp_writer() {
             .1;
     }
 }
+
+#[test]
+fn saved_focus_and_scene_are_available_to_a_resuming_host() {
+    let input = r#"<lc-game ldsv-version="2140"><globals><given_scene>Wet &amp; wild</given_scene><game_end>YES</game_end></globals><map size="8"><recentPoint><x>4</x><y>2</y></recentPoint></map></lc-game>"#;
+    let mut city = City::load(input.as_bytes()).unwrap();
+    assert!(city.game_ended());
+    assert_eq!(city.scenario_name(), "Wet & wild");
+    assert_eq!(city.focus(), Point { x: 4, y: 2 });
+    city.set_focus(Point { x: 1, y: 5 });
+    let mut save = Vec::new();
+    city.save(&mut save).unwrap();
+    let city = City::load(save.as_slice()).unwrap();
+    assert_eq!(city.focus(), Point { x: 1, y: 5 });
+    assert_eq!(city.scenario_name(), "Wet & wild");
+}

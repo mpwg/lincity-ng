@@ -151,11 +151,15 @@ impl City {
         city.economy.load(g)?;
         city.rockets_launched = g.child_i32("rockets_launched", 0)?;
         city.rockets_successful = g.child_i32("rockets_launched_success", 0)?;
-        city.game_end = match g.child("game_end").map(|v| v.text()).as_deref() {
-            None | Some("0" | "false") => false,
-            Some("1" | "true") => true,
-            Some(value) => return Err(invalid(format!("invalid game_end: {value}"))),
-        };
+        city.scenario_name = g
+            .child("given_scene")
+            .map(|node| node.text().into_owned())
+            .unwrap_or_default();
+        city.game_end = g
+            .child("game_end")
+            .map(Element::boolean)
+            .transpose()?
+            .unwrap_or_default();
         city.balance = g.child_i32("total_money", 0)?;
         city.day = g.child_i32("total_time", 0)?;
         city.people_pool = g.child_i32("people_pool", 100)?;
@@ -270,6 +274,7 @@ impl City {
         self.economy.store(g);
         g.set_child("rockets_launched", self.rockets_launched);
         g.set_child("rockets_launched_success", self.rockets_successful);
+        g.set_child("given_scene", &self.scenario_name);
         g.set_child("game_end", self.game_end);
         g.set_child("total_time", self.day);
         g.set_child("people_pool", self.people_pool);

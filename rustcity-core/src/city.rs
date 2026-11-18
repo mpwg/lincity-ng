@@ -157,6 +157,7 @@ pub enum CityEvent {
 
 /// An independent city, including its terrain and financial accounts.
 pub struct City {
+    scenario_name: String,
     rockets_launched: i32,
     rockets_successful: i32,
     game_end: bool,
@@ -291,6 +292,7 @@ impl City {
             },
         );
         Ok(Self {
+            scenario_name: String::new(),
             decisions,
             rockets_launched: 0,
             rockets_successful: 0,
