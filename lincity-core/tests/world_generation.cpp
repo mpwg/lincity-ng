@@ -1,11 +1,14 @@
 #include "lincity/groups.hpp"
 #include "lincity/init_game.hpp"
+#include "lincity/lintypes.hpp"
 #include "util/randutil.hpp"
+#include "util/simulation_trace.hpp"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 namespace {
@@ -57,6 +60,38 @@ std::uint64_t terrainHash(const Map& map) {
   return hash;
 }
 
+void verifyVillageReplay(const Reference& ref) {
+  city_settings city{true, false};
+  std::ostringstream tape;
+  std::unique_ptr<World> original;
+  {
+    SimulationTrace recording(tape);
+    original = generate(ref.generate, city);
+    recording.finish();
+  }
+
+  std::srand(923);
+  BasicUrbg::get().seed(317);
+  std::istringstream input(tape.str());
+  SimulationTrace replay(input);
+  const auto rebuilt = ref.generate(&city, 100);
+  replay.finish();
+  require(original->map.constructionCount() > 0, "recorded village is empty");
+  require(rebuilt->map.constructionCount() == original->map.constructionCount(),
+          "village construction count differs in replay");
+  require(terrainHash(original->map) == terrainHash(rebuilt->map), "village terrain differs in replay");
+  for(const auto& tile : original->map) {
+    const auto& copy = *rebuilt->map(tile.point);
+    const auto* building = tile.getConstruction();
+    const auto* restored = copy.getConstruction();
+    require((building == nullptr) == (restored == nullptr), "village footprint differs in replay");
+    if(building) {
+      require(tile.getTopGroup() == copy.getTopGroup(), "village building differs in replay");
+      require(building->commodityCount == restored->commodityCount, "village inventory differs in replay");
+    }
+  }
+}
+
 void verify(const Reference& ref) {
   for(bool withoutTrees : {false, true}) {
     auto world = generate(ref.generate, {false, withoutTrees});
@@ -94,6 +129,7 @@ int main() {
   for(const auto& ref : maps) {
     try {
       verify(ref);
+      verifyVillageReplay(ref);
     } catch(const std::exception& error) {
       std::cerr << ref.name << ": " << error.what() << '\n';
       return 1;

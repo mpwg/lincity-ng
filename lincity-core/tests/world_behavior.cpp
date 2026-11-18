@@ -111,6 +111,14 @@ void riversAndCables() {
   CHECK(world.total_money == -waterConstructionGroup.bul_cost);
   CHECK(!water->is_water() && !water->is_river());
 
+  const MapPoint edge(1, 4);
+  map(edge)->setTerrain(GROUP_WATER);
+  map(edge.e())->setTerrain(GROUP_WATER);
+  map(edge.e())->flags |= FLAG_IS_RIVER;
+  map(edge.w())->setTerrain(GROUP_WATER);
+  map.connect_rivers(edge.x, edge.y);
+  CHECK(map(edge.w())->is_river() && map(edge)->is_river());
+
   for(const auto direction : {MapPoint(0,-1), MapPoint(-1,0), MapPoint(1,0), MapPoint(0,1)}) {
     World grid(32);
     const auto point = [&](int distance) {

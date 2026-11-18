@@ -214,9 +214,8 @@ Map::connect_rivers(int x, int y) {
   while(!line.empty()) {
     MapPoint p = line.front();
     line.pop_front();
-    // TODO: make sure we don't go outside the map
     for(MapPoint p1 : {p.n(), p.s(), p.e(), p.w()})
-      if(map(p1)->is_lake()) {
+      if(map.is_inside(p1) && map(p1)->is_lake()) {
         map(p1)->flags |= FLAG_IS_RIVER;
         line.push_back(p1);
       }
