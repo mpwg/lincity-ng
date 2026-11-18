@@ -28,7 +28,7 @@
 #include <string>                   // for basic_string
 #include <vector>                   // for vector
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"     // for MapPoint
 #include "lincity/groups.hpp"       // for GROUP_MILL
 #include "lincity/lin-city.hpp"     // for ANIM_THRESHOLD, FALSE
@@ -108,7 +108,7 @@ void Mill::animate(unsigned long real_time) {
   if(animate_enable && real_time >= anim) {
     anim = real_time + ANIM_THRESHOLD(MILL_ANIM_SPEED);
     animate_enable = false;
-    if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    if(++frame >= frameIt->resourceGroup->frameCount)
       frame = 1;
   }
   else if(!busy) {
@@ -116,10 +116,10 @@ void Mill::animate(unsigned long real_time) {
   }
 }
 
-void Mill::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), (float) busy);
-  list_commodities(mps, production);
+void Mill::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), (float) busy);
+  list_commodities(report, production);
 }
 
 

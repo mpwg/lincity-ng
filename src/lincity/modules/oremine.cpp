@@ -29,7 +29,7 @@
 #include <list>                           // for _List_iterator
 #include <string>                         // for basic_string, allocator
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_OREMINE, GROUP_WATER
 #include "lincity/lin-city.hpp"           // for ANIM_THRESHOLD, FALSE, FLAG...
@@ -179,11 +179,11 @@ void Oremine::animate(unsigned long real_time) {
   }
 }
 
-void Oremine::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sddp(N_("Deposits"), total_ore_reserve, (constructionGroup->size * constructionGroup->size * ORE_RESERVE));
-  list_commodities(mps, production);
+void Oremine::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), busy);
+  report.addQuantity(N_("Deposits"), total_ore_reserve, (constructionGroup->size * constructionGroup->size * ORE_RESERVE));
+  list_commodities(report, production);
 }
 
 void

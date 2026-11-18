@@ -38,7 +38,7 @@
 #include <utility>                        // for pair, move
 
 #include "Game.hpp"                       // for Game
-#include "UserOperation.hpp"              // for UserOperation
+#include "lincity/UserOperation.hpp"              // for UserOperation
 #include "Util.hpp"                       // for getCheckButton
 #include "gui/CheckButton.hpp"            // for CheckButton
 #include "gui/Child.hpp"                  // for Childs, Child
@@ -50,8 +50,6 @@
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL
 #include "lincity/lintypes.hpp"           // for ConstructionGroup
 #include "lincity/messages.hpp"           // for NotEnoughTechMessage, OutOf...
-#include "lincity/modules/windmill.hpp"   // for WindmillConstructionGroup
-#include "lincity/modules/windpower.hpp"  // for WindpowerConstructionGroup
 #include "lincity/world.hpp"              // for World
 #include "util/gettextutil.hpp"           // for _
 #include "util/xmlutil.hpp"               // for xmlParse, unexpectedXmlAttr...
@@ -299,22 +297,12 @@ ButtonPanel::setGame(Game *game) {
 void
 ButtonPanel::updateTech() {
   World& world = game->getWorld();
-  const int tech_level = world.tech_level;
   for(auto t : tools){
     Tool *tool = t.second;
     UserOperation& op = tool->operation;
 
-    if(op.constructionGroup == &windmillConstructionGroup) {
-      if(tech_level >= windpowerConstructionGroup.tech) {
-        op.constructionGroup = &windpowerConstructionGroup;
-        // TODO: if the windmill tool is in use, need to update the game uop too
-      }
-    }
-    else if(op.constructionGroup == &windpowerConstructionGroup) {
-      if(tech_level < windpowerConstructionGroup.tech) {
-        op.constructionGroup = &windmillConstructionGroup;
-      }
-    }
+    if(op.action == UserOperation::ACTION_BUILD)
+      op.constructionGroup = op.actualConstructionGroup(world);
 
     Message::ptr msg;
     if(op.isAllowed(world, msg)) {
@@ -348,7 +336,7 @@ ButtonPanel::updateTech() {
       ) {
         os << " (" << _("requires") << " "
           // TODO: format this number properly
-          << _("$") << op.constructionGroup->getCosts(world)
+          << _("$") << op.cost(world)
           << ")";
       }
       else {

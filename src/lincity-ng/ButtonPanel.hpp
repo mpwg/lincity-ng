@@ -31,7 +31,7 @@
 #include "gui/Component.hpp"             // for Component
 #include "gui/RadioButtonGroup.hpp"      // for RadioButtonGroup
 #include "gui/Signal.hpp"                // for Signal
-#include "lincity-ng/UserOperation.hpp"  // for UserOperation
+#include "lincity/UserOperation.hpp"  // for UserOperation
 
 class CheckButton;
 class Game;

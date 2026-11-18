@@ -27,6 +27,7 @@
 #include <vector>             // for vector
 
 #include "gui/Component.hpp"  // for Component
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 
 class Game;
 class MapTile;
@@ -39,32 +40,34 @@ class TextReader;
  * The MPS component is more or less a text component with 13 lines that
  * is used to display status information about the game/engine.
  */
-class Mps : public Component {
+class Mps : public Component, public ConstructionReport {
 public:
   Mps();
-  ~Mps();
+  ~Mps() override;
 
   void parse(xmlpp::TextReader& reader);
 
   void reset();
   void clear();
   void addText(const std::string &s);
-  void addBlank();
   void fillBlank();
   bool isFull() const;
 
-  void add_s(const std::string &s);
+  void addBlank() override;
+  void addLabel(const std::string& label) override;
+  void addLabeledText(const std::string& label, const std::string& value) override;
+  void addInteger(const std::string& label, int value) override;
+  void addDecimal(const std::string& label, double value) override;
+  void addPercentage(const std::string& label, double percentage) override;
+  void addQuantity(const std::string& label, int value, int capacity) override;
+  void addPrefixedQuantity(const std::string& prefix,
+    const std::string& label, int value, int capacity) override;
+
   void add_fp(int i, double f);
   void add_f(double f);
-  void add_sf(const std::string& s, double fl);
   void add_d(int d);
-  void add_ss(const std::string& s1, const std::string& s2);
-  void add_sd(const std::string& s, int d);
   void add_ssd(const std::string& s1, const std::string& s2, int d);
-  void add_sfp(const std::string& s, double fl);
   void add_sdd(const std::string& s, int d1, int d2);
-  void add_sddp(const std::string& s, int d, int max);
-  void add_tsddp(const std::string& t1, const std::string& s2, int d, int max);
   void add_ttt(const std::string& s1, const std::string& s2,
     const std::string& s3);
 

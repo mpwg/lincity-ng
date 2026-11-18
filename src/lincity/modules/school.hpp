@@ -93,7 +93,7 @@ public:
     School(World& world, ConstructionGroup *cstgrp);
     virtual ~School();
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
 
     virtual void init_resources() override;

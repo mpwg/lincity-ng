@@ -28,7 +28,7 @@
 #include <string>                 // for basic_string
 #include <vector>                 // for vector
 
-#include "lincity-ng/Mps.hpp"     // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"   // for MapPoint
 #include "lincity/groups.hpp"       // for GROUP_BLACKSMITH
 #include "lincity/lin-city.hpp"     // for ANIM_THRESHOLD
@@ -114,7 +114,7 @@ void Blacksmith::animate(unsigned long real_time) {
   }
   else if(real_time >= anim ) {
     anim = real_time + ANIM_THRESHOLD(BLACKSMITH_ANIM_SPEED);
-    int s = frameIt->resourceGroup->graphicsInfoVector.size();
+    int s = frameIt->resourceGroup->frameCount;
     if(++frameIt->frame >= s) {
       frameIt->frame = 1;
       animate_enable = false;
@@ -122,10 +122,10 @@ void Blacksmith::animate(unsigned long real_time) {
   }
 }
 
-void Blacksmith::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), (float)busy);
-  list_commodities(mps, production);
+void Blacksmith::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), (float)busy);
+  list_commodities(report, production);
 }
 
 /** @file lincity/modules/blacksmith.cpp */

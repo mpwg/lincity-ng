@@ -84,7 +84,7 @@ public:
     Windpower(World& world, ConstructionGroup *cstgrp);
     virtual ~Windpower() {}
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
     virtual void place(MapPoint point) override;
 

@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_FIRE
 #include "lincity/lin-city.hpp"           // for FLAG_FIRE_COVER, ANIM_THRES...
@@ -140,25 +140,24 @@ void Fire::animate(unsigned long real_time) {
 
   if(smoking_days) {
     frameIt->resourceGroup = ResourceGroup::resMap["FireWasteLand"];
-    soundGroup = frameIt->resourceGroup;
     frame = smoking_days * 4 / AFTER_FIRE_LENGTH;
     if(frame >= 4) frame = 4; // shouldn't happen
   }
   else if(real_time >= anim) {
     anim = real_time + ANIM_THRESHOLD(FIRE_ANIMATION_SPEED);
-    if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    if(++frame >= frameIt->resourceGroup->frameCount)
       frame = 0;
   }
 }
 
-void Fire::report(Mps& mps, bool production) const {
-    mps.add_s(constructionGroup->name);
-    mps.addBlank();
-    mps.add_sd(N_("Air Pollution"), world.map(point)->pollution);
+void Fire::report(ConstructionReport& report, bool production) const {
+    report.addLabel(constructionGroup->name);
+    report.addBlank();
+    report.addInteger(N_("Air Pollution"), world.map(point)->pollution);
     if(burning_days < FIRE_LENGTH)
-      mps.add_sddp(N_("burnt down"), burning_days, FIRE_LENGTH);
+      report.addQuantity(N_("burnt down"), burning_days, FIRE_LENGTH);
     else
-      mps.add_sddp(N_("degraded"), smoking_days, AFTER_FIRE_LENGTH);
+      report.addQuantity(N_("degraded"), smoking_days, AFTER_FIRE_LENGTH);
 }
 
 bool

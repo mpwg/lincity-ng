@@ -41,7 +41,7 @@
 #include "world.hpp"           // for World
 
 class ConstructionGroup;
-class Mps;
+class ConstructionReport;
 
 namespace xmlpp {
 class TextReader;
@@ -65,7 +65,7 @@ public:
   virtual ~Construction() {}
 
   virtual void update() = 0;
-  virtual void report(Mps& mps, bool production) const = 0;
+  virtual void report(ConstructionReport& report, bool production) const = 0;
   virtual void animate(unsigned long real_time) {}
 
   /**
@@ -135,7 +135,6 @@ public:
 
 
   ConstructionGroup *constructionGroup;
-  ResourceGroup *soundGroup;
 
   MapPoint point;
   unsigned int flags = 0;              //flags are defined in lin-city.h
@@ -152,7 +151,7 @@ public:
   std::list<ExtraFrame>::iterator frameIt;
   static std::string getStuffName(Commodity stuff_id); //translated name of a commodity
   virtual void init_resources(void);              //sets sounds and graphics according to constructionGroup
-  void list_commodities(Mps& mps, bool production) const;                   //prints a sorted list all commodities in report()
+  void list_commodities(ConstructionReport& report, bool production) const;
   void reset_prod_counters(void);                 // monthly update to production counters
   int produceStuff(Commodity stuff_id, int amt);  // increases inventory by amt and updates production counter
   int consumeStuff(Commodity stuff_id, int amt);  // decreases inventory by amt and updates production counter
@@ -170,7 +169,6 @@ public:
   void trade(); //exchange commodities with neigbhors
   int equilibrate_stuff(int *rem_lvl, CommodityRule rem_rule , int ratio, Commodity stuff_ID);
   //equilibrates stuff with an external reservoir (e.g. another construction invoking this method)
-  void playSound();//plays random chunk from constructionGroup
   bool isDead() const; // true if this construction is no longer on the map
 };
 

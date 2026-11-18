@@ -26,12 +26,14 @@
 
 #include <SDL3/SDL.h>    // for SDL_Thread
 #include <SDL3_mixer/SDL_mixer.h>   // for MIX_Audio
+#include <atomic>
 #include <filesystem>
 #include <map>           // for multimap
 #include <string>        // for basic_string, string, operator<
 #include <vector>        // for vector
 
 class MapTile;
+class ResourceGroup;
 
 //TODO make use for these:
 enum MusicState {
@@ -83,6 +85,9 @@ private:
 
     typedef std::multimap<std::string,MIX_Audio*> chunks_t;
     chunks_t waves;
+    std::map<const ResourceGroup*, std::vector<MIX_Audio*>> tileSounds;
+    std::vector<MIX_Audio*> loadedAudio;
+    std::atomic_bool soundsReady{false};
     bool audioOpen;
     SDL_Thread* loaderThread;
     MIX_Audio* currentMusic;

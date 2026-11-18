@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------- *
- * src/lincity-ng/UserOperation.cpp
+ * src/lincity/UserOperation.cpp
  * This file is part of Lincity-NG.
  *
  * Copyright (C) 1995-1997 I J Peters
@@ -25,7 +25,6 @@
 #include "UserOperation.hpp"
 
 #include <assert.h>                       // for assert
-#include <stddef.h>                       // for NULL
 
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/lin-city.hpp"           // for FLAG_NEVER_EVACUATE
@@ -34,23 +33,12 @@
 #include "lincity/modules/windpower.hpp"  // for WindpowerConstructionGroup
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "lincity/modules/track_road_rail.hpp"
-
-UserOperation::UserOperation() {
-  constructionGroup = NULL;
-  action = ACTION_QUERY;
-}
-
-UserOperation::~UserOperation() { }
-
-UserOperation&
-UserOperation::operator=(const UserOperation& other) {
-  constructionGroup = other.constructionGroup;
-  action = other.action;
-  return *this;
-}
+#include "lincity/modules/market.hpp"
+#include "lincity/modules/port.hpp"
+#include "lincity/modules/rocket_pad.hpp"
 
 bool
-UserOperation::isAllowed(World& world, Message::ptr& message) const {
+UserOperation::isAllowed(const World& world, Message::ptr& message) const {
   switch(action) {
   case ACTION_BUILD:
     return actualConstructionGroup(world)->can_build(world, message);
@@ -66,7 +54,7 @@ UserOperation::isAllowed(World& world, Message::ptr& message) const {
 }
 
 bool
-UserOperation::isAllowedHere(World& world, MapPoint point, Message::ptr& message
+UserOperation::isAllowedHere(const World& world, MapPoint point, Message::ptr& message
 ) const {
   if(!world.map.is_visible(point)) {
     message = OutsideMapMessage::create(point);
@@ -111,18 +99,10 @@ UserOperation::isAllowedHere(World& world, MapPoint point, Message::ptr& message
   }
 }
 
-unsigned short UserOperation::cursorSize(void) const {
-    if( action == ACTION_QUERY )
-    {   return 0;}
-    else if(action == ACTION_BUILD)
-    {   return constructionGroup->size;}
-    else
-    {   return 1;}
-}
-
 void
-UserOperation::execute(World& world, MapPoint point) {
-  assert(world.map.is_visible(point));
+UserOperation::execute(World& world, MapPoint point) const {
+  if(!world.map.is_visible(point))
+    OutsideMapMessage::create(point)->throwEx();
 
   switch(action) {
   case UserOperation::ACTION_QUERY: {
@@ -204,4 +184,42 @@ UserOperation::cost(const World& world, MapPoint point) const {
     assert(false);
     return 0;
   }
+}
+
+bool
+World::setMarketTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
+  if(!map.is_visible(point) || commodity < STUFF_INIT || commodity >= STUFF_COUNT)
+    return false;
+  auto *market = dynamic_cast<Market*>(map(point)->reportingConstruction);
+  if(!market || !market->commodityRuleCount[commodity].maxload)
+    return false;
+  auto& rule = market->commodityRuleCount[commodity];
+  rule.take = buy;
+  rule.give = sell;
+  return true;
+}
+
+bool
+World::setPortTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
+  if(!map.is_visible(point) || commodity < STUFF_INIT || commodity >= STUFF_COUNT)
+    return false;
+  auto *port = dynamic_cast<Port*>(map(point)->reportingConstruction);
+  if(!port || !port->commodityRuleCount[commodity].maxload)
+    return false;
+  auto& rule = port->commodityRuleCount[commodity];
+  // The trading port disables trade when both directions are requested.
+  rule.take = buy && !sell;
+  rule.give = sell && !buy;
+  return true;
+}
+
+bool
+World::launchRocket(MapPoint point) {
+  if(!map.is_visible(point))
+    return false;
+  auto *rocket = dynamic_cast<RocketPad*>(map(point)->construction);
+  if(!rocket || rocket->stage != RocketPad::AWAITING)
+    return false;
+  rocket->launch_rocket();
+  return true;
 }

@@ -32,8 +32,7 @@
 #include <random>
 
 #include "fire.hpp"                   // for FIRE_ANIMATION_SPEED
-#include "lincity-ng/Mps.hpp"         // for Mps
-#include "lincity-ng/Sound.hpp"       // for getSound, Sound
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"       // for MapPoint
 #include "lincity/all_buildings.hpp"  // for DAYS_PER_RAIL_POLLUTION, DAYS_P...
 #include "lincity/lin-city.hpp"       // for FALSE, ANIM_THRESHOLD, FLAG_POW...
@@ -309,63 +308,31 @@ void Transport::animate(unsigned long real_time) {
   }
   else if(real_time >= waste_fire_anim) { // continue fire
     waste_fire_anim = real_time + ANIM_THRESHOLD(FIRE_ANIMATION_SPEED);
-    int num_frames = waste_fire_frit->resourceGroup->graphicsInfoVector.size();
+    int num_frames = waste_fire_frit->resourceGroup->frameCount;
     if(++waste_fire_frit->frame >= num_frames)
       waste_fire_frit->frame = 0;
   }
 }
 
-void Transport::list_traffic(Mps& mps) const {
+void Transport::list_traffic(ConstructionReport& report) const {
   for(Commodity stuff = STUFF_INIT ; stuff < STUFF_COUNT ; stuff++) {
     if(!constructionGroup->commodityRuleCount[stuff].maxload)
       continue;
-    mps.add_sfp(commodityNames[stuff],
+    report.addPercentage(commodityNames[stuff],
       trafficCount[stuff] * 107.77 * TRANSPORT_RATE / TRANSPORT_QUANTA);
   }
 }
 
-void Transport::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
+void Transport::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
   if(production) {
-    mps.add_s(_("Traffic"));
-    list_traffic(mps);
+    report.addLabel(_("Traffic"));
+    list_traffic(report);
   }
   else {
-    // mps.add_s(_("Commodities"));
-    list_commodities(mps, false);
+    list_commodities(report, false);
   }
-}
-
-void Transport::playSound()
-{
-    if(soundGroup->sounds_loaded)
-    {
-        unsigned short g = constructionGroup->group;
-        if ((g == GROUP_ROAD) || (g == GROUP_ROAD_BRIDGE))
-        {
-            int avg = 0;
-            int size = 0;
-            for(Commodity stuff = STUFF_INIT ; stuff < STUFF_COUNT ; stuff++)
-            {
-              if(!constructionGroup->commodityRuleCount[stuff].maxload) continue;
-              avg += (trafficCount[stuff] * 107 * TRANSPORT_RATE / TRANSPORT_QUANTA);
-              size++;
-            }
-            if(avg > 0) //equiv to size > 0
-            {   avg /= size;}
-            int num_sounds = soundGroup->chunks.size()/2;
-            if(avg > 5)
-            {   getSound()->playASound(soundGroup->chunks[rand()%num_sounds]);}
-            else
-            {   getSound()->playASound(soundGroup->chunks[num_sounds+rand()%num_sounds]);}
-        }
-        else
-        {
-            int s = soundGroup->chunks.size();
-            getSound()->playASound(soundGroup->chunks[rand()%s]);
-        }
-    }
 }
 
 bool Transport::canPlaceVehicle() {

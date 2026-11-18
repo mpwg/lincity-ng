@@ -71,12 +71,6 @@
 
 //#define SHUFFLE_MAPPOINT_COUNT 4
 
-// TODO: move SIM_DELAY_* to lincity-ng directory
-#define SIM_DELAY_PAUSE -1
-#define SIM_DELAY_FAST 0
-#define SIM_DELAY_MED  20
-#define SIM_DELAY_SLOW 60
-
 #define ANIMATE_DELAY 100
 
 // Used to find a threshold time that is not close to an animate target time.

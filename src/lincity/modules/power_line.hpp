@@ -65,7 +65,7 @@ public:
     Powerline(World& world, ConstructionGroup *cstgrp);
     virtual ~Powerline() {}
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
     void flow_power();
     std::array<int, STUFF_COUNT> trafficCount;

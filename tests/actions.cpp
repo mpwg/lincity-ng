@@ -1,0 +1,242 @@
+// Headless regression cases for player commands and their preview rules.
+#include "lincity/UserOperation.hpp"
+#include "lincity/modules/all_modules.hpp"
+#include "lincity/world.hpp"
+
+#include <iostream>
+#include <stdexcept>
+#include <utility>
+
+#define CHECK(expression) do { if(!(expression)) throw std::runtime_error(#expression); } while(false)
+
+namespace {
+const MapPoint site(8, 8);
+
+template<class Error>
+void checkRejected(const UserOperation& op, World& world, MapPoint point) {
+  try {
+    op.execute(world, point);
+  } catch(const Message::Exception& e) {
+    CHECK(dynamic_message_cast<Error>(e.getMessage()));
+    return;
+  }
+  throw std::runtime_error("command unexpectedly succeeded");
+}
+
+void queryAndBoundaries() {
+  World world(32);
+  UserOperation query;
+  Message::ptr why;
+  CHECK(query.isAllowedHere(world, site, why));
+  CHECK(query.cost(world, site) == 0);
+  query.execute(world, site);
+  CHECK(!world.isUpdated(World::Updatable::MAP));
+  for(auto action : {UserOperation::ACTION_QUERY, UserOperation::ACTION_BUILD,
+      UserOperation::ACTION_BULLDOZE, UserOperation::ACTION_EVACUATE,
+      UserOperation::ACTION_FLOOD}) {
+    UserOperation op{action, &marketConstructionGroup};
+    CHECK(!op.isAllowedHere(world, site.w(8), why));
+    CHECK(dynamic_message_cast<OutsideMapMessage>(why));
+    checkRejected<OutsideMapMessage>(op, world, site.w(8));
+  }
+}
+
+void windSelection() {
+  World world(32);
+  for(ConstructionGroup* group : std::initializer_list<ConstructionGroup*>{
+      &windmillConstructionGroup, &windpowerConstructionGroup}) {
+    UserOperation build{UserOperation::ACTION_BUILD, group};
+    world.tech_level = windpowerConstructionGroup.tech - 1;
+    CHECK(build.actualConstructionGroup(world) == &windmillConstructionGroup);
+    world.tech_level++;
+    CHECK(build.actualConstructionGroup(world) == &windpowerConstructionGroup);
+    CHECK(build.cost(world) == windpowerConstructionGroup.getCosts(world));
+  }
+}
+
+void floodAndTransport() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  Message::ptr why;
+  UserOperation flood{UserOperation::ACTION_FLOOD};
+  CHECK(flood.isAllowedHere(world, site, why));
+  const int cost = flood.cost(world, site);
+  flood.execute(world, site);
+  CHECK(world.total_money == -cost);
+  CHECK(world.map(site)->is_water());
+  CHECK(!flood.isAllowedHere(world, site, why));
+  CHECK(dynamic_message_cast<SpaceOccupiedMessage>(why));
+  checkRejected<SpaceOccupiedMessage>(flood, world, site);
+  CHECK(world.total_money == -cost);
+
+  for(auto [land, bridge] : {std::pair{&trackConstructionGroup, &trackbridgeConstructionGroup},
+      {&roadConstructionGroup, &roadbridgeConstructionGroup},
+      {&railConstructionGroup, &railbridgeConstructionGroup}}) {
+    UserOperation build{UserOperation::ACTION_BUILD, land};
+    CHECK(build.actualConstructionGroup(world, site) == bridge);
+    CHECK(build.cost(world, site) == bridge->getCosts(world));
+    build.constructionGroup = bridge;
+    CHECK(build.actualConstructionGroup(world, site.n()) == land);
+  }
+
+  UserOperation track{UserOperation::ACTION_BUILD, &trackConstructionGroup};
+  CHECK(track.isAllowedHere(world, site, why));
+  const int bridgeCost = track.cost(world, site);
+  track.execute(world, site);
+  CHECK(world.map(site)->getGroup() == GROUP_TRACK_BRIDGE);
+  CHECK(world.total_money == -cost - bridgeCost);
+  CHECK(!track.isAllowedHere(world, site, why));
+  checkRejected<CannotBuildHereMessage>(track, world, site);
+
+  UserOperation evacuate{UserOperation::ACTION_EVACUATE};
+  CHECK(!evacuate.isAllowedHere(world, site, why));
+  CHECK(dynamic_message_cast<CannotEvacuateThisMessage>(why));
+  checkRejected<CannotEvacuateThisMessage>(evacuate, world, site);
+  checkRejected<CannotEvacuateNothingMessage>(evacuate, world, site.n());
+}
+
+void marketCommands() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.total_money = 1000000;
+  Message::ptr why;
+  UserOperation build{UserOperation::ACTION_BUILD, &marketConstructionGroup};
+  CHECK(build.isAllowedHere(world, site, why));
+  const int cost = build.cost(world, site);
+  build.execute(world, site);
+  CHECK(world.total_money == 1000000 - cost);
+  auto* market = dynamic_cast<Market*>(world.map(site.se())->reportingConstruction);
+  CHECK(market);
+  const int capacity = market->commodityRuleCount[STUFF_FOOD].maxload;
+  CHECK(world.setMarketTrade(site.se(), STUFF_FOOD, true, true));
+  CHECK(market->commodityRuleCount[STUFF_FOOD].take && market->commodityRuleCount[STUFF_FOOD].give);
+  CHECK(world.setMarketTrade(site, STUFF_FOOD, false, false));
+  CHECK(!market->commodityRuleCount[STUFF_FOOD].take && !market->commodityRuleCount[STUFF_FOOD].give);
+  CHECK(market->commodityRuleCount[STUFF_FOOD].maxload == capacity);
+  CHECK(!world.setMarketTrade(site, STUFF_HIVOLT, true, true));
+  CHECK(!world.setPortTrade(site, STUFF_FOOD, false, true));
+
+  UserOperation evacuate{UserOperation::ACTION_EVACUATE};
+  CHECK(evacuate.isAllowedHere(world, site.se(), why));
+  evacuate.execute(world, site.se());
+  CHECK(market->flags & FLAG_EVACUATE);
+  CHECK(!market->commodityRuleCount[STUFF_FOOD].take && market->commodityRuleCount[STUFF_FOOD].give);
+  evacuate.execute(world, site);
+  CHECK(!(market->flags & FLAG_EVACUATE));
+  CHECK(market->commodityRuleCount[STUFF_FOOD].take && market->commodityRuleCount[STUFF_FOOD].give);
+  CHECK(world.total_money == 1000000 - cost);
+
+  UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
+  CHECK(bulldoze.isAllowedHere(world, site.se(), why));
+  // The original preview quotes the terrain, even on an occupied tile.
+  CHECK(bulldoze.cost(world, site.se()) == world.map(site.se())->getTileConstructionGroup()->bul_cost);
+  bulldoze.execute(world, site.se());
+  CHECK(world.total_money == 1000000 - cost - marketConstructionGroup.bul_cost);
+  CHECK(!world.map(site.se())->reportingConstruction);
+  CHECK(!world.map(site)->construction);
+  world.do_time_step(); // remove the detached construction
+}
+
+void portCommands() {
+  World world(32);
+  world.total_money = 1000000;
+  UserOperation build{UserOperation::ACTION_BUILD, &portConstructionGroup};
+  Message::ptr why;
+  world.tech_level = portConstructionGroup.tech;
+  CHECK(!build.isAllowedHere(world, site, why));
+  CHECK(dynamic_message_cast<PortRequiresRiverMessage>(why));
+  for(int i = 0; i < portConstructionGroup.size; ++i) {
+    auto* tile = world.map(site.e(portConstructionGroup.size).s(i));
+    tile->setTerrain(GROUP_WATER);
+    tile->flags |= FLAG_IS_RIVER;
+  }
+  CHECK(build.isAllowedHere(world, site, why));
+  build.execute(world, site);
+  auto* port = dynamic_cast<Port*>(world.map(site)->construction);
+  CHECK(port);
+  auto& rule = port->commodityRuleCount[STUFF_FOOD];
+  CHECK(world.setPortTrade(site, STUFF_FOOD, true, false));
+  CHECK(rule.take && !rule.give);
+  CHECK(world.setPortTrade(site, STUFF_FOOD, false, true));
+  CHECK(!rule.take && rule.give);
+  CHECK(world.setPortTrade(site, STUFF_FOOD, true, true));
+  CHECK(!rule.take && !rule.give);
+  CHECK(!world.setPortTrade(site, STUFF_LABOR, true, false));
+  CHECK(!world.setPortTrade(site, STUFF_COUNT, false, true));
+}
+
+void rocketCommands() {
+  World world(32);
+  UserOperation build{UserOperation::ACTION_BUILD, &rocketPadConstructionGroup};
+  Message::ptr why;
+  CHECK(!build.isAllowed(world, why));
+  CHECK(dynamic_message_cast<NotEnoughTechMessage>(why));
+  checkRejected<CannotBuildMessage>(build, world, site);
+  world.tech_level = MAX_TECH_LEVEL;
+  CHECK(!build.isAllowed(world, why));
+  CHECK(dynamic_message_cast<OutOfMoneyMessage>(why));
+  world.total_money = build.cost(world);
+  build.execute(world, site);
+  auto* rocket = dynamic_cast<RocketPad*>(world.map(site)->construction);
+  CHECK(rocket && world.total_money == 0);
+  CHECK(!world.launchRocket(site));
+  rocket->stage = RocketPad::AWAITING;
+  CHECK(world.launchRocket(site));
+  CHECK(rocket->stage == RocketPad::LAUNCHING);
+  CHECK(!world.launchRocket(site));
+}
+
+void terrainAndSurvey() {
+  World world(32);
+  UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
+  world.map(site)->setTerrain(GROUP_WATER);
+  world.map(site)->flags |= FLAG_IS_RIVER;
+  const int waterCost = bulldoze.cost(world, site);
+  bulldoze.execute(world, site);
+  CHECK(world.map(site)->group == GROUP_BARE);
+  CHECK(!(world.map(site)->flags & FLAG_IS_RIVER));
+  CHECK(world.total_money == -waterCost);
+  const int landCost = bulldoze.cost(world, site);
+  bulldoze.execute(world, site);
+  CHECK(world.map(site)->group == GROUP_DESERT);
+  bulldoze.execute(world, site);
+  CHECK(world.total_money == -waterCost - landCost);
+  const int beforeSurvey = world.total_money;
+  world.do_coal_survey();
+  CHECK(world.coal_survey_done);
+  world.do_coal_survey();
+  CHECK(world.total_money == beforeSurvey - 1000000);
+  CHECK(world.stats.expenses.coalSurvey.acc == 1000000);
+}
+
+void protectedMonument() {
+  World world(32);
+  monumentConstructionGroup.placeItem(world, site);
+  Message::ptr why;
+  UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
+  CHECK(!bulldoze.isAllowedHere(world, site, why));
+  CHECK(dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(why));
+  checkRejected<CannotBulldozeIncompleteMonumentMessage>(bulldoze, world, site);
+  CHECK(world.map(site)->construction && world.total_money == 0);
+}
+} // namespace
+
+int main() {
+  initializeModules();
+  try {
+    queryAndBoundaries();
+    windSelection();
+    floodAndTransport();
+    marketCommands();
+    portCommands();
+    rocketCommands();
+    protectedMonument();
+    terrainAndSurvey();
+  } catch(const Message::Exception& e) {
+    std::cerr << e.what() << '\n';
+    return 1;
+  } catch(const std::exception& e) {
+    std::cerr << e.what() << '\n';
+    return 1;
+  }
+}

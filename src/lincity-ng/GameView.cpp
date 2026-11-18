@@ -62,7 +62,7 @@
 #include "gui/Signal.hpp"                 // for Signal
 #include "gui/Texture.hpp"                // for Texture
 #include "gui/TextureManager.hpp"         // for TextureManager, texture_man...
-#include "lincity-ng/UserOperation.hpp"   // for UserOperation
+#include "lincity/UserOperation.hpp"   // for UserOperation
 #include "lincity/all_buildings.hpp"      // for GROUP_WATER_BUL_COST, GROUP...
 #include "lincity/groups.hpp"             // for GROUP_DESERT, GROUP_WATER
 #include "lincity/lin-city.hpp"           // for FLAG_POWER_CABLES_0, FLAG_P...
@@ -93,8 +93,12 @@ GameView::GameView() {
 }
 
 GameView::~GameView() {
-    stopThread = true;
-    SDL_WaitThread( loaderThread, NULL );
+    SDL_WaitThread(loaderThread, nullptr);
+    for(auto& [group, images] : tileImages)
+        for(auto& frame : images.frames) {
+            delete frame.texture;
+            if(frame.image) SDL_DestroySurface(frame.image);
+        }
 }
 
 //Static function to use with SDL_CreateThread
@@ -103,9 +107,6 @@ int GameView::gameViewThread( void* data )
     GameView* gv = (GameView*) data;
     gv->preReadImages();
     gv->textures_ready = true;
-    //keep thread alive as long as there are SDL_Surfaces
-    while(!gv->stopThread && gv->remaining_images!=0)
-    {   SDL_Delay(100);}
     return 0;
 }
 
@@ -124,7 +125,8 @@ GameView::parse(xmlpp::TextReader& reader) {
   blankGraphicsInfo.x = blankGraphicsInfo.texture->getWidth() / 2;
   blankGraphicsInfo.y = blankGraphicsInfo.texture->getHeight();
 
-  stopThread = false;
+  for(const auto& [name, group] : ResourceGroup::resMap)
+    tileImages.try_emplace(group);
   loaderThread = SDL_CreateThread( gameViewThread, "Loader", this );
 
   //GameView is resizable
@@ -422,12 +424,12 @@ GameView::preReadImages(void) {
         missingXmlAttribute(reader, "name");
 
       if(resourceGroup)
-        resourceGroup->images_loaded = true;
+        tileImages.at(resourceGroup).loaded = true;
 
       if(ResourceGroup::resMap.count(name)) {
         resourceGroup = ResourceGroup::resMap[name];
         resourceID_level = reader.get_depth();
-        if(resourceGroup->images_loaded) {
+        if(tileImages.at(resourceGroup).loaded) {
           fmt::println(stderr,
             "warning: duplicate resourceID in images.xml: {}", name);
           assert(false);
@@ -442,7 +444,7 @@ GameView::preReadImages(void) {
     }
     //check if we are still inside context of last resorceID
     if(reader.get_depth() < resourceID_level-1) {
-      resourceGroup->images_loaded = true;
+      tileImages.at(resourceGroup).loaded = true;
       resourceGroup = 0;
       resourceID_level = 0;
     }
@@ -470,8 +472,7 @@ GameView::preReadImages(void) {
       reader.move_to_element();
 
       if(resourceID_level && resourceGroup) {
-        resourceGroup->growGraphicsInfoVector();
-        GraphicsInfo *graphicsInfo = &(resourceGroup->graphicsInfoVector.back());
+        GraphicsInfo *graphicsInfo = &tileImages.at(resourceGroup).frames.emplace_back();
         graphicsInfo->image = readImage( key );
         if(!graphicsInfo->image) {
           fmt::println(stderr, "error: failed to read image {}", key);
@@ -495,7 +496,7 @@ GameView::preReadImages(void) {
 
   if(resourceGroup)
   {
-      resourceGroup->images_loaded = true;
+      tileImages.at(resourceGroup).loaded = true;
       resourceGroup = 0;
   }
 }
@@ -641,7 +642,7 @@ GameView::event(const Event& event) {
       tileUnderMouse = tile;
       if(!leftButtonDown || !(
         (getUserOperation()->action == UserOperation::ACTION_BUILD &&
-          getUserOperation()->cursorSize() == 1) ||
+          getUserOperation()->constructionGroup->size == 1) ||
         (getUserOperation()->action == UserOperation::ACTION_BULLDOZE &&
           areaBulldoze))
       )
@@ -1043,13 +1044,12 @@ MapPoint GameView::realTile(MapPoint point) {
 }
 
 void GameView::fetchTextures() {
-  std::map<std::string, ResourceGroup*>::iterator it;
-  for(it= ResourceGroup::resMap.begin(); it != ResourceGroup::resMap.end(); ++it) {
-    for(size_t i = 0; i < it->second->graphicsInfoVector.size(); ++i) {
-      auto& gfx = it->second->graphicsInfoVector[i];
+  for(auto& [group, images] : tileImages) {
+    for(auto& gfx : images.frames) {
       if(!gfx.texture && gfx.image) {
         gfx.texture = texture_manager->create(gfx.image);
-        if(gfx.texture) { //Image was erased by texture_manager->create.
+        if(gfx.texture) {
+          SDL_DestroySurface(gfx.image);
           gfx.texture->setScaleMode(Texture::ScaleMode::NEAREST);
           gfx.image = 0;
         }
@@ -1071,7 +1071,8 @@ GameView::drawTexture(Painter& painter, const MapPoint &tile,
         if(graphicsInfo->image)
         {
             graphicsInfo->texture = texture_manager->create( graphicsInfo->image );
-            if(graphicsInfo->texture) { //Image was erased by texture_manager->create.
+            if(graphicsInfo->texture) {
+              SDL_DestroySurface(graphicsInfo->image);
               graphicsInfo->texture->setScaleMode(Texture::ScaleMode::NEAREST);
               graphicsInfo->image = 0;
             }
@@ -1129,12 +1130,12 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
         if(Construction *cst = getWorld().map(upperLeft)->reportingConstruction;
           !cst || (cst->flags & FLAG_TRANSPARENT))
         {
-            if (resgrp->images_loaded)
+            if (textures_ready && tileImages.at(resgrp).loaded)
             {
-                size_t s = resgrp->graphicsInfoVector.size();
+                size_t s = tileImages.at(resgrp).frames.size();
                 if (s)
                 {
-                    graphicsInfo = &resgrp->graphicsInfoVector
+                    graphicsInfo = &tileImages.at(resgrp).frames
                         [ getWorld().map(upperLeft)->type  % s];
                     drawTexture(painter, lowerRightTile, graphicsInfo);
                 }
@@ -1150,12 +1151,12 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
                 for(std::list<ExtraFrame>::iterator frit = getWorld().map(upperLeft)->framesptr->begin();
                     frit != getWorld().map(upperLeft)->framesptr->end(); std::advance(frit, 1))
                 {
-                    if(frit->resourceGroup && frit->resourceGroup->images_loaded)
+                    if(textures_ready && frit->resourceGroup && tileImages.at(frit->resourceGroup).loaded)
                     {
-                        size_t s2 = frit->resourceGroup->graphicsInfoVector.size();
+                        size_t s2 = tileImages.at(frit->resourceGroup).frames.size();
                         if((frit->frame >= 0) && s2)
                         {
-                            graphicsInfo = &frit->resourceGroup->graphicsInfoVector[ frit->frame % s2 ]; //needed
+                            graphicsInfo = &tileImages.at(frit->resourceGroup).frames[ frit->frame % s2 ]; //needed
                             int old_x = graphicsInfo->x;
                             int old_y = graphicsInfo->y;
                             graphicsInfo->x = old_x - frit->move_x;
@@ -1215,12 +1216,12 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
         if (getWorld().map(upperLeft)->flags & (FLAG_POWER_CABLES_0 | FLAG_POWER_CABLES_90))
         {
             resgrp = ResourceGroup::resMap["PowerLine"];
-            if(resgrp->images_loaded)
+            if(textures_ready && tileImages.at(resgrp).loaded)
             {
                 if (getWorld().map(upperLeft)->flags & FLAG_POWER_CABLES_0)
-                {   drawTexture(painter, upperLeft, &resgrp->graphicsInfoVector[23]);}
+                {   drawTexture(painter, upperLeft, &tileImages.at(resgrp).frames[23]);}
                 if (getWorld().map(upperLeft)->flags & FLAG_POWER_CABLES_90)
-                {   drawTexture(painter, upperLeft, &resgrp->graphicsInfoVector[22]);}
+                {   drawTexture(painter, upperLeft, &tileImages.at(resgrp).frames[22]);}
             }
         }
     }
@@ -1394,7 +1395,13 @@ void GameView::draw(Painter& painter)
 
 void
 GameView::toolChanged() {
-  cursorSize = getUserOperation()->cursorSize();
+  const UserOperation& operation = *getUserOperation();
+  if(operation.action == UserOperation::ACTION_QUERY)
+    cursorSize = 0;
+  else if(operation.action == UserOperation::ACTION_BUILD)
+    cursorSize = operation.constructionGroup->size;
+  else
+    cursorSize = 1;
   leftButtonDown = false;
   selectionStart = tileUnderMouse;
 

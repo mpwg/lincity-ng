@@ -29,7 +29,7 @@
 #include <string>                           // for basic_string
 #include <vector>                           // for vector
 
-#include "lincity-ng/Mps.hpp"               // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"             // for MapPoint
 #include "lincity/groups.hpp"               // for GROUP_COMMUNE
 #include "lincity/lin-city.hpp"             // for ANIM_THRESHOLD, FALSE
@@ -158,7 +158,7 @@ void Commune::animate(unsigned long real_time) {
     frame += (frame >= 6 ? -5 : 0) + (steel_made ? 5 : 0);
     steel_made = false;
 
-    if(frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    if(frame >= frameIt->resourceGroup->frameCount)
       // this should never happen
       frame = 1;
   }
@@ -167,16 +167,16 @@ void Commune::animate(unsigned long real_time) {
   }
 }
 
-void Commune::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sddp(N_("Fertility"), ugwCount, constructionGroup->size * constructionGroup->size);
-  mps.add_sfp(N_("busy"), (float)last_month_output / 3.05);
-  mps.add_sd(N_("Pollution"), world.map(point)->pollution);
+void Commune::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addQuantity(N_("Fertility"), ugwCount, constructionGroup->size * constructionGroup->size);
+  report.addPercentage(N_("busy"), (float)last_month_output / 3.05);
+  report.addInteger(N_("Pollution"), world.map(point)->pollution);
   if(lazy_months)
-    mps.add_sddp(N_("lazy months"), lazy_months, 120);
+    report.addQuantity(N_("lazy months"), lazy_months, 120);
   else
-    mps.addBlank();
-  list_commodities(mps, production);
+    report.addBlank();
+  list_commodities(report, production);
 }
 
 void

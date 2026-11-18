@@ -32,6 +32,9 @@ set(PROJECT_NAME_PRETTY "LinCity-NG")
 set(APPSTREAM_ID "io.github.lincity_ng.lincity-ng")
 
 
+option(LINCITY_BUILD_GUI "Build the SDL desktop game" ON)
+include(CTest)
+
 ### dependencies
 list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/mk/cmake/modules
@@ -40,10 +43,12 @@ list(APPEND CMAKE_MODULE_PATH
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 find_package(Threads)
 find_package(ZLIB 1.0 REQUIRED)
-find_package(SDL3 3.2.0 REQUIRED)
-find_package(SDL3_image REQUIRED)
-find_package(SDL3_mixer REQUIRED)
-find_package(SDL3_ttf REQUIRED)
+if(LINCITY_BUILD_GUI)
+  find_package(SDL3 3.2.0 REQUIRED)
+  find_package(SDL3_image REQUIRED)
+  find_package(SDL3_mixer REQUIRED)
+  find_package(SDL3_ttf REQUIRED)
+endif()
 find_package(LibXml2 REQUIRED) # requires >=2.6.11
 find_package(fmt 9.0.0 REQUIRED)
 find_package(LibXml++-5.0 REQUIRED)
@@ -56,7 +61,7 @@ find_package(Git)
 # The libxslt find module is broken when cross compiling because it looks in the
 # target environment instead of the host. The workaround is to find only the
 # xsltproc program.
-if(NOT TARGET LibXslt::xsltproc)
+if(LINCITY_BUILD_GUI AND NOT TARGET LibXslt::xsltproc)
 	find_program(LIBXSLT_XSLTPROC_EXECUTABLE NAMES xsltproc REQUIRED)
 	if(LIBXSLT_XSLTPROC_EXECUTABLE)
 		add_executable(LibXslt::xsltproc IMPORTED)
@@ -193,10 +198,17 @@ set(CMAKE_BINARY_APPDATADIR ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_APPDATADIR})
 
 
 ### configure subdirectories
+include(mk/cmake/GenerateFrameCounts.cmake)
 add_subdirectory(src)
+add_subdirectory(lib)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
+if(NOT LINCITY_BUILD_GUI)
+  return()
+endif()
 add_subdirectory(data ${CMAKE_INSTALL_APPDATADIR})
 add_subdirectory(doc ${CMAKE_INSTALL_DOCDIR})
-add_subdirectory(lib)
 
 
 ### runtime dependency installation for Windows

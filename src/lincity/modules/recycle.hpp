@@ -100,7 +100,7 @@ public:
 
     virtual ~Recycle() { }
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void place(MapPoint point) override;
 
     virtual void save(xmlTextWriterPtr xmlWriter) const override;

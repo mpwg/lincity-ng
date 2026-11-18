@@ -29,7 +29,7 @@
 #include <list>                           // for _List_iterator
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_WINDMILL
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -115,12 +115,12 @@ void Windmill::animate(unsigned long real_time) {
   }
 }
 
-void Windmill::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), float(busy) / lovolt_output);
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  mps.add_sd(N_("Output"), lovolt_output);
-  list_commodities(mps, production);
+void Windmill::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), float(busy) / lovolt_output);
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  report.addInteger(N_("Output"), lovolt_output);
+  list_commodities(report, production);
 }
 
 void Windmill::place(MapPoint point) {

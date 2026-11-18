@@ -25,6 +25,8 @@
 #define ALL_MODULES_H
 
 // IWYU pragma: begin_exports
+#include <list>
+
 #include "blacksmith.hpp"
 #include "coal_power.hpp"
 #include "coalmine.hpp"
@@ -62,6 +64,8 @@
 #include "windmill.hpp"
 #include "windpower.hpp"
 // IWYU pragma: end_exports
+
+std::list<const ConstructionGroup *> inventionsAfter(int techLevel);
 
 void initializeModules();
 

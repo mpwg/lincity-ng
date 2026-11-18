@@ -28,7 +28,7 @@
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_SOLAR_POWER
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, TRUE
@@ -86,13 +86,13 @@ void SolarPower::update()
     }
 }
 
-void SolarPower::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (busy));
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  mps.add_sd(N_("Output"), hivolt_output);
-  list_commodities(mps, production);
+void SolarPower::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (busy));
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  report.addInteger(N_("Output"), hivolt_output);
+  list_commodities(report, production);
 }
 
 void SolarPower::place(MapPoint point) {

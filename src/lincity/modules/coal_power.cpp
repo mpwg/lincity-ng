@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator<
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_COAL_POWER
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -114,7 +114,7 @@ void Coal_power::animate(unsigned long real_time) {
     int active = 9*busy/100;
     for(int i = 0; i < frits.size(); i++) {
       auto& frit = frits[i];
-      const int s = frit->resourceGroup->graphicsInfoVector.size();
+      const int s = frit->resourceGroup->frameCount;
       if(i >= active) {
         frit->frame = -1;
       }
@@ -136,15 +136,14 @@ void Coal_power::animate(unsigned long real_time) {
   {   frameIt->resourceGroup = ResourceGroup::resMap["PowerCoalLow"];}
   else
   {   frameIt->resourceGroup = ResourceGroup::resMap["PowerCoalEmpty"];}
-  soundGroup = frameIt->resourceGroup;
 }
 
-void Coal_power::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sfp(N_("Tech"), (float)(tech * 100.0) / MAX_TECH_LEVEL);
-  mps.add_sd(N_("Output"), hivolt_output);
-  list_commodities(mps, production);
+void Coal_power::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), busy);
+  report.addPercentage(N_("Tech"), (float)(tech * 100.0) / MAX_TECH_LEVEL);
+  report.addInteger(N_("Output"), hivolt_output);
+  list_commodities(report, production);
 }
 
 void Coal_power::init_resources() {

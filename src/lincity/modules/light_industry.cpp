@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_INDUSTRY_L
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -196,7 +196,6 @@ void IndustryLight::animate(unsigned long real_time) {
     {   frameIt->resourceGroup = ResourceGroup::resMap["IndustryLightL"];}
     else
     {   frameIt->resourceGroup = ResourceGroup::resMap["IndustryLight"];}
-    soundGroup = frameIt->resourceGroup;
 
     int active = 0;
     if(busy > 70)
@@ -205,7 +204,7 @@ void IndustryLight::animate(unsigned long real_time) {
       active = 1;
     for(int i = 0; i < frits.size(); i++) {
       auto& frit = frits[i];
-      int s = frit->resourceGroup->graphicsInfoVector.size();
+      int s = frit->resourceGroup->frameCount;
       int& smoke = frit->frame;
       if(!s);
       else if(i >= active) {
@@ -222,17 +221,17 @@ void IndustryLight::animate(unsigned long real_time) {
 
     // This is left over from when the smoke was not rendered separately.
     // int& frame = frameIt->frame;
-    // if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    // if(++frame >= frameIt->resourceGroup->frameCount)
     //   frame = 0;
   }
 }
 
-void IndustryLight::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (busy));
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  list_commodities(mps, production);
+void IndustryLight::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (busy));
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  list_commodities(report, production);
 }
 
 void IndustryLight::init_resources() {

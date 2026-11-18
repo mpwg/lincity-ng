@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ** ---------------------------------------------------------------------- */
 
+#include "modules/all_modules.hpp"
 #include "world.hpp"
 
 #include <stdlib.h>            // for NULL
@@ -395,6 +396,7 @@ World::World() :
 World::World(int mapSize) :
   map(mapSize)
 {
+  initializeModules();
   total_time = 0;
   coal_survey_done = 0;
   total_money = 0;

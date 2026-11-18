@@ -26,7 +26,7 @@
 
 #include <string>                   // for basic_string
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"     // for MapPoint
 #include "lincity/groups.hpp"         // for GROUP_WATERWELL
 #include "lincity/lin-city.hpp"       // for FLAG_HAS_UNDERGROUND_WATER, FALSE
@@ -95,18 +95,18 @@ void Waterwell::update() {
   }
 }
 
-void Waterwell::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sddp(N_("Fertility"), ugwCount,
+void Waterwell::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addQuantity(N_("Fertility"), ugwCount,
     constructionGroup->size * constructionGroup->size);
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sddp(N_("Air Pollution"), world.map(point)->pollution,
+  report.addPercentage(N_("busy"), busy);
+  report.addQuantity(N_("Air Pollution"), world.map(point)->pollution,
     MAX_POLLUTION_AT_WATERWELL);
-  mps.add_ss(N_("Drinkable"),
+  report.addLabeledText(N_("Drinkable"),
     world.map(point)->pollution > MAX_POLLUTION_AT_WATERWELL
       ? N_("No") : N_("Yes"));
-  list_commodities(mps, production);
+  list_commodities(report, production);
 }
 
 void Waterwell::place(MapPoint point) {

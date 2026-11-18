@@ -28,7 +28,7 @@
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_RECYCLE
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, FALSE
@@ -108,14 +108,14 @@ void Recycle::update() {
   {   consumeStuff(STUFF_WASTE, BURN_WASTE_AT_RECYCLE);}
 }
 
-void Recycle::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("Tech"), tech * 100.0f / MAX_TECH_LEVEL);
-  mps.add_sfp(N_("Efficiency Ore"), (float) make_ore * 100 / WASTE_RECYCLED);
-  mps.add_sfp(N_("Efficiency Steel"),(float) make_steel * 100 / WASTE_RECYCLED);
-  mps.add_sfp(N_("busy"), busy);
-  list_commodities(mps, production);
+void Recycle::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("Tech"), tech * 100.0f / MAX_TECH_LEVEL);
+  report.addPercentage(N_("Efficiency Ore"), (float) make_ore * 100 / WASTE_RECYCLED);
+  report.addPercentage(N_("Efficiency Steel"),(float) make_steel * 100 / WASTE_RECYCLED);
+  report.addPercentage(N_("busy"), busy);
+  list_commodities(report, production);
 }
 
 void Recycle::place(MapPoint point) {

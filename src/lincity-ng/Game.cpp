@@ -190,54 +190,7 @@ Game::setWorld(std::unique_ptr<World>&& world) {
   gameview->show(this->world->map.recentPoint);
   getSound()->setTechLevel(this->world->tech_level);
 
-  inventions.assign({
-    &potteryConstructionGroup,       //  0.0
-    &monumentConstructionGroup,      //  0.0
-    &waterwellConstructionGroup,     //  0.0
-    &communeConstructionGroup,       //  0.0
-    &organic_farmConstructionGroup,  //  0.0
-    &trackConstructionGroup,         //  0.0
-    // &residenceLLConstructionGroup,   //  0.0
-    // &residenceMLConstructionGroup,   //  0.0
-    &residenceHLConstructionGroup,   //  0.0
-    &oremineConstructionGroup,       //  0.0
-    &tipConstructionGroup,           //  0.0
-    &marketConstructionGroup,        //  0.0
-    &schoolConstructionGroup,        //  0.1
-    &parklandConstructionGroup,      //  0.2
-    // &parkpondConstructionGroup       //  0.2
-    &blacksmithConstructionGroup,    //  0.3
-    &cricketConstructionGroup,       //  1.2
-    &fireStationConstructionGroup,   //  2.2
-    &millConstructionGroup,          //  2.5
-    &windmillConstructionGroup,      //  3.0
-    &portConstructionGroup,          //  3.5
-    &roadConstructionGroup,          //  5.0
-    &coalmineConstructionGroup,      //  8.5
-    &healthCentreConstructionGroup,  // 11.0
-    &universityConstructionGroup,    // 15.0
-    &industryLightConstructionGroup, // 16.0
-    &industryHeavyConstructionGroup, // 17.0
-    &railConstructionGroup,          // 18.0
-    &coal_powerConstructionGroup,    // 20.0
-    // &substationConstructionGroup,    // 20.0
-    // &powerlineConstructionGroup,     // 20.0
-    &recycleConstructionGroup,       // 23.2
-    // &residenceLHConstructionGroup,   // 30.0
-    // &residenceMHConstructionGroup,   // 30.0
-    &residenceHHConstructionGroup,   // 30.0
-    &windpowerConstructionGroup,     // 45.0
-    &solarPowerConstructionGroup,    // 50.0
-    &rocketPadConstructionGroup,     // 75.0
-  });
-  inventions.sort(
-    [](const ConstructionGroup *a, const ConstructionGroup *b)
-    { return a->tech < b->tech; }
-  );
-  while(!inventions.empty()
-    && inventions.front()->tech <= this->world->tech_level
-  )
-    inventions.pop_front();
+  inventions = inventionsAfter(this->world->tech_level);
 }
 
 void
@@ -667,6 +620,12 @@ Game::run() {
         }
         if(tick >= next_execute) { // execute
             // simulation timestep
+            if(!getConfig()->carsEnabled.get() || simDelay == SIM_DELAY_FAST)
+              world->vehicleTraffic = World::VehicleTraffic::Disabled;
+            else if(simDelay == SIM_DELAY_MED)
+              world->vehicleTraffic = World::VehicleTraffic::Reduced;
+            else
+              world->vehicleTraffic = World::VehicleTraffic::Normal;
             world->do_time_step();
 
             new_day = true;
@@ -683,7 +642,6 @@ Game::run() {
           // animate
           world->do_animate(tick);
           // TODO: see if texture fetching can be done in initialization
-          //fetch remaining textures in order loader thread can exit
           if(getGameView().textures_ready && getGameView().remaining_images)
             getGameView().fetchTextures();
           getGameView().setDirty();
@@ -782,10 +740,7 @@ Game::handleMessage(Message::ptr message_) {
       .imageFile("images/gui/dialogs/info.png") // TODO: rocket icon
       .buttonSet(DialogBuilder::ButtonSet::YESNO)
       .onYes([this, point = message->getPoint()]() {
-        RocketPad *rocket = dynamic_cast<RocketPad *>(
-          getWorld().map(point)->construction);
-        if(!rocket) return; // it must have been deleted
-        rocket->launch_rocket();
+        getWorld().launchRocket(point);
       })
       .build();
   }

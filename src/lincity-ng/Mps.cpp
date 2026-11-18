@@ -115,7 +115,7 @@ Mps::isFull() const {
 }
 
 void
-Mps::add_s(const std::string &t) {
+Mps::addLabel(const std::string &t) {
   addText(_(t.c_str()));
 }
 
@@ -134,7 +134,7 @@ Mps::add_f(double f) {
 }
 
 void
-Mps::add_sf(const std::string& s, double fl) {
+Mps::addDecimal(const std::string& s, double fl) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << _(s.c_str()) << "\t" << fl
   ).str());
@@ -149,14 +149,14 @@ Mps::add_d(int d) {
 }
 
 void
-Mps::add_ss(const std::string& s1, const std::string& s2) {
+Mps::addLabeledText(const std::string& s1, const std::string& s2) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << _(s1.c_str()) << "\t" << _(s2.c_str())
   ).str());
 }
 
 void
-Mps::add_sd(const std::string& s, int d) {
+Mps::addInteger(const std::string& s, int d) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << _(s.c_str()) << "\t" << d
   ).str());
@@ -170,7 +170,7 @@ Mps::add_ssd(const std::string& s1, const std::string& s2, int d) {
 }
 
 void
-Mps::add_sfp(const std::string& s, double fl) {
+Mps::addPercentage(const std::string& s, double fl) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << _(s.c_str()) << "\t" << fl << "%"
   ).str());
@@ -184,14 +184,14 @@ Mps::add_sdd(const std::string& s, int d1, int d2) {
 }
 
 void
-Mps::add_sddp(const std::string& s, int d, int max) {
+Mps::addQuantity(const std::string& s, int d, int max) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << _(s.c_str()) << "\t" << d << "\t" << (max ? d*100.0/max : 0.0) << "%"
   ).str());
 }
 
 void
-Mps::add_tsddp(const std::string& t1, const std::string& s2, int d, int max) {
+Mps::addPrefixedQuantity(const std::string& t1, const std::string& s2, int d, int max) {
   addText((std::ostringstream() << std::setprecision(1) << std::fixed
     << t1 << _(s2.c_str()) << "\t" << d << "\t"
     << (max ? d*100.0/max : 0.0) << "%"
@@ -277,19 +277,19 @@ MpsMap::refreshInvProd(bool production) {
       p = N_("River");
     else
       p = N_("Pond");
-    add_s(p);
+    addLabel(p);
   }
   else {
     add_sdd(tileCstGrp->name, tile->point.x, tile->point.y);
     addBlank();
-    add_s(N_("no further information available"));
+    addLabel(N_("no further information available"));
 
     if(tile->is_bare()) {
       addBlank();
       addBlank();
       addBlank();
       addBlank();
-      add_s(N_("build something here"));
+      addLabel(N_("build something here"));
     }
   }
 }
@@ -299,7 +299,7 @@ MpsMap::refreshGround() {
   const char* p;
 
   add_sdd(tile->getTileConstructionGroup()->name, tile->point.x, tile->point.y);
-  add_ss(N_("Fertile"),
+  addLabeledText(N_("Fertile"),
     (tile->flags & FLAG_HAS_UNDERGROUND_WATER) ? N_("Yes") : N_("No"));
 
   if(tile->group == GROUP_WATER) {
@@ -309,22 +309,22 @@ MpsMap::refreshGround() {
       p = N_("River");
     else
       p = N_("Pond");
-    add_s(p);
+    addLabel(p);
   }
   else {
     addBlank();
   }
 
-  add_ss(N_("Fire Protection"),
+  addLabeledText(N_("Fire Protection"),
     (tile->flags & FLAG_FIRE_COVER) ? N_("Yes") : N_("No"));
 
-  add_ss(N_("Health Care"),
+  addLabeledText(N_("Health Care"),
     (tile->flags & FLAG_HEALTH_COVER) ? N_("Yes") : N_("No"));
 
-  add_ss(N_("Public Sports"),
+  addLabeledText(N_("Public Sports"),
     (tile->flags & FLAG_CRICKET_COVER) ? N_("Yes") : N_("No"));
 
-  add_ss(N_("Market Range"),
+  addLabeledText(N_("Market Range"),
     (tile->flags & FLAG_MARKET_COVER) ? N_("Yes") : N_("No"));
 
   int pol = tile->pollution;
@@ -350,13 +350,13 @@ MpsMap::refreshGround() {
   add_ssd(N_("Air Pollution"), p, pol);
 
   if(tile->getGroup() == GROUP_DESERT)
-    add_ss(N_("Bull. Cost"), N_("N/A"));
+    addLabeledText(N_("Bull. Cost"), N_("N/A"));
   else
-    add_sd(N_("Bull. Cost"), tile->getConstructionGroup()->bul_cost);
+    addInteger(N_("Bull. Cost"), tile->getConstructionGroup()->bul_cost);
 
-  add_sd(N_("Ore Reserve"), tile->ore_reserve);
-  add_sd(N_("Coal Reserve"), tile->coal_reserve);
-  add_sd(N_("ground level"), tile->ground.altitude);
+  addInteger(N_("Ore Reserve"), tile->ore_reserve);
+  addInteger(N_("Coal Reserve"), tile->coal_reserve);
+  addInteger(N_("ground level"), tile->ground.altitude);
 
   // TODO: the Map is unreachable from here
   //       MapTile should hold a reference to the container Map
@@ -373,7 +373,7 @@ MpsMap::refreshGround() {
     p = N_("lowest edge");
   else
     p = "-";
-  add_s(p);
+  addLabel(p);
 #endif
 }
 
@@ -401,38 +401,38 @@ MpsFinance::refreshCashFlow() {
   int amt;
   int cashflow = 0;
 
-  add_s(N_("Tax Income"));
+  addLabel(N_("Tax Income"));
 
   amt = stats.income.income_tax;
-  add_ss(N_("Income"), num_to_ansi(-amt));
+  addLabeledText(N_("Income"), num_to_ansi(-amt));
   cashflow -= amt;
 
   amt = stats.income.coal_tax;
-  add_ss(Construction::getStuffName(STUFF_COAL), num_to_ansi(-amt));
+  addLabeledText(Construction::getStuffName(STUFF_COAL), num_to_ansi(-amt));
   cashflow -= amt;
 
   amt = stats.income.goods_tax;
-  add_ss(Construction::getStuffName(STUFF_GOODS), num_to_ansi(-amt));
+  addLabeledText(Construction::getStuffName(STUFF_GOODS), num_to_ansi(-amt));
   cashflow -= amt;
 
   amt = stats.income.export_tax;
-  add_ss(N_("Export"), num_to_ansi(-amt));
+  addLabeledText(N_("Export"), num_to_ansi(-amt));
   cashflow -= amt;
 
   addBlank();
 
-  add_s(N_("Expenses"));
+  addLabel(N_("Expenses"));
 
   amt = stats.expenses.unemployment;
-  add_ss(N_("Unemp."), num_to_ansi(amt));
+  addLabeledText(N_("Unemp."), num_to_ansi(amt));
   cashflow -= amt;
 
   amt = stats.expenses.transport;
-  add_ss(N_("Transport"), num_to_ansi(amt));
+  addLabeledText(N_("Transport"), num_to_ansi(amt));
   cashflow -= amt;
 
   amt = stats.expenses.import;
-  add_ss(N_("Imports"), num_to_ansi(amt));
+  addLabeledText(N_("Imports"), num_to_ansi(amt));
   cashflow -= amt;
 
   amt = stats.expenses.windmill
@@ -445,55 +445,55 @@ MpsFinance::refreshCashFlow() {
     + stats.expenses.firestation
     + stats.expenses.cricket
     + stats.expenses.interest;
-  add_ss(N_("Others"), num_to_ansi(amt));
+  addLabeledText(N_("Others"), num_to_ansi(amt));
   cashflow -= amt;
 
   addBlank();
 
-  add_ss(N_("Net"), num_to_ansi(cashflow));
+  addLabeledText(N_("Net"), num_to_ansi(cashflow));
 }
 
 void
 MpsFinance::refreshCosts() {
   Stats& stats = game->getWorld().stats;
-  add_s(N_("Other Costs"));
-  add_sd(N_("For year"), current_year(game->getWorld().total_time) - 1);
+  addLabel(N_("Other Costs"));
+  addInteger(N_("For year"), current_year(game->getWorld().total_time) - 1);
   addBlank();
-  add_ss(N_("Interest"), num_to_ansi(stats.expenses.interest));
-  add_ss(N_("Schools") , num_to_ansi(stats.expenses.school));
-  add_ss(N_("Univers."), num_to_ansi(stats.expenses.university));
-  add_ss(N_("Deaths")  , num_to_ansi(stats.expenses.deaths));
-  add_ss(N_("Windmill"), num_to_ansi(stats.expenses.windmill));
-  add_ss(N_("Hospital"), num_to_ansi(stats.expenses.health));
-  add_ss(N_("Rockets") , num_to_ansi(stats.expenses.rockets));
-  add_ss(N_("Fire Stn"), num_to_ansi(stats.expenses.firestation));
-  add_ss(N_("Sport")   , num_to_ansi(stats.expenses.cricket));
-  add_ss(N_("Recycle") , num_to_ansi(stats.expenses.recycle));
+  addLabeledText(N_("Interest"), num_to_ansi(stats.expenses.interest));
+  addLabeledText(N_("Schools") , num_to_ansi(stats.expenses.school));
+  addLabeledText(N_("Univers."), num_to_ansi(stats.expenses.university));
+  addLabeledText(N_("Deaths")  , num_to_ansi(stats.expenses.deaths));
+  addLabeledText(N_("Windmill"), num_to_ansi(stats.expenses.windmill));
+  addLabeledText(N_("Hospital"), num_to_ansi(stats.expenses.health));
+  addLabeledText(N_("Rockets") , num_to_ansi(stats.expenses.rockets));
+  addLabeledText(N_("Fire Stn"), num_to_ansi(stats.expenses.firestation));
+  addLabeledText(N_("Sport")   , num_to_ansi(stats.expenses.cricket));
+  addLabeledText(N_("Recycle") , num_to_ansi(stats.expenses.recycle));
 }
 
 void
 MpsFinance::refreshPopulation() {
   Stats& stats = game->getWorld().stats;
-  add_s(N_("Population") );
+  addLabel(N_("Population") );
   addBlank();
-  add_sd(N_("Total"), stats.population.population_m / NUMOF_DAYS_IN_MONTH);
-  add_sd(N_("Housed"), stats.population.housed_m / NUMOF_DAYS_IN_MONTH);
-  add_sd(N_("Homeless"),
+  addInteger(N_("Total"), stats.population.population_m / NUMOF_DAYS_IN_MONTH);
+  addInteger(N_("Housed"), stats.population.housed_m / NUMOF_DAYS_IN_MONTH);
+  addInteger(N_("Homeless"),
     (stats.population.population_m - stats.population.housed_m)
     / NUMOF_DAYS_IN_MONTH);
-  add_sd(N_("Shanties"), stats.groupCount[GROUP_SHANTY]);
+  addInteger(N_("Shanties"), stats.groupCount[GROUP_SHANTY]);
 
-  add_sddp(N_("Unemployment"),
+  addQuantity(N_("Unemployment"),
     stats.population.unemployed_m / NUMOF_DAYS_IN_MONTH,
     stats.population.housed_m / NUMOF_DAYS_IN_MONTH);
-  add_sddp(N_("Starvation"),
+  addQuantity(N_("Starvation"),
     stats.population.starving_m / NUMOF_DAYS_IN_MONTH,
     stats.population.housed_m / NUMOF_DAYS_IN_MONTH);
 
   assert(stats.history.births.size() >= 12);
   auto birthsEnd = stats.history.births.begin();
   std::advance(birthsEnd, 12);
-  add_sddp(N_("Births p.a."),
+  addQuantity(N_("Births p.a."),
     std::accumulate(stats.history.births.begin(), birthsEnd, 0),
     stats.population.population_m / NUMOF_DAYS_IN_MONTH);
 
@@ -501,13 +501,13 @@ MpsFinance::refreshPopulation() {
   auto deathsEnd = stats.history.deaths.begin();
   std::advance(deathsEnd, 12);
   int tdeaths = std::accumulate(stats.history.deaths.begin(), deathsEnd, 0);
-  add_sddp(N_("Deaths p.a."), tdeaths,
+  addQuantity(N_("Deaths p.a."), tdeaths,
     stats.population.population_m / NUMOF_DAYS_IN_MONTH);
 
   assert(stats.history.unnat_deaths.size() >= 12);
   auto unnatDeathsEnd = stats.history.unnat_deaths.begin();
   std::advance(unnatDeathsEnd, 12);
-  add_sddp(N_("Unnat. Deaths"),
+  addQuantity(N_("Unnat. Deaths"),
     std::accumulate(stats.history.unnat_deaths.begin(), unnatDeathsEnd, 0),
     std::max({tdeaths, 1}));
 }

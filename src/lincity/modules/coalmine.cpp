@@ -30,7 +30,7 @@
 #include <map>                            // for map
 #include <string>                         // for basic_string, operator<
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"             // for GROUP_COALMINE
 #include "lincity/lin-city.hpp"           // for FALSE, FLAG_EVACUATE
 #include "lincity/resources.hpp"          // for ExtraFrame, ResourceGroup
@@ -163,14 +163,13 @@ void Coalmine::animate(unsigned long real_time) {
   {   frameIt->resourceGroup = ResourceGroup::resMap["CoalMineLow"];}
   else//nothing
   {   frameIt->resourceGroup = ResourceGroup::resMap["CoalMine"];}
-  soundGroup = frameIt->resourceGroup;
 }
 
-void Coalmine::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sddp(N_("Deposits"), current_coal_reserve, initial_coal_reserve);
-  list_commodities(mps, production);
+void Coalmine::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), busy);
+  report.addQuantity(N_("Deposits"), current_coal_reserve, initial_coal_reserve);
+  list_commodities(report, production);
 }
 
 void Coalmine::place(MapPoint point) {

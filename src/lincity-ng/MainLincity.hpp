@@ -28,6 +28,11 @@
 
 class World;
 
+#define SIM_DELAY_PAUSE -1
+#define SIM_DELAY_FAST 0
+#define SIM_DELAY_MED  20
+#define SIM_DELAY_SLOW 60
+
 extern int simDelay;
 
 void initLincity();

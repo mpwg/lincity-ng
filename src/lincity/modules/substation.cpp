@@ -28,7 +28,7 @@
 #include <map>                      // for map
 #include <string>                   // for basic_string, operator<
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"         // for GROUP_SUBSTATION
 #include "lincity/lin-city.hpp"       // for FALSE
 #include "lincity/resources.hpp"    // for ExtraFrame, ResourceGroup
@@ -95,14 +95,13 @@ void Substation::animate(unsigned long real_time) {
     frameIt->resourceGroup = ResourceGroup::resMap["SubstationOff"];
   else
     frameIt->resourceGroup = ResourceGroup::resMap["Substation"];
-  soundGroup = frameIt->resourceGroup;
 }
 
-void Substation::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), busy);
-  list_commodities(mps, production);
+void Substation::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), busy);
+  list_commodities(report, production);
 }
 
 /** @file lincity/modules/substation.cpp */

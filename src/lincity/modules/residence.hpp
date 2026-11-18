@@ -202,7 +202,7 @@ public:
     Residence(World& world, ConstructionGroup *cstgrp);
     virtual ~Residence();
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
 
     virtual void save(xmlTextWriterPtr xmlWriter) const override;
     virtual bool loadMember(xmlpp::TextReader& xmlReader, unsigned int ldsv_version) override;

@@ -28,7 +28,7 @@
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
 #include <string>                         // for basic_string, allocator
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"             // for GROUP_UNIVERSITY, GROUP_SCHOOL
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, TRUE
 #include "lincity/stats.hpp"              // for Stats
@@ -107,12 +107,12 @@ void University::update() {
   }
 }
 
-void University::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sfp(N_("Tech researched"), total_tech_made * 100.0 / MAX_TECH_LEVEL);
-  list_commodities(mps, production);
+void University::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), busy);
+  report.addPercentage(N_("Tech researched"), total_tech_made * 100.0 / MAX_TECH_LEVEL);
+  list_commodities(report, production);
 }
 
 void University::save(xmlTextWriterPtr xmlWriter) const {

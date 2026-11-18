@@ -542,42 +542,17 @@ void Dialog::editMarket(){
     std::stringstream title;
     title << _("Market") << point;
     p->setText( title.str() );
-    Market *market = dynamic_cast<Market *>(
+    const auto *market = dynamic_cast<const Market*>(
       game.getWorld().map(point)->reportingConstruction);
     assert(market);
-    CheckButton* cb;
-    cb = getCheckButton( *myDialogComponent, "BuyLabor" );
-    if( market->commodityRuleCount[STUFF_LABOR].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellLabor" );
-    if( market->commodityRuleCount[STUFF_LABOR].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyFood" );
-    if( market->commodityRuleCount[STUFF_FOOD].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellFood" );
-    if( market->commodityRuleCount[STUFF_FOOD].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyCoal" );
-    if( market->commodityRuleCount[STUFF_COAL].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellCoal" );
-    if( market->commodityRuleCount[STUFF_COAL].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyOre" );
-    if( market->commodityRuleCount[STUFF_ORE].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellOre" );
-    if( market->commodityRuleCount[STUFF_ORE].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyGoods" );
-    if( market->commodityRuleCount[STUFF_GOODS].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellGoods" );
-    if( market->commodityRuleCount[STUFF_GOODS].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuySteel" );
-    if( market->commodityRuleCount[STUFF_STEEL].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellSteel" );
-    if( market->commodityRuleCount[STUFF_STEEL].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyWaste" );
-    if( market->commodityRuleCount[STUFF_WASTE].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellWaste" );
-    if( market->commodityRuleCount[STUFF_WASTE].give ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "BuyWater" );
-    if( market->commodityRuleCount[STUFF_WATER].take ) cb->check(); else cb->uncheck();
-    cb = getCheckButton( *myDialogComponent, "SellWater" );
-    if( market->commodityRuleCount[STUFF_WATER].give ) cb->check(); else cb->uncheck();
+    for(Commodity c = STUFF_INIT; c != STUFF_COUNT; c++) {
+      const auto& rule = market->commodityRuleCount[c];
+      if(!rule.maxload) continue;
+      auto* buy = getCheckButton(*myDialogComponent, std::string("Buy") + commodityNames[c]);
+      auto* sell = getCheckButton(*myDialogComponent, std::string("Sell") + commodityNames[c]);
+      if(rule.take) buy->check(); else buy->uncheck();
+      if(rule.give) sell->check(); else sell->uncheck();
+    }
     // connect signals
     Button* applyButton = getButton( *myDialogComponent, "Apply" );
     applyButton->clicked.connect(
@@ -603,8 +578,7 @@ void Dialog::editPort(){
         return;
     }
     // set Dialog to Port-Data
-    //int port_flags = world(point)->reportingConstruction->flags;
-    Port *port = dynamic_cast<Port *>(
+    const auto *port = dynamic_cast<const Port*>(
       game.getWorld().map(point)->reportingConstruction);
     assert(port);
     Paragraph* p = getParagraph( *myDialogComponent, "DialogTitle" );
@@ -637,7 +611,7 @@ void Dialog::editPort(){
           continue;
         }
 
-        CommodityRule& crc = port->commodityRuleCount[c];
+        const CommodityRule& crc = port->commodityRuleCount[c];
         if(isGive ? crc.give : crc.take) cb->check(); else cb->uncheck();
       }
     }
@@ -652,104 +626,11 @@ void Dialog::editPort(){
 }
 
 void Dialog::applyMarketButtonClicked( Button* ){
-    CheckButton* cb;
-    Market * market = dynamic_cast<Market *>(
-      game.getWorld().map(point)->construction);
-    cb = getCheckButton( *myDialogComponent, "BuyLabor" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_LABOR].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_LABOR].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellLabor" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_LABOR].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_LABOR].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyFood" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_FOOD].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_FOOD].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellFood" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_FOOD].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_FOOD].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyCoal" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_COAL].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_COAL].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellCoal" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_COAL].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_COAL].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyOre" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_ORE].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_ORE].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellOre" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_ORE].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_ORE].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyGoods" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_GOODS].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_GOODS].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellGoods" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_GOODS].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_GOODS].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuySteel" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_STEEL].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_STEEL].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellSteel" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_STEEL].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_STEEL].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyWaste" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_WASTE].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_WASTE].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellWaste" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_WASTE].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_WASTE].give = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "BuyWater" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_WATER].take = true;
-    } else {
-        market->commodityRuleCount[STUFF_WATER].take = false;
-    }
-    cb = getCheckButton( *myDialogComponent, "SellWater" );
-    if(cb->isChecked()) {
-        market->commodityRuleCount[STUFF_WATER].give = true;
-    } else {
-        market->commodityRuleCount[STUFF_WATER].give = false;
+    for(Commodity c = STUFF_INIT; c != STUFF_COUNT; c++) {
+      if(!marketConstructionGroup.commodityRuleCount[c].maxload) continue;
+      auto* buy = getCheckButton(*myDialogComponent, std::string("Buy") + commodityNames[c]);
+      auto* sell = getCheckButton(*myDialogComponent, std::string("Sell") + commodityNames[c]);
+      game.getWorld().setMarketTrade(point, c, buy->isChecked(), sell->isChecked());
     }
     game.getMpsMap().refresh();
     windowManager->removeWindow( myDialogComponent );
@@ -758,12 +639,14 @@ void Dialog::applyMarketButtonClicked( Button* ){
 }
 
 void Dialog::applyPortButtonClicked( Button* ){
-    Port *port = dynamic_cast<Port *>(
+    const auto *port = dynamic_cast<const Port*>(
       game.getWorld().map(point)->reportingConstruction);
-    assert(port);
+
 
     for(Commodity c = STUFF_INIT; c != STUFF_COUNT; c++) {
-      if(!port->commodityRuleCount[c].maxload) continue;
+      if(!port || !port->commodityRuleCount[c].maxload) continue;
+      bool buy = port->commodityRuleCount[c].take;
+      bool sell = port->commodityRuleCount[c].give;
 
       for(int isGive = 0; isGive < 2; isGive++) {
         SwitchComponent *sc = dynamic_cast<SwitchComponent *>(
@@ -783,14 +666,10 @@ void Dialog::applyPortButtonClicked( Button* ){
           continue;
         }
 
-        CommodityRule& crc = port->commodityRuleCount[c];
-        (isGive ? crc.give : crc.take) = cb->isChecked();
+        (isGive ? sell : buy) = cb->isChecked();
       }
 
-      if(port->commodityRuleCount[c].take && port->commodityRuleCount[c].give) {
-        port->commodityRuleCount[c].take = false;
-        port->commodityRuleCount[c].give = false;
-      }
+      game.getWorld().setPortTrade(point, c, buy, sell);
     }
 
     windowManager->removeWindow( myDialogComponent );
@@ -799,9 +678,7 @@ void Dialog::applyPortButtonClicked( Button* ){
 }
 
 void Dialog::okayLaunchRocketButtonClicked(Button *) {
-  dynamic_cast<RocketPad*>(
-    game.getWorld().map(point)->reportingConstruction
-  )->launch_rocket();
+  game.getWorld().launchRocket(point);
   windowManager->removeWindow(myDialogComponent);
   blockingDialogIsOpen = false;
   unRegisterDialog();

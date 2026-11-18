@@ -28,7 +28,7 @@
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
 #include <string>                         // for basic_string, string, opera...
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_PORT
 #include "lincity/lin-city.hpp"           // for FALSE, MAX_TECH_LEVEL
@@ -206,13 +206,13 @@ void Port::update()
     pence = daily_et % 100;
 }
 
-void Port::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sd(N_("Export"),lastm_et/100);
-  mps.add_sd(N_("Import"),lastm_ic/100);
-  mps.add_sfp(N_("Culture exchanged"), tech_made * 100.0 / MAX_TECH_LEVEL);
-  list_commodities(mps, production);
+void Port::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), busy);
+  report.addInteger(N_("Export"),lastm_et/100);
+  report.addInteger(N_("Import"),lastm_ic/100);
+  report.addPercentage(N_("Culture exchanged"), tech_made * 100.0 / MAX_TECH_LEVEL);
+  list_commodities(report, production);
 }
 
 void Port::save(xmlTextWriterPtr xmlWriter) const {

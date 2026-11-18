@@ -43,9 +43,7 @@
 #include "commodities.hpp"                // for CommodityRule, Commodity
 #include "groups.hpp"                     // for GROUP_POWER_LINE, GROUP_FIRE
 #include "lin-city.hpp"                   // for FLAG_EVACUATE, FLAG_IS_TRAN...
-#include "lincity-ng/Config.hpp"          // for getConfig, Config
-#include "lincity-ng/Mps.hpp"             // for Mps
-#include "lincity-ng/Sound.hpp"           // for getSound, Sound
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "modules/all_modules.hpp"        // for Powerline, GROUP_MARKET_RANGE
 #include "stats.hpp"                      // for Stats, Stat
 #include "transport.hpp"                  // for TRANSPORT_QUANTA, TRANSPORT...
@@ -54,7 +52,6 @@
 #include "util/xmlutil.hpp"               // for xmlParse, xmlStr, xmlStrF
 #include "world.hpp"                      // for World, Map, MapTile
 
-extern int simDelay; // is defined in lincity-ng/MainLincity.cpp
 
 
 //Construction Declarations
@@ -76,8 +73,8 @@ std::string Construction::getStuffName(Commodity stuff_id)
     return commodityNames[stuff_id];
 }
 
-void Construction::list_commodities(Mps& mps, bool production) const {
-  mps.add_s(production ? _("Production:") : _("Inventory:"));
+void Construction::list_commodities(ConstructionReport& report, bool production) const {
+  report.addLabel(production ? _("Production:") : _("Inventory:"));
   for(int r = 0; r < 4; r++) {
     const char *arrow;
     bool give, take;
@@ -100,7 +97,7 @@ void Construction::list_commodities(Mps& mps, bool production) const {
       if(rule.maxload && thisgive == give && thistake == take) {
         int amt = (production ? commodityProdPrev : commodityCount)[stuff];
         int max = production ? (amt >= 0 ? maxprod : -maxcons) : rule.maxload;
-        mps.add_tsddp(arrow, commodityNames[stuff], amt, max);
+        report.addPrefixedQuantity(arrow, commodityNames[stuff], amt, max);
       }
     }
   }
@@ -169,20 +166,7 @@ void Construction::initialize_commodities(void)
 void Construction::init_resources()
 {
     frameIt = world.map(point)->createframe();
-    ResourceGroup *resGroup = ResourceGroup::resMap[constructionGroup->resourceID];
-    if (resGroup)
-    {
-        soundGroup = resGroup;
-        //graphicsGroup = resGroup;
-        frameIt->resourceGroup = resGroup;
-        //std::cout << "graphics for " << constructionGroup->name << "at " << x << ", " << y << std::endl;
-    }
-#ifdef DEBUG
-    else
-    {
-        std::cout << "missing sounds and graphics for:" << constructionGroup->name << std::endl;
-    }
-#endif
+    frameIt->resourceGroup = ResourceGroup::resMap.at(constructionGroup->resourceID);
 }
 
 void Construction::bootstrap_commodities(int percent)
@@ -718,13 +702,12 @@ void Construction::trade()
         if(transport) //Special for transport
         {
             transport->trafficCount[stuff_ID] = (9 * transport->trafficCount[stuff_ID] + max_traffic) / 10;
-            if(simDelay != SIM_DELAY_FAST
-            && getConfig()->carsEnabled.get()
+            if(world.vehicleTraffic != World::VehicleTraffic::Disabled
             && 100 * max_traffic *  TRANSPORT_RATE / TRANSPORT_QUANTA > 2
             && world.map(point)->getTransportGroup() == GROUP_ROAD)
             {
                 int yield = 50 * max_traffic *  TRANSPORT_RATE / TRANSPORT_QUANTA;
-                if(simDelay == SIM_DELAY_MED) // compensate for overall animation
+                if(world.vehicleTraffic == World::VehicleTraffic::Reduced) // compensate for overall animation
                 {   yield = (yield+1)/2;}
                 switch (stuff_ID)
                 {
@@ -847,15 +830,6 @@ int Construction::equilibrate_stuff(int *rem_lvl, CommodityRule rem_rule, int ra
     *rem_lvl -= flow;
     return traffic;
 }
-
-void Construction::playSound()
-{
-    int s = soundGroup->chunks.size();
-    if(soundGroup->sounds_loaded && s)
-    {   getSound()->playASound( soundGroup->chunks[ rand()%s ] );}
-}
-
-
 
 //ConstructionGroup Declarations
 

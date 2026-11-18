@@ -30,8 +30,6 @@ add_executable(lincity-ng
   Sound.hpp
   TimerInterface.cpp
   TimerInterface.hpp
-  UserOperation.cpp
-  UserOperation.hpp
   Util.cpp
   Util.hpp
   Video.cpp
@@ -40,7 +38,7 @@ add_executable(lincity-ng
 
 target_link_libraries(lincity-ng
   PUBLIC
-  LinCity::lib
+  LinCity::Core
   LinCity::gui
   $<IF:$<TARGET_EXISTS:SDL3::SDL3>,SDL3::SDL3,SDL3::SDL3-static>
   $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer>,SDL3_mixer::SDL3_mixer,SDL3_mixer::SDL3_mixer-static>

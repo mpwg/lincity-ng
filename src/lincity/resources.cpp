@@ -22,3 +22,18 @@
 #include "resources.hpp"
 
 std::map<std::string, ResourceGroup *> ResourceGroup::resMap;
+
+namespace {
+int frameCountFor(const std::string& tag) {
+    static const std::map<std::string, int> counts = {
+#include "frame_counts.inc"
+    };
+    const auto it = counts.find(tag);
+    return it == counts.end() ? 0 : it->second;
+}
+}
+
+ResourceGroup::ResourceGroup(const std::string& tag) :
+    resourceID(tag), frameCount(frameCountFor(tag)) {
+    resMap.emplace(tag, this);
+}

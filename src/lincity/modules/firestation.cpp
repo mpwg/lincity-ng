@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_FIRESTATION
 #include "lincity/lin-city.hpp"           // for ANIM_THRESHOLD, FALSE, FLAG...
@@ -141,18 +141,18 @@ void FireStation::animate(unsigned long real_time) {
     anim = real_time + ANIM_THRESHOLD(FIRESTATION_ANIMATION_SPEED);
     if(++frame == 6)
       anim = real_time + ANIM_THRESHOLD(11 * FIRESTATION_ANIMATION_SPEED);
-    if(frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size()) {
+    if(frame >= frameIt->resourceGroup->frameCount) {
       frameIt->frame = 0;
       animate_enable = false;
     }
   }
 }
 
-void FireStation::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), (float) busy);
-  list_commodities(mps, production);
-  mps.add_ss(N_("Fire Protection"), active ? N_("Yes") : N_("No"));
+void FireStation::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), (float) busy);
+  list_commodities(report, production);
+  report.addLabeledText(N_("Fire Protection"), active ? N_("Yes") : N_("No"));
 }
 
 void FireStation::save(xmlTextWriterPtr xmlWriter) const {

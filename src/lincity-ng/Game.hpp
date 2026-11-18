@@ -28,7 +28,7 @@
 #include <memory>                // for unique_ptr
 #include <string>                // for string
 
-#include "UserOperation.hpp"     // for UserOperation
+#include "lincity/UserOperation.hpp"     // for UserOperation
 #include "gui/Signal.hpp"        // for Signal
 #include "lincity/messages.hpp"  // for Message
 #include "gui/Paragraph.hpp"
@@ -108,7 +108,7 @@ private:
     void updateMoney() const;
 
     void updateTech();
-    std::list<ConstructionGroup *> inventions;
+    std::list<const ConstructionGroup *> inventions;
 
     struct {
       Signal<> onAccept;

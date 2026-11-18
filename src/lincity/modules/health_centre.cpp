@@ -30,7 +30,7 @@
 #include <algorithm>                      // for max, min
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_HEALTH
 #include "lincity/lin-city.hpp"           // for FALSE, FLAG_HEALTH_COVER_CHECK
@@ -132,11 +132,11 @@ void HealthCentre::cover()
       world.map(p)->flags |= FLAG_HEALTH_COVER_CHECK;
 }
 
-void HealthCentre::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), (float) busy);
-  list_commodities(mps, production);
-  mps.add_ss(N_("Health Care"), active ? _("Yes") : _("No"));
+void HealthCentre::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), (float) busy);
+  list_commodities(report, production);
+  report.addLabeledText(N_("Health Care"), active ? _("Yes") : _("No"));
 }
 
 void HealthCentre::save(xmlTextWriterPtr xmlWriter) const {

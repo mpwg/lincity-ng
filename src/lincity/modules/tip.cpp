@@ -29,7 +29,7 @@
 #include <list>                           // for _List_iterator
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"             // for GROUP_TIP
 #include "lincity/lin-city.hpp"           // for FALSE, FLAG_NEVER_EVACUATE
 #include "lincity/resources.hpp"          // for ExtraFrame
@@ -112,13 +112,13 @@ void Tip::animate(unsigned long real_time) {
   frameIt->frame = i;
 }
 
-void Tip::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), busy);
-  mps.add_sd(N_("Waste"), total_waste);
-  mps.add_sfp(N_("Filled"), (float)total_waste*100/MAX_WASTE_AT_TIP);
-  list_commodities(mps, production);
+void Tip::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), busy);
+  report.addInteger(N_("Waste"), total_waste);
+  report.addPercentage(N_("Filled"), (float)total_waste*100/MAX_WASTE_AT_TIP);
+  list_commodities(report, production);
 }
 
 bool

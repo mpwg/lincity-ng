@@ -195,6 +195,9 @@ public:
   void bulldozeArea(MapPoint point);
   void evacuateArea(MapPoint point);
   void floodArea(MapPoint point);
+  bool setMarketTrade(MapPoint point, Commodity commodity, bool buy, bool sell);
+  bool setPortTrade(MapPoint point, Commodity commodity, bool buy, bool sell);
+  bool launchRocket(MapPoint point);
 
   void pushMessage(Message::ptr message);
   Message::ptr popMessage();
@@ -263,6 +266,8 @@ public:
 
   Stats stats;
 
+  enum class VehicleTraffic { Disabled, Reduced, Normal };
+  VehicleTraffic vehicleTraffic = VehicleTraffic::Disabled;
   std::list<Vehicle*> vehicleList;
 
 

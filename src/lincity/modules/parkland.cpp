@@ -26,7 +26,7 @@
 
 #include <string>                   // for basic_string
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"     // for MapPoint
 #include "lincity/groups.hpp"         // for GROUP_PARKLAND, GROUP_PARKPOND
 #include "lincity/lin-city.hpp"       // for TRUE, FLAG_HAS_UNDERGROUND_WATER
@@ -93,10 +93,10 @@ void Parkland::update() {
     world.map(point)->pollution--;
 }
 
-void Parkland::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sd(N_("Air Pollution"), world.map(point)->pollution);
+void Parkland::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addInteger(N_("Air Pollution"), world.map(point)->pollution);
 }
 
 /** @file lincity/modules/parkland.cpp */

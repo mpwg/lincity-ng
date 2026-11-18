@@ -30,7 +30,7 @@
 #include <list>                           // for _List_iterator
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_ORGANIC_FARM
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, FALSE, FLAG...
@@ -153,14 +153,14 @@ void Organic_farm::animate(unsigned long real_time) {
   }
 }
 
-void Organic_farm::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sddp(N_("Fertility"), ugwCount, 16);
-  mps.add_sfp(N_("Tech"), tech * 100.0 / MAX_TECH_LEVEL);
-  mps.add_sfp(N_("busy"), (float)food_last_month / 100.0);
-  mps.add_sd(N_("Output"), max_foodprod);
-  list_commodities(mps, production);
+void Organic_farm::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addQuantity(N_("Fertility"), ugwCount, 16);
+  report.addPercentage(N_("Tech"), tech * 100.0 / MAX_TECH_LEVEL);
+  report.addPercentage(N_("busy"), (float)food_last_month / 100.0);
+  report.addInteger(N_("Output"), max_foodprod);
+  list_commodities(report, production);
 }
 
 void Organic_farm::place(MapPoint point) {

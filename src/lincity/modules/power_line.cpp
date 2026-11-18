@@ -27,7 +27,7 @@
 #include <list>                     // for _List_iterator
 #include <string>                   // for basic_string
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"         // for GROUP_POWER_LINE
 #include "lincity/lin-city.hpp"       // for ANIM_THRESHOLD, FALSE, FLAG_NEVER...
 #include "lincity/resources.hpp"    // for ExtraFrame
@@ -100,10 +100,10 @@ void Powerline::animate(unsigned long real_time) {
   }
 }
 
-void Powerline::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("usage"), trafficCount[STUFF_HIVOLT] * 107.77 * TRANSPORT_RATE / TRANSPORT_QUANTA);
-  list_commodities(mps, production);
+void Powerline::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("usage"), trafficCount[STUFF_HIVOLT] * 107.77 * TRANSPORT_RATE / TRANSPORT_QUANTA);
+  list_commodities(report, production);
 }
 
 

@@ -35,7 +35,7 @@
 #include <stdexcept>                      // for runtime_error
 #include <string>                         // for basic_string, char_traits
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_RESIDENCE_HH, GROUP_R...
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -259,12 +259,12 @@ void RocketPad::remove_people(int num)
     point, RocketResultMessage::LaunchResult::EVAC));
 }
 
-void RocketPad::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), (busy));
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  mps.add_sfp(N_("Completion"), steps * 100.0 / ROCKET_PAD_STEPS);
-  list_commodities(mps, production);
+void RocketPad::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), (busy));
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  report.addPercentage(N_("Completion"), steps * 100.0 / ROCKET_PAD_STEPS);
+  list_commodities(report, production);
 }
 
 void RocketPad::save(xmlTextWriterPtr xmlWriter) const {

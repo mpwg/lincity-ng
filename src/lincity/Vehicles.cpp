@@ -122,7 +122,7 @@ void Vehicle::drive(void) {
   if(frameIt->frame < -1)
     ++frameIt->frame;
   else {
-    int s = (int)frameIt->resourceGroup->graphicsInfoVector.size();
+    int s = frameIt->resourceGroup->frameCount;
     if(s)
       frameIt->frame = direction % s;
   }

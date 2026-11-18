@@ -73,7 +73,7 @@ class Parkland: public Construction {
 public:
     Parkland(World& world, ConstructionGroup *cstgrp);
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
 };
 
 #endif // __LINCITYNG_LINCITY_MODULES_PARKLAND_HPP__

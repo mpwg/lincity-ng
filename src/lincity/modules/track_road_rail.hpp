@@ -34,7 +34,7 @@
 #include "lincity/lintypes.hpp"     // for ConstructionGroup, Construction
 #include "lincity/transport.hpp"    // for MAX_COAL_ON_RAIL, MAX_COAL_ON_ROAD
 
-class Mps;
+class ConstructionReport;
 class World;
 struct ExtraFrame;
 
@@ -132,15 +132,14 @@ public:
     Transport(World& world, TransportConstructionGroup *cstgrp);
     ~Transport();
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
-    virtual void playSound(); //override random sound
     virtual bool canPlaceVehicle();
     virtual void init_resources() override;
     virtual void place(MapPoint point) override;
     virtual void detach() override;
     std::array<int, STUFF_COUNT> trafficCount;
-    void list_traffic(Mps& mps) const;
+    void list_traffic(ConstructionReport& report) const;
     int anim;
     bool start_burning_waste;
     std::list<ExtraFrame>::iterator waste_fire_frit;

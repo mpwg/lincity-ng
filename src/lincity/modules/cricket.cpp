@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_CRICKET
 #include "lincity/lin-city.hpp"           // for ANIM_THRESHOLD, FALSE, FLAG...
@@ -135,7 +135,7 @@ void Cricket::animate(unsigned long real_time) {
   int& frame = frameIt->frame;
   if(animate_enable && real_time >= anim) {
     anim = real_time + ANIM_THRESHOLD(CRICKET_ANIMATION_SPEED);
-    if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    if(++frame >= frameIt->resourceGroup->frameCount)
     {
       frame = 0;
       animate_enable = false;
@@ -143,11 +143,11 @@ void Cricket::animate(unsigned long real_time) {
   }
 }
 
-void Cricket::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), busy);
-  list_commodities(mps, production);
-  mps.add_ss(N_("Public sports"), active ? N_("Yes") : N_("No"));
+void Cricket::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), busy);
+  list_commodities(report, production);
+  report.addLabeledText(N_("Public sports"), active ? N_("Yes") : N_("No"));
 }
 
 void Cricket::save(xmlTextWriterPtr xmlWriter) const {

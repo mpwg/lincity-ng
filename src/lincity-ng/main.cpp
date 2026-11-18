@@ -184,6 +184,7 @@ main(int argc, char** argv) {
   getConfig()->save();
 
   // clean up
+  sound.reset();
   deinitVideo();
   TTF_Quit();
   SDL_Quit();

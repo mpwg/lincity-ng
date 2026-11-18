@@ -34,7 +34,7 @@
 #include <vector>                         // for vector
 
 #include "fire.hpp"                       // for FIRE_ANIMATION_SPEED
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_MARKET
 #include "lincity/lin-city.hpp"           // for FLAG_EVACUATE, ANIM_THRESHOLD
@@ -245,7 +245,6 @@ void Market::animate(unsigned long real_time) {
   else {
       frameIt->resourceGroup = ResourceGroup::resMap["MarketFull"];
   }
-  soundGroup = frameIt->resourceGroup;
 
   if(start_burning_waste) { // start fire
     start_burning_waste = false;
@@ -256,18 +255,17 @@ void Market::animate(unsigned long real_time) {
   }
   else if(real_time >= waste_fire_anim) { // continue fire
     waste_fire_anim = real_time + ANIM_THRESHOLD(FIRE_ANIMATION_SPEED);
-    int num_frames = waste_fire_frit->resourceGroup->graphicsInfoVector.size();
+    int num_frames = waste_fire_frit->resourceGroup->frameCount;
     if(++waste_fire_frit->frame >= num_frames)
       waste_fire_frit->frame = 0;
   }
 }
 
-void Market::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (float)busy);
-  mps.addBlank();
-  //list_commodities(mps, production);
+void Market::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (float)busy);
+  report.addBlank();
   for(Commodity stuff = STUFF_INIT; stuff < STUFF_COUNT; stuff++) {
     const CommodityRule& rule = commodityRuleCount[stuff];
     if(!rule.maxload) continue;
@@ -284,7 +282,7 @@ void Market::report(Mps& mps, bool production) const {
         arrows[0] = '<';
     }
 
-    mps.add_tsddp(arrows, commodityName(stuff),
+    report.addPrefixedQuantity(arrows, commodityName(stuff),
       commodityCount[stuff], rule.maxload);
   }
 }

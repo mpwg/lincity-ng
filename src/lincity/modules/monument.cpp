@@ -30,7 +30,7 @@
 #include <map>                            // for map
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/groups.hpp"             // for GROUP_MONUMENT
 #include "lincity/lin-city.hpp"           // for FALSE, FLAG_EVACUATE, FLAG_...
 #include "lincity/resources.hpp"          // for ExtraFrame, ResourceGroup
@@ -122,26 +122,25 @@ void Monument::animate(unsigned long real_time) {
   if(completed) {
     frame = 0;
     frameIt->resourceGroup = ResourceGroup::resMap["Monument"];
-    soundGroup = frameIt->resourceGroup;
   }
   else
     frame = completion / 20;
 }
 
-void Monument::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
+void Monument::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
   /* Display tech contribution only after monument is complete */
   if(completion >= 100) {
-    mps.addBlank();
-    mps.add_sfp(N_("Wisdom bestowed"), tech_made * 100.0 / MAX_TECH_LEVEL);
+    report.addBlank();
+    report.addPercentage(N_("Wisdom bestowed"), tech_made * 100.0 / MAX_TECH_LEVEL);
   }
   else {
-    mps.add_sfp(N_("busy"), (float) busy);
+    report.addPercentage(N_("busy"), (float) busy);
     // i++;
-    list_commodities(mps, production);
-    mps.addBlank();
-    mps.add_sfp(N_("Completion"), completion);
+    list_commodities(report, production);
+    report.addBlank();
+    report.addPercentage(N_("Completion"), completion);
   }
 }
 

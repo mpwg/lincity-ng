@@ -30,7 +30,7 @@
 #include <map>                            // for map
 #include <string>                         // for basic_string, operator==
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_WIND_POWER
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -114,16 +114,15 @@ void Windpower::animate(unsigned long real_time) {
     frameIt->resourceGroup = ResourceGroup::resMap["WindMillHTechRG"];
   else
     frameIt->resourceGroup = ResourceGroup::resMap["WindMillHTech"];
-  soundGroup = frameIt->resourceGroup;
 }
 
 
-void Windpower::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sfp(N_("busy"), float(busy) / hivolt_output);
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  mps.add_sd(N_("Output"), hivolt_output);
-  list_commodities(mps, production);
+void Windpower::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addPercentage(N_("busy"), float(busy) / hivolt_output);
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  report.addInteger(N_("Output"), hivolt_output);
+  list_commodities(report, production);
 }
 
 void Windpower::place(MapPoint point) {

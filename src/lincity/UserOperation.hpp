@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------- *
- * src/lincity-ng/UserOperation.hpp
+ * src/lincity/UserOperation.hpp
  * This file is part of Lincity-NG.
  *
  * Copyright (C) 1995-1997 I J Peters
@@ -25,18 +25,14 @@
 #ifndef USER_OPERATION_H__
 #define USER_OPERATION_H__
 
-#include "lincity/messages.hpp"  // for Message
+#include "MapPoint.hpp"
+#include "messages.hpp"  // for Message
 
 class ConstructionGroup;
-class MapPoint;
 class World;
 
 class UserOperation {
 public:
-  UserOperation();
-  ~UserOperation();
-  UserOperation& operator=(const UserOperation& other);
-
   enum Action {
     ACTION_QUERY,
     ACTION_EVACUATE,
@@ -45,18 +41,15 @@ public:
     ACTION_BUILD,
     ACTION_UNKNOWN
   };
-  Action action;
-  ConstructionGroup *constructionGroup; // non-null for ACTION_BUILD
+  Action action = ACTION_QUERY;
+  ConstructionGroup *constructionGroup = nullptr; // non-null for ACTION_BUILD
 
-  bool isAllowedHere(World& world, MapPoint point, Message::ptr& message) const;
-  bool isAllowed(World& world, Message::ptr& message) const;
-  void execute(World& world, MapPoint point);
-  unsigned short cursorSize() const;
+  bool isAllowedHere(const World& world, MapPoint point, Message::ptr& message) const;
+  bool isAllowed(const World& world, Message::ptr& message) const;
+  void execute(World& world, MapPoint point) const;
   ConstructionGroup *actualConstructionGroup(
     const World& world, MapPoint point = MapPoint()) const;
   int cost(const World& world, MapPoint point = MapPoint()) const;
 };
-
-
 
 #endif

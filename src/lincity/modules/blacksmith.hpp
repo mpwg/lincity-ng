@@ -98,7 +98,7 @@ public:
     Blacksmith(World& world, ConstructionGroup *cstgrp);
     virtual ~Blacksmith() { }
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
 
     int  goods_made;

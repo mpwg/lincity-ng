@@ -81,7 +81,7 @@ public:
     Waterwell(World& world, ConstructionGroup *cstgrp);
     virtual ~Waterwell() {}
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void place(MapPoint point) override;
 
     int water_output;

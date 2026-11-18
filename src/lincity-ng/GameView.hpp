@@ -24,6 +24,9 @@
 #define __GAMEVIEW_HPP__
 
 #include <SDL3/SDL.h>             // for Uint32, SDL_Surface, SDL_Thread
+#include <atomic>
+#include <map>
+#include <vector>
 #include <filesystem>             // for path
 #include <memory>                 // for unique_ptr
 #include <string>                 // for string, basic_string
@@ -31,7 +34,7 @@
 #include "gui/Component.hpp"      // for Component
 #include "gui/Vector2.hpp"        // for Vector2
 #include "lincity/MapPoint.hpp"   // for MapPoint
-#include "lincity/resources.hpp"  // for GraphicsInfo
+class ResourceGroup;
 
 class Button;
 class Game;
@@ -90,11 +93,22 @@ public:
 
     void setGame(Game *game);
 
-    bool textures_ready;
+    std::atomic_bool textures_ready{false};
     //bool economyGraph_open;
     int remaining_images;
 
 private:
+    struct GraphicsInfo {
+        Texture* texture = nullptr;
+        SDL_Surface* image = nullptr;
+        int x = 0, y = 0;
+    };
+    struct TileImages {
+        std::vector<GraphicsInfo> frames;
+        bool loaded = false;
+    };
+    std::map<const ResourceGroup*, TileImages> tileImages;
+
     void connectButtons();
     void buttonClicked( Button* button );
     Vector2 getScreenPoint(MapPoint point);
@@ -151,7 +165,7 @@ private:
     //SDL_mutex* mTextures;
     //SDL_mutex* mThreadRunning;
     SDL_Thread* loaderThread;
-    bool stopThread;
+
 
     bool mouseInGameView;
     bool panning;

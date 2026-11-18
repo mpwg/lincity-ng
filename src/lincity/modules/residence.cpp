@@ -30,7 +30,7 @@
 #include <iostream>                       // for basic_ostream, operator<<
 #include <string>                         // for basic_string, char_traits
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint, operator<<
 #include "lincity/lin-city.hpp"           // for FALSE, FLAG_EMPLOYED, FLAG_FED
 #include "lincity/stats.hpp"              // for Stats, Stat
@@ -410,14 +410,14 @@ Residence::torch() {
   Construction::torch();
 }
 
-void Residence::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sddp(N_("Tenants"), local_population, max_population);
-  mps.add_sd(N_("Desireability"), desireability);
-  mps.add_sf(N_("Births p.a."), (float)1200/births);
-  mps.add_sf(N_("Death p.a."), (float)1200/deaths);
-  mps.add_sfp(N_("Unnat. mortality"), (float)pol_deaths);
-  list_commodities(mps, production);
+void Residence::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addQuantity(N_("Tenants"), local_population, max_population);
+  report.addInteger(N_("Desireability"), desireability);
+  report.addDecimal(N_("Births p.a."), (float)1200/births);
+  report.addDecimal(N_("Death p.a."), (float)1200/deaths);
+  report.addPercentage(N_("Unnat. mortality"), (float)pol_deaths);
+  list_commodities(report, production);
 }
 
 void Residence::save(xmlTextWriterPtr xmlWriter) const {

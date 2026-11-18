@@ -59,6 +59,7 @@ Sound::soundThread(void* ptr)
 {
     Sound* sound = (Sound*) ptr;
     sound->loadWaves();
+    sound->soundsReady = true;
     return 0;
 }
 
@@ -107,7 +108,7 @@ Sound::loadWaves() {
       {
         resGrpVec.push_back(ResourceGroup::resMap[resName]);
         resourceID_level = reader.get_depth();
-        if(resGrpVec.back()->sounds_loaded) //could crash if game is already running
+        if(tileSounds.count(resGrpVec.back()))
           fmt::println(stderr,
             "warning: duplicate resourceID in sounds.xml: {:?}", resName);
       }
@@ -116,8 +117,6 @@ Sound::loadWaves() {
           "warning: unknown resourceID in sounds.xml: {:?}", resName);
     }
     if(reader.get_depth() < resourceID_level-1) {
-      for(size_t i=0; i< resGrpVec.size(); ++i)
-        resGrpVec[i]->sounds_loaded = true;
       resGrpVec.clear();
       resourceID_level = 0;
     }
@@ -138,9 +137,11 @@ Sound::loadWaves() {
         fmt::println(stderr, "warning: filed to load sound {:?}: {}",
           key, SDL_GetError());
       }
+      if(!chunk) continue;
+      loadedAudio.push_back(chunk);
       if (resourceID_level && resGrpVec.size()) {
         for(size_t i=0; i< resGrpVec.size(); ++i)
-          resGrpVec[i]->chunks.push_back(chunk);
+          tileSounds[resGrpVec[i]].push_back(chunk);
       }
       else {
         std::string idName = getIdName(key.string());
@@ -150,11 +151,7 @@ Sound::loadWaves() {
     }
   }
 
-  if(resGrpVec.size()) {
-    for(size_t i=0; i< resGrpVec.size(); ++i)
-      resGrpVec[i]->sounds_loaded = true;
-    resGrpVec.clear();
-  }
+
 }
 
  /*
@@ -286,6 +283,8 @@ Sound::~Sound()
 {
     //SDL_KillThread( loaderThread );
     SDL_WaitThread( loaderThread, NULL );
+    if(audioOpen)
+        MIX_SetTrackStoppedCallback(musicTrack, nullptr, nullptr);
     if(currentMusic)
         MIX_DestroyAudio(currentMusic);
 
@@ -293,11 +292,10 @@ Sound::~Sound()
     {
         soundPtr = 0;
     }
-    for (chunks_t::iterator i = waves.begin(); i != waves.end(); i++) {
-        MIX_DestroyAudio( i->second );
-    }
+    for(auto* audio : loadedAudio)
+        MIX_DestroyAudio(audio);
     if ( audioOpen ) {
-        MIX_DestroyMixer(NULL);
+        MIX_DestroyMixer(mixer);
         audioOpen = false;
     }
 }
@@ -314,9 +312,7 @@ Sound::playSound(const std::string& name) {
   if(!getConfig()->soundEnabled.get()) {
     return;
   }
-  if(!audioOpen) {
-    return;
-  }
+  if(!soundsReady) return;
 
   chunks_t::size_type count = waves.count( name );
   if(count == 0) {
@@ -338,12 +334,13 @@ void
 Sound::playSound(const MapTile& tile) {
   ResourceGroup* resourceGroup;
   if(tile.reportingConstruction)
-    resourceGroup = tile.reportingConstruction->soundGroup;
+    resourceGroup = tile.reportingConstruction->frameIt->resourceGroup;
   else
     resourceGroup = tile.getTileResourceGroup();
-  int count = resourceGroup->chunks.size();
-  if(count)
-    playASound(resourceGroup->chunks[rand() % count]);
+  if(!soundsReady) return;
+  auto it = tileSounds.find(resourceGroup);
+  if(it != tileSounds.end() && !it->second.empty())
+    playASound(it->second[rand() % it->second.size()]);
 }
 
 void Sound::playASound(MIX_Audio *chunk) {

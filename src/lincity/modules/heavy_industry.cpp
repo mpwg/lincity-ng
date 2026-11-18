@@ -31,7 +31,7 @@
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_INDUSTRY_H
 #include "lincity/lin-city.hpp"           // for MAX_TECH_LEVEL, ANIM_THRESHOLD
@@ -177,20 +177,19 @@ void IndustryHeavy::animate(unsigned long real_time) {
     {   frameIt->resourceGroup = ResourceGroup::resMap["IndustryHighL"];}
     else
     {   frameIt->resourceGroup = ResourceGroup::resMap["IndustryHigh"];}
-    soundGroup = frameIt->resourceGroup;
 
     int& frame = frameIt->frame;
-    if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size())
+    if(++frame >= frameIt->resourceGroup->frameCount)
       frame = 0;
   }
 }
 
-void IndustryHeavy::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (output_level));
-  mps.add_sfp(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
-  list_commodities(mps, production);
+void IndustryHeavy::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (output_level));
+  report.addPercentage(N_("Tech"), (tech * 100.0) / MAX_TECH_LEVEL);
+  list_commodities(report, production);
 }
 
 void

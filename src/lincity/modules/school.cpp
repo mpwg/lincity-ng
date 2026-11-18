@@ -30,7 +30,7 @@
 #include <map>                            // for map
 #include <string>                         // for basic_string, allocator
 
-#include "lincity-ng/Mps.hpp"             // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/groups.hpp"             // for GROUP_SCHOOL
 #include "lincity/lin-city.hpp"           // for FALSE, MAX_TECH_LEVEL
@@ -138,12 +138,12 @@ void School::animate(unsigned long real_time) {
   }
 }
 
-void School::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (float)busy);
-  mps.add_sfp(N_("Lessons learned"), total_tech_made * 100.0 / MAX_TECH_LEVEL);
-  list_commodities(mps, production);
+void School::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (float)busy);
+  report.addPercentage(N_("Lessons learned"), total_tech_made * 100.0 / MAX_TECH_LEVEL);
+  list_commodities(report, production);
 }
 
 void School::init_resources() {

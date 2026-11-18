@@ -28,7 +28,7 @@
 #include <string>                   // for basic_string
 #include <vector>                   // for vector
 
-#include "lincity-ng/Mps.hpp"       // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"     // for MapPoint
 #include "lincity/groups.hpp"       // for GROUP_POTTERY
 #include "lincity/lin-city.hpp"     // for ANIM_THRESHOLD, FALSE
@@ -109,7 +109,7 @@ void Pottery::animate(unsigned long real_time) {
   int& frame = frameIt->frame;
   if (animate_enable && real_time >= anim) {
     anim = real_time + ANIM_THRESHOLD(POTTERY_ANIM_SPEED);
-    if(++frame >= (int)frameIt->resourceGroup->graphicsInfoVector.size()) {
+    if(++frame >= frameIt->resourceGroup->frameCount) {
       frame = 1;
       animate_enable = false;
     }
@@ -119,11 +119,11 @@ void Pottery::animate(unsigned long real_time) {
   }
 }
 
-void Pottery::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.addBlank();
-  mps.add_sfp(N_("busy"), (float) busy);
-  list_commodities(mps, production);
+void Pottery::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addBlank();
+  report.addPercentage(N_("busy"), (float) busy);
+  list_commodities(report, production);
 }
 
 /** @file lincity/modules/pottery.cpp */

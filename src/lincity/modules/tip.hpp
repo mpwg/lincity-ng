@@ -82,7 +82,7 @@ public:
     Tip(World& world, ConstructionGroup *cstgrp);
     virtual ~Tip() { }
     virtual void update() override;
-    virtual void report(Mps& mps, bool production) const override;
+    virtual void report(ConstructionReport& report, bool production) const override;
     virtual void animate(unsigned long real_time) override;
 
     virtual bool can_bulldoze(Message::ptr& messag) const override;

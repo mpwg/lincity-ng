@@ -35,7 +35,7 @@
 
 #include "commune.hpp"             // for CommuneConstructionGroup, COMMUNE_POP
 #include "fire.hpp"                // for Fire, FireConstructionGroup, FIRE_...
-#include "lincity-ng/Mps.hpp"      // for Mps
+#include "lincity/ConstructionReport.hpp" // for ConstructionReport
 #include "lincity/MapPoint.hpp"    // for MapPoint
 #include "lincity/groups.hpp"      // for GROUP_SHANTY, GROUP_MARKET
 #include "lincity/lin-city.hpp"    // for ANIM_THRESHOLD, FALSE, FLAG_FIRE_C...
@@ -236,16 +236,16 @@ void Shanty::animate(unsigned long real_time) {
   }
   else if(real_time >= waste_fire_anim) { // continue fire
     waste_fire_anim = real_time + ANIM_THRESHOLD(FIRE_ANIMATION_SPEED);
-    int num_frames = waste_fire_frit->resourceGroup->graphicsInfoVector.size();
+    int num_frames = waste_fire_frit->resourceGroup->frameCount;
     if(++waste_fire_frit->frame >= num_frames)
       waste_fire_frit->frame = 0;
   }
 }
 
-void Shanty::report(Mps& mps, bool production) const {
-  mps.add_s(constructionGroup->name);
-  mps.add_sd(N_("Air Pollution"), world.map(point)->pollution);
-  list_commodities(mps, production);
+void Shanty::report(ConstructionReport& report, bool production) const {
+  report.addLabel(constructionGroup->name);
+  report.addInteger(N_("Air Pollution"), world.map(point)->pollution);
+  list_commodities(report, production);
 }
 
 void Shanty::init_resources() {
