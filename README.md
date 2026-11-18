@@ -44,6 +44,11 @@ cmake --build build --parallel --target package
 See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
 configuration options.
 
+The desktop uses the C++ simulation by default. Configure with
+`-DLINCITY_CORE_BACKEND=rust` to run it with RustCity Core. The Rust library
+also runs independently with `cargo test --locked --manifest-path rustcity-core/Cargo.toml`.
+[Backend build instructions](docs/BUILD_OPTIONS.md#lincity_core_backend) · [Parity results](docs/rustcity-core-paritaet.md)
+
 ### Running
 
 To run the game from the source directory without installing:
