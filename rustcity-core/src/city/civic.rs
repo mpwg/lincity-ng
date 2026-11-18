@@ -445,6 +445,6 @@ impl City {
 
 impl Civic {
     pub(super) fn set_starter_population(&mut self) {
-        if let Self::Residence(home) = self { home.occupants = 50; }
+        if let Self::Residence(home) = self { home.occupants = crate::rules::generation::STARTER_HOME_POPULATION; }
     }
 }

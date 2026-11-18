@@ -63,3 +63,18 @@ fn exhausting_a_mine_evacuates_and_removes_it_after_the_last_ore_is_delivered() 
     assert_eq!(city.building_at(SITE), None);
     assert_eq!(city.terrain(SITE), Some(Terrain::Water));
 }
+
+#[test]
+fn legacy_landfill_fields_are_emitted_in_native_order() {
+    let city = load(
+        r#"<Construction group="16" map-x="6" map-y="6"><degration_days>7</degration_days><total_waste>31</total_waste></Construction>"#,
+    );
+    let mut saved = Vec::new();
+    city.save(&mut saved).unwrap();
+    use std::io::Read;
+    let mut xml = String::new();
+    flate2::read::GzDecoder::new(saved.as_slice())
+        .read_to_string(&mut xml)
+        .unwrap();
+    assert!(xml.find("<total_waste>31").unwrap() < xml.find("<degration_days>7").unwrap());
+}

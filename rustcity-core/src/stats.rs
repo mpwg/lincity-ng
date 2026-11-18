@@ -15,6 +15,12 @@ pub struct Stat {
 }
 
 impl Stat {
+    /// Accumulated value in the open reporting period.
+    pub fn period_to_date(self) -> i32 {
+        self.acc
+    }
+
+    /// Value at the close of the previous reporting period.
     pub fn value(self) -> i32 {
         self.stat
     }

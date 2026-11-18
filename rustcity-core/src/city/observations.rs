@@ -12,7 +12,75 @@ pub struct CityReport {
     pub tech_level: i32,
 }
 
+/// Terrain, deposits and service coverage at a single map coordinate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TileView {
+    pub point: Point,
+    pub terrain: Terrain,
+    pub ground_frame: u16,
+    pub altitude: i32,
+    pub water_altitude: i32,
+    pub lake: bool,
+    pub river: bool,
+    pub groundwater: bool,
+    pub pollution: i32,
+    pub coal: i32,
+    pub ore: i32,
+    pub fire_cover: bool,
+    pub health_cover: bool,
+    pub sports_cover: bool,
+    pub market_cover: bool,
+    /// The occupying building and its northwestern origin.
+    pub building: Option<(BuildingKind, Point)>,
+}
+
 impl City {
+    /// Width and height of the square map, including its border.
+    pub fn side(&self) -> i32 {
+        self.side
+    }
+
+    /// Iterates over a half-open rectangle in row order, clipping it to the map.
+    pub fn map_region(
+        &self,
+        x: std::ops::Range<i32>,
+        y: std::ops::Range<i32>,
+    ) -> impl Iterator<Item = TileView> + '_ {
+        let columns = x.start.max(0)..x.end.min(self.side);
+        (y.start.max(0)..y.end.min(self.side)).flat_map(move |y| {
+            columns.clone().map(move |x| {
+                use crate::rules::civic::{CRICKET, FIRE, HEALTH, MARKET_CHECK};
+                let point = Point { x, y };
+                let tile = &self.tiles[(y * self.side + x) as usize];
+                TileView {
+                    point,
+                    terrain: tile.ground,
+                    ground_frame: tile.frame,
+                    altitude: tile.altitude,
+                    water_altitude: tile.water_alt,
+                    lake: tile.lake,
+                    river: tile.river,
+                    groundwater: tile.groundwater,
+                    pollution: tile.pollution,
+                    coal: tile.coal,
+                    ore: tile.ore,
+                    fire_cover: tile.coverage & FIRE != 0,
+                    health_cover: tile.coverage & HEALTH != 0,
+                    sports_cover: tile.coverage & CRICKET != 0,
+                    market_cover: tile.coverage & (MARKET_CHECK >> 1) != 0,
+                    building: self.building_at(point),
+                }
+            })
+        })
+    }
+
+    /// City accounts including period totals, inventory, demographics and their histories.
+    pub fn statistics(&self) -> &crate::stats::Stats {
+        &self.stats
+    }
+
+    /// Snapshot of the current day, treasury, population and technology.
+
     pub fn report(&self) -> CityReport {
         CityReport {
             day: self.day,

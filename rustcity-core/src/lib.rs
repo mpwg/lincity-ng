@@ -6,10 +6,11 @@ pub use commodity::Commodity;
 
 mod city;
 mod energy;
-mod stats;
-pub use city::VehicleFrame;
+pub mod stats;
+pub use city::{TileView, VehicleFrame};
 pub use city::{
-    Action, ActionError, City, CityEvent, CityReport, MapSizeError, Point, Terrain, VehicleTraffic,
+    Action, ActionError, City, CityEvent, CityReport, Climate, GenerationOptions, MapSizeError,
+    Point, Terrain, VehicleTraffic,
 };
 mod building_kind;
 mod buildings;

@@ -1,5 +1,8 @@
 mod civic;
+mod commune;
 mod ecology;
+mod world_generation;
+pub use world_generation::{Climate, GenerationOptions};
 mod farm;
 mod finance;
 mod industry;
@@ -56,7 +59,9 @@ pub enum ActionError {
 pub struct MapSizeError;
 #[derive(Clone, Copy)]
 struct Tile {
-    altitude:i32, water_alt:i32, lake:bool,
+    altitude: i32,
+    water_alt: i32,
+    lake: bool,
     cables: u8,
     diffuses: bool,
     coverage: u32,
@@ -70,6 +75,7 @@ struct Tile {
 }
 
 enum Operation {
+    Commune(commune::Commune),
     Rocket(rocket::Rocket),
     Transport(transport::Transport),
     Market(market::Market),
@@ -106,6 +112,7 @@ impl Building {
     fn installed(kind: BuildingKind, tech: i32) -> Self {
         use BuildingKind::*;
         let operation = match kind {
+            Commune => Operation::Commune(Default::default()),
             Market => Operation::Market(Default::default()),
             RocketPad => Operation::Rocket(Default::default()),
             Port => Operation::Port(Default::default()),
@@ -209,14 +216,21 @@ impl City {
         size: i32,
         mut building: Building,
     ) -> io::Result<BuildingId> {
-        if matches!(building.operation,Operation::Farm(_) | Operation::Civic(civic::Civic::Well(_))) {
-            let wet_tiles=(point.y..point.y.saturating_add(size))
+        if matches!(
+            building.operation,
+            Operation::Farm(_) | Operation::Civic(civic::Civic::Well(_)) | Operation::Commune(_)
+        ) {
+            let wet_tiles = (point.y..point.y.saturating_add(size))
                 .flat_map(|y| (point.x..point.x.saturating_add(size)).map(move |x| Point { x, y }))
-                .filter(|&p| self.has_groundwater(p)==Some(true)).count() as i32;
+                .filter(|&p| self.has_groundwater(p) == Some(true))
+                .count() as i32;
             match &mut building.operation {
-                Operation::Farm(farm)=>farm.groundwater=wet_tiles,
-                Operation::Civic(civic::Civic::Well(output))=>*output=wet_tiles*crate::rules::civic::WELL_WATER_PER_WET_TILE,
-                _=>unreachable!()
+                Operation::Farm(farm) => farm.groundwater = wet_tiles,
+                Operation::Commune(c) => c.wet_tiles = wet_tiles,
+                Operation::Civic(civic::Civic::Well(output)) => {
+                    *output = wet_tiles * crate::rules::civic::WELL_WATER_PER_WET_TILE
+                }
+                _ => unreachable!(),
             }
         }
         let trace_id = self.decisions.placed(point, building.kind.id())?;
@@ -261,7 +275,10 @@ impl City {
         tiles.resize(
             area as usize,
             Tile {
-                altitude:0, water_alt:0, lake:false, diffuses: false,
+                altitude: 0,
+                water_alt: 0,
+                lake: false,
+                diffuses: false,
                 ground: Terrain::Grass,
                 frame: 0,
                 groundwater: false,
@@ -634,6 +651,6 @@ mod observations;
 mod simulation;
 mod trading;
 mod transport;
-pub use observations::CityReport;
+pub use observations::{CityReport, TileView};
 pub use transport::VehicleFrame;
 mod environment;

@@ -32,3 +32,5 @@ pub(crate) const MONEY_YEARS: i32 = 60;
 pub(crate) const POPULATION_YEARS: i32 = 60;
 pub(crate) const TECHNOLOGY_YEARS: i32 = 120;
 pub(crate) const FIRE_YEARS: i32 = 60;
+
+pub(crate) const REGROWTH_CHANCE_DENOMINATOR: i32 = 300;

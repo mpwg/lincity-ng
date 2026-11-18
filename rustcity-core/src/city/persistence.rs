@@ -346,6 +346,9 @@ impl City {
             ) {
                 node.set_child("tech", building.installed_tech);
             }
+            if building.kind == BuildingKind::RocketPad {
+                node.order_children(&["tech", "steps", "stage"]);
+            }
             let default_flags = match building.kind {
                 BuildingKind::PowerLine => 0x08000100,
                 BuildingKind::Track | BuildingKind::Rail | BuildingKind::Road => 0x180,

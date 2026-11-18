@@ -11,9 +11,11 @@ pub(crate) const DRAIN_COST: i32 = 1_000_000;
 pub(crate) const CLEAR_LAND_COST: i32 = 1;
 
 pub(crate) mod civic;
+pub(crate) mod commune;
 pub(crate) mod economy;
 pub(crate) mod environment;
 pub(crate) mod farm;
+pub(crate) mod generation;
 pub(crate) mod industry;
 pub(crate) mod market;
 pub(crate) mod power;

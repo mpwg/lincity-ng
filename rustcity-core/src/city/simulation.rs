@@ -47,6 +47,7 @@ impl City {
             let b = self.buildings.get_mut(id).expect("visited live building");
             let pollution = &mut self.tiles[(point.y * self.side + point.x) as usize].pollution;
             match &mut b.operation {
+                Operation::Commune(_) => self.update_commune(id,point)?,
                 Operation::Farm(farm) => {
                     farm.update(day, b.installed_tech, &mut b.stock, &mut b.production)
                 }
@@ -168,6 +169,7 @@ impl City {
             match &mut b.operation {
                 Operation::Rocket(r) => r.animate(milliseconds),
                 Operation::Civic(c) => c.animate(b.kind, milliseconds, &mut self.decisions)?,
+                Operation::Commune(c)=>c.animate(milliseconds,&mut self.decisions)?,
                 Operation::Market(m) => m.animate(milliseconds, &mut self.decisions)?,
                 Operation::Farm(farm) => farm.animate(self.day, &mut self.decisions)?,
                 Operation::Industry(factory) => {

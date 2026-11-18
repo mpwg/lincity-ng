@@ -21,7 +21,8 @@ Desktop-Vergleich haben jeweils eigene Einstiegspunkte.
 | Entscheidungen und Besuchsreihenfolge | Separate Zufallsquellen je Stadt, native Aufnahme und Wiedergabe, Rohwert vor C-Modulo, benannte Verteilungen, Platzierungs-IDs und A-/D-/E-Reihenfolgen. Tests manipulieren IDs, Zeit, Anzahl, Ereignistyp, Wahlausgang und Dateiende. [Tape-Tests](../rustcity-core/tests/decision_tape.rs) |
 | Umwelt, Ereignisse und Stadtinstanzen | Nachwachsen freiliegender Wüste, verschmutzte Rand- und Innenfelder, Warteschlange beim Übergang in Schulden, Spielfortsetzung und unabhängige Karten. [Umwelttests](../rustcity-core/tests/environment.rs) · [Ökologiefall](../rustcity-core/tests/farm.rs) |
 | Format 2130, Format 2140 und Fortsetzung | Migration alter Konten, Historien, Gebäude, XML und gzip. Ein zusätzlicher Test startet den C++-Runner und vergleicht den Folgetag aus einem Rust-Spielstand. [Persistenztests](../rustcity-core/tests/persistence.rs) · [Kreuztest](../rustcity-core/src/save/tests.rs) |
-| Kommune, Feuer, Raketenrampe, generierte Städte und Verkehrsmodus „reduziert“ | Die Szenarien prüfen einzelne Zustände dieser Bereiche. Für die Gesamtabnahme sind eigenständige Verhaltensbelege, generierte Karten mit aufgezeichneten Entscheidungen und Läufe aller Verkehrsmodi erforderlich. |
+| Generierte Städte | Für Fluss-, Wüsten-, gemäßigte und Sumpfkarten laufen Kombinationen mit und ohne Wald sowie mit und ohne Dorf in 50×50 und 100×100. Vier weitere Fälle prüfen die Mindestgrößen 13 und 26 sowie zwei Küsten bei Größe 50. C++ und Rust nahmen abwechselnd auf und spielten das jeweils andere Tape ab. Alle 72 daraus gespeicherten Kartenpaare stimmten einschließlich Gelände, Höhen, Wasserständen, Rohstoffreserven und Dorfgebäuden überein. [Kreuztest](../rustcity-core/tests/world_generation.rs) · [C++-Referenzprogramm](../lincity-core/parity/generation_reference.cpp) |
+| Kommune, Feuer, Raketenrampe und Verkehrsmodus „reduziert“ | Die Szenarien prüfen einzelne Zustände dieser Bereiche. Für die Gesamtabnahme sind eigenständige Verhaltensbelege sowie Läufe aller Verkehrsmodi erforderlich. |
 | SDL-Anbindung, FFI und eigenständige Crate | Die Desktop-Abnahme setzt erfolgreiche Headless-Parität voraus. Der [Abnahmeplan](superpowers/plans/2026-11-18-rustcity-core.md) benennt die Tests für Build-Auswahl, Eingaben, Kreuzladen und Lebenszyklus. |
 
 ## Szenariovergleich
@@ -69,3 +70,15 @@ Richtungen. Rust spielte das versionierte C++-Tape ab. Anschließend zeichnete
 Rust ein neues Tape auf, das der C++-Runner abspielte. Beide Vergleiche
 bestätigten sechs Tageszustände und die drei vollständigen Spielstände an
 den Tagen 0, 1 und 5.
+
+## Weltgenerierung wiederholen
+
+Der Generator benötigt die C++-Referenz nur für den Kreuztest. Die öffentliche
+Rust-API bietet `City::generate` für die native Auswahl und
+`City::generate_with_decisions` für einen gesetzten Seed, Aufnahme oder Wiedergabe.
+
+```sh
+cmake --build build/core --target core_generation_reference
+RUSTCITY_CPP_GENERATOR="$PWD/build/core/parity/core_generation_reference" \
+  cargo test --manifest-path rustcity-core/Cargo.toml --release --test world_generation -- --include-ignored
+```

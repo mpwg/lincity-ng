@@ -1,7 +1,7 @@
 //! Daily regrowth on exposed desert and the ground groups visible to adjacent tiles.
 use super::*;
 
-const REGROWTH_CHANCE_DENOMINATOR: i32 = 300;
+use crate::rules::environment::REGROWTH_CHANCE_DENOMINATOR;
 
 impl City {
     pub(super) fn visible_group(&self, index: usize) -> u16 {

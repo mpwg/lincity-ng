@@ -95,8 +95,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path)
     parser.add_argument("candidate", type=Path)
+    parser.add_argument("--saves", action="store_true", help="compare two complete gzip save files")
     args = parser.parse_args()
     try:
-        print(f"{compare(args.reference, args.candidate)} daily observations matched")
+        if args.saves:
+            delta = xml_diff(checkpoint(args.reference), checkpoint(args.candidate), "save")
+            if delta:
+                raise ValueError(delta)
+            print("Save fields matched")
+        else:
+            print(f"{compare(args.reference, args.candidate)} daily observations matched")
     except (OSError, ValueError, ET.ParseError) as error:
         parser.exit(1, f"{error}\n")

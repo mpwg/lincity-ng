@@ -21,6 +21,7 @@ impl IndustryOperation {
             Self::Tip(t) => {
                 node.set_child("total_waste", t.buried);
                 node.set_child("degration_days", t.degradation);
+                node.order_children(&["total_waste", "degration_days"]);
             }
             _ => {}
         }

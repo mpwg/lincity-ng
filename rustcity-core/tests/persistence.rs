@@ -90,3 +90,30 @@ fn historical_market_saves_policy_in_reference_commodity_order() {
         }
     }
 }
+
+#[test]
+fn legacy_rocket_pad_fields_follow_the_cpp_writer() {
+    use std::io::Read;
+    let city = City::load(include_bytes!("../../lincity-core/opening/Rocket_98.scn.gz").as_slice())
+        .unwrap();
+    let mut checkpoint = Vec::new();
+    city.save(&mut checkpoint).unwrap();
+    let mut xml = String::new();
+    flate2::read::GzDecoder::new(checkpoint.as_slice())
+        .read_to_string(&mut xml)
+        .unwrap();
+    let rocket = xml
+        .split("<Construction group=\"23\"")
+        .nth(1)
+        .unwrap()
+        .split("</Construction>")
+        .next()
+        .unwrap();
+    let mut fields = rocket;
+    for tag in ["<tech>", "<steps>", "<stage>", "<flags>"] {
+        fields = fields
+            .split_once(tag)
+            .unwrap_or_else(|| panic!("missing or out of order: {tag}"))
+            .1;
+    }
+}
