@@ -119,9 +119,8 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   ein Feld weiter hinten auf einem Weg gefahren war. Die Korrektur
   verhindert auch das Abbiegen aufs Gleis, wenn eine Ausfahrt abgerissen
   wurde. Der historische Bytevergleich baut dieselbe konkrete Korrektur
-  in die gepinnte Referenz ein. `--original` zeigt Unterschiede zur
-  unveränderten Fahrregel. Diese treten bei `Rocket_98` mit Verkehr bis
-  zum ersten abweichenden Prüfpunkt an Tag 100 auf.
+  in die gepinnte Referenz ein. Beim Vergleich der Fahrregel allein lag
+  der erste abweichende Prüfpunkt für `Rocket_98` mit Verkehr an Tag 100.
 
 ## Besitz und Lagergrenzen
 
@@ -204,13 +203,16 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   XML-Diagnosen beim Speichern nennen den Zielpfad. #205 dokumentiert
   einen früheren Speicherfehler beim Einlesen solcher Balken.
   [#205](https://github.com/lincity-ng/lincity-ng/issues/205)
-- Die Steuer auf eine Kohlelieferung hängt vom anstoßenden Gebäude ab.
-  Liefert die Straße an die Schmiede, erhöht sich die Steuerbasis um
-  die gelieferte Menge. Holt die Schmiede selbst Kohle von der Straße,
-  wird die Lieferung steuerlich nicht erfasst. Eine einheitliche Regel
-  würde die Wirtschaftssimulation ändern. #231 bestätigt die zufällige
-  Handelsreihenfolge. Ein Ticket zu dieser Steuerdifferenz fand sich
-  im geprüften Bestand nicht. [#231](https://github.com/lincity-ng/lincity-ng/issues/231)
+- Beim selbst ausgelösten Kohlebezug eines Verbrauchers fehlte die
+  Steuerbuchung. Upstream führte sie mit `9f47b320` ausdrücklich ein.
+  `c727641d` deaktivierte die Buchung mit Verweis auf den Warenausgleich.
+  Der bucht aber nur beim Empfang auf der Gegenseite. Der Core erfasst
+  jetzt auch jede vom Empfänger angestoßene Kohlelieferung einmal.
+  Ein Test prüft Bezug, Steuerbasis und die Gutschrift am Jahresende.
+  Der historische Vergleich baut die Kohlekorrektur in die gepinnte
+  Referenz ein. Ohne sie weicht `Rocket_98` schon an Tag 1 ab.
+  #87 diskutiert die getrennte Frage, welche Gebäude steuerfrei sein sollen.
+  [Einführung](https://github.com/lincity-ng/lincity-ng/commit/9f47b320e296d0bb2287dfc7e9a8931dfd64b256) · [Deaktivierung](https://github.com/lincity-ng/lincity-ng/commit/c727641d) · [#87](https://github.com/lincity-ng/lincity-ng/issues/87)
 - Ein überfülltes Gleis aus einem älteren Spielstand konnte beim
   nächsten Handel Waren in ein evakuierendes Gebäude zurückschieben.
   Der Handel begrenzt jetzt die freie Kapazität auf mindestens null.

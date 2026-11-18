@@ -709,12 +709,20 @@ void Construction::trade()
         ratio = lvl * TRANSPORT_QUANTA / cap;
         max_traffic = 0;
         int old_center = center_lvl;
+        const bool taxableCoalPickup = stuff_ID == STUFF_COAL
+            && !(flags & (FLAG_IS_TRANSPORT | FLAG_EVACUATE))
+            && constructionGroup->group != GROUP_MARKET;
         //make flow towards ratio
         for(unsigned int i = 0; i < lvls.size(); ++i)
         {
             if(lvls[i])
             {
+                const int before = center_lvl;
                 traffic = neighbors[i]->equilibrate_stuff(&center_lvl, center_rule, ratio, stuff_ID);
+                // Equilibration books the tax when the neighbor receives coal.
+                // When this building receives it, book the individual receipt here.
+                if(taxableCoalPickup && center_lvl > before)
+                    world.taxable.coal += center_lvl - before;
                 if( traffic > max_traffic )
                 {   max_traffic = traffic;}
             }

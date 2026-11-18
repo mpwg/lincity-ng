@@ -39,6 +39,38 @@ def apply_crossing_fix(source):
     path.write_text(contents.replace(original, corrected))
 
 
+def apply_coal_pickup_tax_fix(source):
+    path = source / "src/lincity/lintypes.cpp"
+    original = """        int old_center = center_lvl;
+        //make flow towards ratio
+        for(unsigned int i = 0; i < lvls.size(); ++i)
+        {
+            if(lvls[i])
+            {
+                traffic = neighbors[i]->equilibrate_stuff(&center_lvl, center_rule, ratio, stuff_ID);
+                if( traffic > max_traffic )
+"""
+    corrected = """        int old_center = center_lvl;
+        const bool taxableCoalPickup = stuff_ID == STUFF_COAL
+            && !(flags & (FLAG_IS_TRANSPORT | FLAG_EVACUATE))
+            && constructionGroup->group != GROUP_MARKET;
+        //make flow towards ratio
+        for(unsigned int i = 0; i < lvls.size(); ++i)
+        {
+            if(lvls[i])
+            {
+                const int before = center_lvl;
+                traffic = neighbors[i]->equilibrate_stuff(&center_lvl, center_rule, ratio, stuff_ID);
+                if(taxableCoalPickup && center_lvl > before)
+                    world.taxable.coal += center_lvl - before;
+                if( traffic > max_traffic )
+"""
+    contents = path.read_text()
+    if contents.count(original) != 1:
+        raise ValueError(f"coal pickup tax oracle does not match the pinned source: {path}")
+    path.write_text(contents.replace(original, corrected))
+
+
 def prepare_reference(directory, original_behavior=False):
     source = directory / "reference"
     source.mkdir()
@@ -50,6 +82,7 @@ def prepare_reference(directory, original_behavior=False):
     archive.unlink()
     if not original_behavior:
         apply_crossing_fix(source)
+        apply_coal_pickup_tax_fix(source)
 
     desktop = source / "src" / "lincity-ng"
     shutil.copyfile(Path(__file__).with_name("scenario_trace.cpp"), desktop / "main.cpp")
@@ -111,7 +144,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("build_dir", type=Path)
     parser.add_argument("--original", action="store_true",
-                        help="use the original traffic rules without the crossing correction")
+                        help="use the pinned traffic and coal tax rules without corrections")
     args = parser.parse_args()
     core_build = args.build_dir.resolve()
     storage = ROOT / "build"

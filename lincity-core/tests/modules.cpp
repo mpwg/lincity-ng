@@ -242,6 +242,31 @@ void verifyTradeTaxesAndOutgoingCommuter() {
   require(active, "outgoing commuter did not follow the lower-labor route");
 }
 
+void verifyCoalTaxOnPickup() {
+  World world(32);
+  const MapPoint roadSite(12, 12);
+  const auto smithySite = roadSite.w(2);
+  roadConstructionGroup.placeItem(world, roadSite);
+  blacksmithConstructionGroup.placeItem(world, smithySite);
+  auto& road = *world.map(roadSite)->getConstruction();
+  auto& smithy = *world.map(smithySite)->getConstruction();
+  road.commodityCount[STUFF_COAL] = 512;
+
+  smithy.trade();
+
+  require(road.commodityCount[STUFF_COAL] == 510 && smithy.commodityCount[STUFF_COAL] == 2,
+          "smithy pickup transferred the wrong amount of coal");
+  require(world.taxable.coal == 2, "smithy pickup did not add the received coal to the tax base once");
+  require(world.taxable.labor == 0 && world.taxable.goods == 0, "coal pickup changed an unrelated tax base");
+
+  // The year's final day settles the existing liability without another delivery.
+  road.commodityCount[STUFF_COAL] = 0;
+  world.total_time = NUMOF_DAYS_IN_YEAR - 2;
+  world.do_time_step();
+  require(world.stats.income.coal_tax.acc == -3 && world.total_money == 3 && world.taxable.coal == 0,
+          "the year-end accounts did not collect the coal pickup tax");
+}
+
 void verifyMarketInventoryIsUntaxed() {
   World world(32);
   const MapPoint site(12, 12);
@@ -634,6 +659,7 @@ int main() {
     verifyEvacuationFit();
     verifyTradeWithNoReceivingCapacity();
     verifyTradeTaxesAndOutgoingCommuter();
+    verifyCoalTaxOnPickup();
     verifyMarketInventoryIsUntaxed();
     verifyTransportExchangeNearCapacity();
     verifyOldOverflowCannotSupplyEvacuatingNeighbor();

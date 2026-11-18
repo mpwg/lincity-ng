@@ -32,9 +32,9 @@ The comparison builds the pinned desktop reference in a temporary directory
 under `build/` and requires its desktop build dependencies. It compares saved states and game
 messages with vehicle traffic enabled and disabled. The XML comparison omits
 the optional `diffusion-active` tile attribute added for save continuation.
-The reference build
-includes the corrected road and track approaches to rail crossings. Pass
-`--original` to compare against the uncorrected crossing rule. See the
+The reference build includes the corrections for road and track approaches
+to rail crossings and the tax on coal picked up by a consumer. Pass
+`--original` to compare against the pinned rules before both corrections. See the
 [compatibility findings](CORE_PARITY_FINDINGS.md) for the observed difference.
 
 ## CMAKE_BUILD_TYPE
