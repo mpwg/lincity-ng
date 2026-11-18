@@ -1,5 +1,6 @@
 use super::*;
 use crate::Commodity;
+use crate::rules::PERCENT;
 #[cfg(test)]
 mod tests;
 
@@ -27,7 +28,7 @@ pub enum ReportRow {
 use ReportRow::*;
 
 fn tech(value: i32) -> f64 {
-    f64::from(value) * 100.0 / f64::from(MAX_TECH_LEVEL)
+    f64::from(value) * f64::from(PERCENT) / f64::from(MAX_TECH_LEVEL)
 }
 fn busy(value: i32) -> ReportRow {
     Percentage("busy", f64::from(value))
@@ -150,9 +151,10 @@ impl City {
         let technology = Percentage(
             "Tech",
             match b.kind {
-                BuildingKind::SolarPower | BuildingKind::CoalPower => {
-                    f64::from((f64::from(b.installed_tech) * 100.) as f32 / MAX_TECH_LEVEL as f32)
-                }
+                BuildingKind::SolarPower | BuildingKind::CoalPower => f64::from(
+                    (f64::from(b.installed_tech) * f64::from(PERCENT)) as f32
+                        / MAX_TECH_LEVEL as f32,
+                ),
                 _ => tech(b.installed_tech),
             },
         );
@@ -181,7 +183,10 @@ impl City {
                 Blank,
                 Quantity("Fertility", f.groundwater, size * size),
                 technology,
-                Percentage("busy", f64::from(f.last_utilization as f32) / 100.),
+                Percentage(
+                    "busy",
+                    f64::from(f.last_utilization as f32) / f64::from(DAYS_PER_MONTH),
+                ),
                 Integer("Output", f.max_food),
             ]),
             Operation::Commune(c) => {
@@ -209,7 +214,8 @@ impl City {
                 technology,
                 Percentage(
                     "Completion",
-                    f64::from(r.steps) * 100. / f64::from(crate::rules::rocket::STEPS),
+                    f64::from(r.steps) * f64::from(PERCENT)
+                        / f64::from(crate::rules::rocket::STEPS),
                 ),
             ]),
             Operation::Port(p) => rows.extend([
@@ -282,15 +288,19 @@ impl City {
                     Blank,
                     Percentage(
                         "Tech",
-                        f64::from(b.installed_tech as f32 * 100. / MAX_TECH_LEVEL as f32),
+                        f64::from(b.installed_tech as f32 * PERCENT as f32 / MAX_TECH_LEVEL as f32),
                     ),
                     Percentage(
                         "Efficiency Ore",
-                        f64::from(s.make_ore as f32 * 100. / industry::recycle::WASTE as f32),
+                        f64::from(
+                            s.make_ore as f32 * PERCENT as f32 / industry::recycle::WASTE as f32,
+                        ),
                     ),
                     Percentage(
                         "Efficiency Steel",
-                        f64::from(s.make_steel as f32 * 100. / industry::recycle::WASTE as f32),
+                        f64::from(
+                            s.make_steel as f32 * PERCENT as f32 / industry::recycle::WASTE as f32,
+                        ),
                     ),
                     busy(s.activity.busy),
                 ]),
@@ -300,7 +310,9 @@ impl City {
                     Integer("Waste", s.buried),
                     Percentage(
                         "Filled",
-                        f64::from(s.buried as f32 * 100. / industry::tip::CAPACITY as f32),
+                        f64::from(
+                            s.buried as f32 * PERCENT as f32 / industry::tip::CAPACITY as f32,
+                        ),
                     ),
                 ]),
             },
@@ -368,7 +380,7 @@ impl City {
                     }
                     Civic::Monument(m) => {
                         rows.push(Blank);
-                        if m.completion >= 100 {
+                        if m.completion >= PERCENT {
                             commodities = false;
                             rows.extend([Blank, Percentage("Wisdom bestowed", tech(m.tech))]);
                         } else {

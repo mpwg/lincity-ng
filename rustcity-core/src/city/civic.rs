@@ -1,6 +1,7 @@
 //! Housing, research and municipal services.
 use super::*;
 use crate::Commodity::*;
+use crate::rules::PERCENT;
 use crate::save::Element;
 
 mod fire;
@@ -275,12 +276,12 @@ impl City {
                 }
             }
             Civic::Monument(m) => {
-                if stock[Labor as usize] > MONUMENT_LABOR_PER_BATCH && m.completion < 100 {
+                if stock[Labor as usize] > MONUMENT_LABOR_PER_BATCH && m.completion < PERCENT {
                     stock[Labor as usize] -= MONUMENT_LABOR_PER_BATCH;
                     m.working += 1;
                     m.labor += MONUMENT_LABOR_PER_BATCH;
-                    m.completion = m.labor * 100 / MONUMENT_TOTAL_LABOR;
-                } else if m.completion >= 100 {
+                    m.completion = m.labor * PERCENT / MONUMENT_TOTAL_LABOR;
+                } else if m.completion >= PERCENT {
                     m.completed = true;
                     b.never_evacuate = true;
                     b.evacuating = true;
@@ -410,7 +411,8 @@ impl City {
                     fire.start = true;
                     ignite = self.decisions.bernoulli(
                         "shanty.waste-fire",
-                        UNCONTROLLED_WASTE_FIRE * f64::from(b.kind.metadata().fire_chance) / 100.0,
+                        UNCONTROLLED_WASTE_FIRE * f64::from(b.kind.metadata().fire_chance)
+                            / f64::from(PERCENT),
                     )? && self.tiles[idx].coverage & FIRE == 0;
                 }
             }

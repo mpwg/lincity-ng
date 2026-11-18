@@ -9,7 +9,6 @@ pub(crate) const GOODS_RATE: i32 = 1;
 pub(crate) const DOLE_RATE: i32 = 15;
 pub(crate) const COAL_SURVEY_COST: i32 = 1_000_000;
 pub(crate) const DEATH_EXPENSE: i32 = 500;
-pub(crate) const PERCENT: i32 = 100;
 pub(crate) const COAL_TAX_DIVISOR: i32 = 10;
 pub(crate) const GOODS_TECH_SCALE: f32 = 2.0 * super::MAX_TECH_LEVEL as f32;
 pub(crate) const EXPORT_BRACKETS: [i32; 6] = [25_000, 50_000, 100_000, 200_000, 400_000, 800_000];

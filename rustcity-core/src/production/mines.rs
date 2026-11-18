@@ -1,4 +1,5 @@
 use super::{Activity, Stock};
+use crate::rules::PERCENT;
 use crate::rules::{
     DAYS_PER_MONTH,
     industry::{ORE_RESERVE, coal_mine, ore_mine},
@@ -215,9 +216,9 @@ impl OreMine {
         self.active = false;
         let mining = self.reserve != 0
             && stock[Ore]
-                <= ore_mine::TARGET_PERCENT * (ore_mine::CAPACITY - ore_mine::BATCH) / 100;
+                <= ore_mine::TARGET_PERCENT * (ore_mine::CAPACITY - ore_mine::BATCH) / PERCENT;
         let returning =
-            stock[Ore] > ore_mine::TARGET_PERCENT * ore_mine::CAPACITY / 100 + ore_mine::BATCH;
+            stock[Ore] > ore_mine::TARGET_PERCENT * ore_mine::CAPACITY / PERCENT + ore_mine::BATCH;
         if stock[Labor] >= ore_mine::LABOR && (mining || returning) {
             let i = self.area.cells().find(|&i| {
                 let ore = tiles[i].reserve(Mineral::Ore);

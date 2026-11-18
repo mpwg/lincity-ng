@@ -1,5 +1,6 @@
 //! Organic farm production and its randomized crop rotation.
 use super::*;
+use crate::rules::PERCENT;
 use crate::{Commodity, power::ProductionCounters};
 
 use crate::rules::{DAYS_PER_MONTH, DAYS_PER_YEAR, MAX_TECH_LEVEL};
@@ -70,7 +71,7 @@ impl Farm {
             stock[Food as usize] += food;
             stock[LowVoltage as usize] -= power;
             stock[Water as usize] -= water * WATER_PER_TILE;
-            self.utilization += 100 * food / max_food;
+            self.utilization += PERCENT * food / max_food;
         }
         for i in 0..stock.len() {
             counters.current[i] += stock[i] - before[i];

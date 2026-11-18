@@ -1,5 +1,5 @@
 use super::*;
-use crate::rules::{DAYS_PER_MONTH, civic as coverage, economy::PERCENT, market::*, transport};
+use crate::rules::{DAYS_PER_MONTH, PERCENT, civic as coverage, market::*, transport};
 use crate::{
     Commodity,
     energy::{TradeStock, exchange},

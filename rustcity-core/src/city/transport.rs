@@ -1,5 +1,6 @@
 use super::*;
 use crate::Commodity::{self, Goods, HighVoltage, Labor, LowVoltage, Steel, Waste};
+use crate::rules::PERCENT;
 use crate::rules::{DAYS_PER_MONTH, transport::*};
 
 mod topology;
@@ -91,7 +92,7 @@ impl City {
             t.fire.start = true;
             ignite = self.decisions.bernoulli(
                 "transport.waste-fire",
-                UNCONTROLLED_FIRE * f64::from(b.kind.metadata().fire_chance) / 100.,
+                UNCONTROLLED_FIRE * f64::from(b.kind.metadata().fire_chance) / f64::from(PERCENT),
             )? && tile.coverage & 0x40000 == 0;
         }
         if day % DAYS_PER_MONTH == DAYS_PER_MONTH - 1 {

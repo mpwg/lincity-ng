@@ -2,6 +2,8 @@
 //! live in the construction catalog; numerical expectations stay in fixtures.
 /// Number of simulation days in one accounting month.
 pub const DAYS_PER_MONTH: i32 = 100;
+pub(crate) const PERCENT: i32 = 100;
+pub(crate) const INITIAL_PEOPLE_POOL: i32 = 100;
 pub(crate) const MIN_MAP_SIDE: i32 = 3;
 pub(crate) const MAX_MAP_SIDE: i32 = i32::MAX.isqrt();
 pub(crate) const MONTHS_PER_YEAR: i32 = 12;

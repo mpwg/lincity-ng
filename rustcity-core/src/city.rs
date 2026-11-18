@@ -341,7 +341,7 @@ impl City {
             saved: None,
             day: 0,
             tech_level: 0,
-            people_pool: 100,
+            people_pool: crate::rules::INITIAL_PEOPLE_POOL,
             recent_point: Point {
                 x: side / 2,
                 y: side / 2,

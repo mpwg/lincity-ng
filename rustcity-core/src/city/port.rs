@@ -1,6 +1,6 @@
 use super::{BuildingId, City, Operation, finance::expense};
 use crate::rules::DAYS_PER_MONTH;
-use crate::rules::economy::*;
+use crate::rules::{PERCENT, economy::*};
 use crate::{BuildingKind, Commodity, save::Element};
 use std::io;
 

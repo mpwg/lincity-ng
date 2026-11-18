@@ -1,5 +1,5 @@
 use super::{City, CityEvent};
-use crate::rules::economy::*;
+use crate::rules::{PERCENT, economy::*};
 use crate::{Commodity, save::Element, stats::Stat};
 use std::io;
 

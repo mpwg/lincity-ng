@@ -1,5 +1,6 @@
 use super::{Activity, Stock};
 use crate::Commodity::{Labor, LowVoltage, Ore, Steel, Waste};
+use crate::rules::PERCENT;
 use crate::rules::{
     MAX_TECH_LEVEL,
     industry::{recycle, tip},
@@ -16,12 +17,15 @@ impl Recycling {
     pub const RUNNING_COST: i32 = recycle::RUNNING_COST;
     pub fn new(tech: i32) -> Self {
         let efficiency = (i64::from(recycle::WASTE)
-            * (10 + (50 * i64::from(tech)) / i64::from(MAX_TECH_LEVEL))
-            / 100)
-            .min(i64::from(recycle::WASTE * 8 / 10)) as i32;
+            * (recycle::BASE_EFFICIENCY_PERCENT
+                + (recycle::TECH_EFFICIENCY_PERCENT * i64::from(tech)) / i64::from(MAX_TECH_LEVEL))
+            / i64::from(PERCENT))
+        .min(i64::from(
+            recycle::WASTE * recycle::MAX_EFFICIENCY_PERCENT / PERCENT,
+        )) as i32;
         Self {
             make_ore: efficiency,
-            make_steel: efficiency / 50,
+            make_steel: efficiency / recycle::ORE_PER_STEEL,
             activity: Activity::default(),
         }
     }
@@ -62,7 +66,7 @@ impl Landfill {
         self.degradation += self.buried;
         self.buried -= self.degradation / tip::DEGRADE_DAYS;
         self.degradation %= tip::DEGRADE_DAYS;
-        let percent = stock[Waste] * 100 / tip::INBOX;
+        let percent = stock[Waste] * PERCENT / tip::INBOX;
         let bury = stock[Waste] >= tip::BATCH
             && percent > tip::TARGET_PERCENT
             && self.buried + tip::BATCH <= tip::CAPACITY;

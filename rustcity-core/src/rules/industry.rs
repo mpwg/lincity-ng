@@ -50,6 +50,10 @@ pub(crate) mod heavy {
     pub const POLLUTION_PER_STEEL: f64 = 0.25;
 }
 pub(crate) mod recycle {
+    pub const BASE_EFFICIENCY_PERCENT: i64 = 10;
+    pub const TECH_EFFICIENCY_PERCENT: i64 = 50;
+    pub const MAX_EFFICIENCY_PERCENT: i32 = 80;
+    pub const ORE_PER_STEEL: i32 = 50;
     pub const WASTE: i32 = 500;
     pub const LABOR: i32 = WASTE / 50 + super::LOAD_ORE + super::LOAD_STEEL;
     pub const POWER: i32 = WASTE / 2;

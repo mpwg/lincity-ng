@@ -4,6 +4,9 @@ use super::{Building, City, Point, Terrain, Tile};
 use crate::save::{Element, SaveGame, integer, invalid};
 use crate::{BuildingKind, Commodity};
 
+const TRANSIENT_POWER_CABLES: u32 = 0b11;
+const IS_TRANSPORT: u32 = 0x80;
+const TRANSPARENT: u32 = 0x0800_0000;
 const LAKE: u32 = 0x0100_0000;
 const RIVER: u32 = 0x0200_0000;
 const GROUNDWATER: u32 = 0x2000_0000;
@@ -14,7 +17,7 @@ fn flags(node: &Element) -> io::Result<u32> {
     node.child("flags")
         .map(|v| u32::try_from(integer(&v.text())?).map_err(invalid))
         .transpose()
-        .map(|flags| flags.unwrap_or(0) & !3)
+        .map(|flags| flags.unwrap_or(0) & !TRANSIENT_POWER_CABLES)
 }
 
 fn location(node: &Element) -> io::Result<Point> {
@@ -164,11 +167,11 @@ impl City {
             .unwrap_or_default();
         city.balance = g.child_i32("total_money", 0)?;
         city.day = g.child_i32("total_time", 0)?;
-        city.people_pool = g.child_i32("people_pool", 100)?;
+        city.people_pool = g.child_i32("people_pool", crate::rules::INITIAL_PEOPLE_POOL)?;
         city.stats.total_money = city.balance;
         city.tech_level = g.child_i32("tech_level", 0)?;
         city.stats.tech_level = city.tech_level;
-        city.stats.sustainability.old_population = 100;
+        city.stats.sustainability.old_population = crate::rules::INITIAL_PEOPLE_POOL;
         if let Some(stats) = g.child("stats") {
             crate::save::accounts::load(&mut city.stats, stats)?;
         }
@@ -227,7 +230,7 @@ impl City {
         building.evacuating = flags & EVACUATE != 0;
         if node.child("flags").is_some() {
             building.never_evacuate = flags & NEVER_EVACUATE != 0;
-            building.transparent = flags & 0x0800_0000 != 0;
+            building.transparent = flags & TRANSPARENT != 0;
         }
         let transparent = building.transparent;
         if let super::Operation::Civic(c) = &mut building.operation {
@@ -362,15 +365,17 @@ impl City {
                 node.order_children(&["tech", "steps", "stage"]);
             }
             let default_flags = match building.kind {
-                BuildingKind::PowerLine => 0x08000100,
-                BuildingKind::Track | BuildingKind::Rail | BuildingKind::Road => 0x180,
+                BuildingKind::PowerLine => TRANSPARENT | NEVER_EVACUATE,
+                BuildingKind::Track | BuildingKind::Rail | BuildingKind::Road => {
+                    IS_TRANSPORT | NEVER_EVACUATE
+                }
                 BuildingKind::TrackBridge | BuildingKind::RoadBridge | BuildingKind::RailBridge => {
-                    0x08000180
+                    TRANSPARENT | IS_TRANSPORT | NEVER_EVACUATE
                 }
                 BuildingKind::ParkPond
                 | BuildingKind::Parkland
                 | BuildingKind::Tip
-                | BuildingKind::Shanty => 0x100,
+                | BuildingKind::Shanty => NEVER_EVACUATE,
                 _ => 0,
             };
             let mut flag = if node.child("flags").is_some() {
@@ -384,7 +389,7 @@ impl City {
                 node.order_children(c.ordered_fields());
             }
             if let super::Operation::Transport(t) = &building.operation {
-                flag = flag & !0x0800_0000 | if t.transparent { 0x0800_0000 } else { 0 };
+                flag = flag & !TRANSPARENT | if t.transparent { TRANSPARENT } else { 0 };
             }
             node.set_child("flags", format!("{flag:#x}"));
             for (amount, commodity) in building.stock.iter().zip(Commodity::ALL) {

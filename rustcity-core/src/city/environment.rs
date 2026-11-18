@@ -1,5 +1,5 @@
 use super::*;
-use crate::rules::{DAYS_PER_MONTH, DAYS_PER_YEAR, economy::PERCENT, environment::*};
+use crate::rules::{DAYS_PER_MONTH, DAYS_PER_YEAR, PERCENT, environment::*};
 
 impl City {
     /// Current air pollution deposited at a map coordinate.
