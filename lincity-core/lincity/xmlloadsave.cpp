@@ -271,6 +271,13 @@ World::load(const std::filesystem::path& filename) {
     unexpectedXmlElement(xmlReader);
   }
 
+  // gzread may supply all the XML even when a compressed stream is
+  // truncated. Validate the stream status before returning the loaded world.
+  int gzipStatus;
+  gzerror(gz_file.get(), &gzipStatus);
+  if(gzipStatus != Z_OK)
+    throw std::runtime_error("failed to read compressed save file: " + filename.string());
+
   return world;
 }
 

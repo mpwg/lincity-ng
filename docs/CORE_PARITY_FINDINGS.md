@@ -144,3 +144,8 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   nach einer Evakuierung. Ein Zusammenhang mit diesem konkreten
   Kapazitätsfehler ist anhand des Tickets nicht bestätigt.
   [#70](https://github.com/lincity-ng/lincity-ng/issues/70)
+- Eine abgeschnittene Gzip-Datei konnte geladen werden, wenn das XML
+  selbst noch vollständig war. Nach der XML-Auswertung prüft der Lader
+  jetzt zusätzlich den Status der Dekompression. Der Test vergleicht das
+  Laden einer vollständigen Datei mit dem derselben Datei ohne den
+  abschließenden Teil der Gzip-Prüfdaten.

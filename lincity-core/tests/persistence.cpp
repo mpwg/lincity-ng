@@ -345,6 +345,17 @@ void rejectedConstructions(const fs::path& saved) {
   writeXml(saved, R"xml(
     <lc-game ldsv-version="2140">
       <map size="32">
+        <Construction group="23" map-x="12" map-y="12">
+          <stage>unsupported</stage>
+        </Construction>
+      </map>
+    </lc-game>
+  )xml");
+  expectFailure([&] { World::load(saved); }, "unknown rocket stage");
+
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2140">
+      <map size="32">
         <Construction group="6" map-x="5" map-y="5"/>
         <Construction group="26" map-x="31" map-y="13"/>
         <Construction group="33" map-x="20" map-y="20"/>
@@ -418,6 +429,20 @@ void rejectEmptySave(const fs::path& saved) {
     return;
   }
   throw std::runtime_error("Expected rejection of an empty city save");
+}
+
+void rejectTruncatedCompression(const fs::path& saved) {
+  World world(32);
+  world.given_scene = "Truncated compressed save";
+  world.save(saved);
+  auto complete = World::load(saved);
+  CHECK(complete->given_scene == world.given_scene);
+
+  // All XML is still present, but the gzip stream is missing its size footer.
+  const auto size = fs::file_size(saved);
+  CHECK(size > 8);
+  fs::resize_file(saved, size - 4);
+  expectFailure([&] { World::load(saved); }, "failed to read compressed save file");
 }
 
 void parserErrors(const fs::path& saved) {
@@ -595,6 +620,7 @@ int main(int argc, char** argv) {
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
+    rejectTruncatedCompression(saved);
     rejectedConstructions(saved);
 #ifdef LINCITY_TEST_XML_FAULTS
     factoryErrors(fixtures, saved);
