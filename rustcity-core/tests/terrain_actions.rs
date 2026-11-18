@@ -71,3 +71,30 @@ fn water_and_desert_frontiers_connect_only_adjacent_matching_ground() {
     assert_eq!(city.ground_frame(site), Some(0));
     assert_eq!(city.has_groundwater(east), Some(true));
 }
+
+#[test]
+fn market_price_and_demolition_apply_across_the_whole_footprint() {
+    use rustcity_core::BuildingKind;
+    let mut city = City::empty(8).unwrap();
+    let site = Point { x: 2, y: 3 };
+    let covered = Point { x: 3, y: 4 };
+    let build_market = Action::Build(BuildingKind::Market);
+    assert_eq!(city.preview(build_market, site), Ok(100));
+    city.apply(build_market, site).unwrap();
+    assert_eq!(city.balance(), -100);
+    assert_eq!(
+        city.building_at(covered),
+        Some((BuildingKind::Market, site))
+    );
+    assert_eq!(
+        city.preview(build_market, covered),
+        Err(ActionError::SpaceOccupied(covered))
+    );
+    assert_eq!(city.preview(Action::Bulldoze, covered), Ok(100));
+    city.apply(Action::Bulldoze, covered).unwrap();
+    assert_eq!(city.balance(), -200);
+    assert_eq!(city.building_at(site), None);
+    assert_eq!(city.building_at(covered), None);
+    assert_eq!(city.preview(Action::Bulldoze, site), Ok(0));
+    city.apply(build_market, site).unwrap();
+}

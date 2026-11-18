@@ -1,4 +1,7 @@
+use crate::buildings::Buildings;
 use crate::stats::Stats;
+use crate::{BuildDenial, BuildingKind};
+const MIN_ORE_FOR_MINE: i64 = 1000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Point {
@@ -16,6 +19,7 @@ pub enum Terrain {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
+    Build(BuildingKind),
     Query,
     Flood,
     Bulldoze,
@@ -26,21 +30,34 @@ pub enum ActionError {
     OutsideMap(Point),
     SpaceOccupied(Point),
     NothingToEvacuate(Point),
+    CannotEvacuate(Point),
+    BuildDenied(BuildDenial),
+    DesertHere(Point),
+    RequiresRiver,
+    NoOre,
     OutOfMoney,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MapSizeError;
 #[derive(Clone, Copy)]
 struct Tile {
+    river: bool,
+    ore: i32,
     ground: Terrain,
     frame: u16,
     groundwater: bool,
+}
+
+struct Building {
+    kind: BuildingKind,
+    evacuating: bool,
 }
 
 /// An independent city, including its terrain and financial accounts.
 pub struct City {
     side: i32,
     tiles: Vec<Tile>,
+    buildings: Buildings<Building>,
     balance: i32,
     stats: Stats,
 }
@@ -62,11 +79,14 @@ impl City {
                 ground: Terrain::Grass,
                 frame: 0,
                 groundwater: false,
+                river: false,
+                ore: 0,
             },
         );
         Ok(Self {
             side,
             tiles,
+            buildings: Buildings::new(side),
             balance: 0,
             stats: Stats::default(),
         })
@@ -125,6 +145,96 @@ impl City {
         }
     }
 
+    /// The building covering a cell and its northwestern origin.
+    pub fn building_at(&self, point: Point) -> Option<(BuildingKind, Point)> {
+        let (origin, building) = self.buildings.get(self.buildings.at(point)?)?;
+        Some((building.kind, origin))
+    }
+
+    fn actual_kind(&self, kind: BuildingKind, point: Point) -> BuildingKind {
+        use BuildingKind::*;
+        let water = self.terrain(point) == Some(Terrain::Water);
+        match kind {
+            Track | TrackBridge => {
+                if water {
+                    TrackBridge
+                } else {
+                    Track
+                }
+            }
+            Road | RoadBridge => {
+                if water {
+                    RoadBridge
+                } else {
+                    Road
+                }
+            }
+            Rail | RailBridge => {
+                if water {
+                    RailBridge
+                } else {
+                    Rail
+                }
+            }
+            Windmill | WindPower => {
+                if self.stats.tech_level >= WindPower.metadata().required_tech {
+                    WindPower
+                } else {
+                    Windmill
+                }
+            }
+            other => other,
+        }
+    }
+
+    fn quote_build(&self, kind: BuildingKind, point: Point) -> Result<i32, ActionError> {
+        use BuildingKind::*;
+        let kind = self.actual_kind(kind, point);
+        kind.can_build(
+            self.stats.tech_level,
+            self.balance,
+            self.stats.group_count[School.id() as usize],
+            self.stats.group_count[University.id() as usize],
+        )
+        .map_err(ActionError::BuildDenied)?;
+        let size = i32::from(kind.metadata().size);
+        if point.x >= self.side - size || point.y >= self.side - size {
+            return Err(ActionError::OutsideMap(point));
+        }
+        let mut groundwater = false;
+        let mut ore = 0_i64;
+        for y in point.y..point.y + size {
+            for x in point.x..point.x + size {
+                let cell = Point { x, y };
+                let tile = self.tiles[(y * self.side + x) as usize];
+                let existing = self.building_at(cell).map(|(kind, _)| kind);
+                let bridge = matches!(kind, TrackBridge | RoadBridge | RailBridge);
+                let transport = bridge || matches!(kind, Track | Road | Rail);
+                if (existing.is_some() || tile.ground == Terrain::Water)
+                    && !(transport && existing == Some(PowerLine))
+                    && !(bridge && tile.ground == Terrain::Water && existing != Some(kind))
+                {
+                    return Err(ActionError::SpaceOccupied(point));
+                }
+                groundwater |= tile.groundwater;
+                ore += i64::from(tile.ore);
+            }
+        }
+        if matches!(kind, ParkPond | Parkland | Waterwell) && !groundwater {
+            return Err(ActionError::DesertHere(point));
+        }
+        if kind == OreMine && ore < MIN_ORE_FOR_MINE {
+            return Err(ActionError::NoOre);
+        }
+        if kind == Port
+            && !(point.y..point.y + size)
+                .all(|y| self.tiles[(y * self.side + point.x + size) as usize].river)
+        {
+            return Err(ActionError::RequiresRiver);
+        }
+        Ok(kind.cost(self.stats.tech_level))
+    }
+
     /// Quotes an action against the current city without changing it.
     pub fn preview(&self, action: Action, point: Point) -> Result<i32, ActionError> {
         let visible = 1..self.side - 1;
@@ -133,10 +243,40 @@ impl City {
         }
         let ground = self.tiles[(point.y * self.side + point.x) as usize].ground;
         match action {
+            Action::Build(kind) => self.quote_build(kind, point),
             Action::Query => Ok(0),
-            Action::Evacuate => Err(ActionError::NothingToEvacuate(point)),
-            Action::Flood if ground == Terrain::Water => Err(ActionError::SpaceOccupied(point)),
+            Action::Evacuate => match self.building_at(point) {
+                None => Err(ActionError::NothingToEvacuate(point)),
+                Some((kind, _))
+                    if matches!(
+                        kind,
+                        BuildingKind::Parkland
+                            | BuildingKind::ParkPond
+                            | BuildingKind::Road
+                            | BuildingKind::Rail
+                            | BuildingKind::Track
+                            | BuildingKind::RoadBridge
+                            | BuildingKind::RailBridge
+                            | BuildingKind::TrackBridge
+                            | BuildingKind::PowerLine
+                            | BuildingKind::Tip
+                            | BuildingKind::Shanty
+                    ) =>
+                {
+                    Err(ActionError::CannotEvacuate(point))
+                }
+                Some(_) => Ok(0),
+            },
+            Action::Flood if ground == Terrain::Water || self.buildings.at(point).is_some() => {
+                Err(ActionError::SpaceOccupied(point))
+            }
             Action::Flood => Ok(1_000_000),
+            Action::Bulldoze if self.buildings.at(point).is_some() => Ok(self
+                .building_at(point)
+                .unwrap()
+                .0
+                .metadata()
+                .demolition_cost),
             Action::Bulldoze => Ok(match ground {
                 Terrain::Water => 1_000_000,
                 Terrain::Desert => 0,
@@ -149,13 +289,6 @@ impl City {
     pub fn apply(&mut self, action: Action, point: Point) -> Result<(), ActionError> {
         let cost = self.preview(action, point)?;
         let index = (point.y * self.side + point.x) as usize;
-        let ground = match action {
-            Action::Query => return Ok(()),
-            Action::Evacuate => return Err(ActionError::NothingToEvacuate(point)),
-            Action::Flood => Terrain::Water,
-            Action::Bulldoze if self.tiles[index].ground == Terrain::Water => Terrain::Grass,
-            Action::Bulldoze => Terrain::Desert,
-        };
         let balance = self
             .balance
             .checked_sub(cost)
@@ -164,19 +297,76 @@ impl City {
         self.balance = balance;
         self.stats.expenses.construction.acc =
             self.stats.expenses.construction.acc.saturating_add(cost);
-        if action == Action::Bulldoze && self.tiles[index].ground == Terrain::Desert {
-            return Ok(());
-        }
-        self.tiles[index].ground = ground;
-        if action == Action::Flood {
-            self.tiles[index].frame = 0;
-            self.tiles[index].groundwater = true;
+        let mut origin = point;
+        let mut size = 1;
+        match action {
+            Action::Query => return Ok(()),
+            Action::Evacuate => {
+                let building = self
+                    .buildings
+                    .get_mut(self.buildings.at(point).unwrap())
+                    .unwrap();
+                building.evacuating = !building.evacuating;
+                return Ok(());
+            }
+            Action::Build(kind) => {
+                let kind = self.actual_kind(kind, point);
+                size = i32::from(kind.metadata().size);
+                if let Some(id) = self.buildings.at(point) {
+                    let replaced = self.buildings.remove(id).unwrap();
+                    self.stats.group_count[replaced.kind.id() as usize] -= 1;
+                }
+                self.buildings
+                    .place(
+                        point,
+                        size,
+                        Building {
+                            kind,
+                            evacuating: false,
+                        },
+                    )
+                    .expect("validated footprint");
+                self.stats.group_count[kind.id() as usize] += 1;
+                for y in point.y..point.y + size {
+                    for x in point.x..point.x + size {
+                        let tile = &mut self.tiles[(y * self.side + x) as usize];
+                        if tile.ground != Terrain::Water {
+                            if kind != BuildingKind::PowerLine {
+                                tile.ground = Terrain::Desert;
+                            } else if tile.ground != Terrain::Desert {
+                                tile.ground = Terrain::Grass;
+                            }
+                            tile.frame = 0;
+                        }
+                    }
+                }
+            }
+            Action::Flood => {
+                self.tiles[index].ground = Terrain::Water;
+                self.tiles[index].frame = 0;
+                self.tiles[index].groundwater = true;
+            }
+            Action::Bulldoze => {
+                if let Some(id) = self.buildings.at(point) {
+                    let (kind, corner) = self.building_at(point).unwrap();
+                    origin = corner;
+                    size = i32::from(kind.metadata().size);
+                    self.buildings.remove(id);
+                    self.stats.group_count[kind.id() as usize] -= 1;
+                } else {
+                    self.tiles[index].ground = match self.tiles[index].ground {
+                        Terrain::Desert => return Ok(()),
+                        Terrain::Water => Terrain::Grass,
+                        _ => Terrain::Desert,
+                    };
+                }
+            }
         }
         self.update_frontiers(
-            point,
+            origin,
             Point {
-                x: point.x + 1,
-                y: point.y + 1,
+                x: origin.x + size,
+                y: origin.y + size,
             },
         );
         Ok(())

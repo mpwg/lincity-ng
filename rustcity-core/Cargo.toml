@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2024"
 license = "GPL-2.0-or-later"
 description = "RustCity Core city simulation"
+
+[dependencies]
+flate2 = "^1.1.11"
+quick-xml = "^0.42.0"
+slotmap = "^1.1.1"
