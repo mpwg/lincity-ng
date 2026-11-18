@@ -37,19 +37,12 @@ include(CTest)
 
 ### dependencies
 list(APPEND CMAKE_MODULE_PATH
-  ${CMAKE_SOURCE_DIR}/mk/cmake/modules
+  ${CMAKE_SOURCE_DIR}/tooling/cmake/modules
   ${CMAKE_CURRENT_SOURCE_DIR}/lincity-core/cmake
-  ${CMAKE_SOURCE_DIR}/mk/cmake/modules/SDL3
 )
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 find_package(Threads)
 find_package(ZLIB 1.0 REQUIRED)
-if(LINCITY_BUILD_GUI)
-  find_package(SDL3 3.2.0 REQUIRED)
-  find_package(SDL3_image REQUIRED)
-  find_package(SDL3_mixer REQUIRED)
-  find_package(SDL3_ttf REQUIRED)
-endif()
 find_package(LibXml2 REQUIRED) # requires >=2.6.11
 find_package(fmt 9.0.0 REQUIRED)
 find_package(LibXml++-5.0 REQUIRED)
@@ -58,19 +51,6 @@ find_package(Intl)
 find_program(GETTEXT_XGETTEXT NAMES xgettext)
 find_program(INCLUDE_WHAT_YOU_USE NAMES include-what-you-use)
 find_package(Git)
-# find_package(LibXslt NO_CMAKE_FIND_ROOT_PATH)
-# The libxslt find module is broken when cross compiling because it looks in the
-# target environment instead of the host. The workaround is to find only the
-# xsltproc program.
-if(LINCITY_BUILD_GUI AND NOT TARGET LibXslt::xsltproc)
-	find_program(LIBXSLT_XSLTPROC_EXECUTABLE NAMES xsltproc REQUIRED)
-	if(LIBXSLT_XSLTPROC_EXECUTABLE)
-		add_executable(LibXslt::xsltproc IMPORTED)
-		set_target_properties(LibXslt::xsltproc PROPERTIES IMPORTED_LOCATION "${LIBXSLT_XSLTPROC_EXECUTABLE}")
-	endif()
-endif()
-
-
 ### build configurations
 set(BUILD_TYPES Release MinSizeRel RelWithDebInfo BetaTest Debug DebugOpt None)
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${BUILD_TYPES})
@@ -83,7 +63,7 @@ elseif(NOT BUILD_TYPE_UPPER IN_LIST BUILD_TYPES_UPPER)
   # Make this an error eventually
   message(WARNING "Unrecognized build type: ${CMAKE_BUILD_TYPE}."
     " Use of unrecognized build types is deprecated."
-    " See doc/BUILD_OPTIONS.md for a list of supported build types."
+    " See docs/BUILD_OPTIONS.md for a list of supported build types."
   )
 	set(CMAKE_BUILD_TYPE None)
 endif()
@@ -159,7 +139,7 @@ if(NOT CMAKE_CROSSCOMPILING AND INCLUDE_WHAT_YOU_USE AND
 )
   set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${INCLUDE_WHAT_YOU_USE}
     -w
-    -Xiwyu "--mapping_file=${CMAKE_SOURCE_DIR}/mk/iwyu.map"
+    -Xiwyu "--mapping_file=${CMAKE_SOURCE_DIR}/tooling/cmake/iwyu.map"
     -Xiwyu --verbose=3
   )
   set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${CMAKE_CXX_INCLUDE_WHAT_YOU_USE})
@@ -200,92 +180,15 @@ set(CMAKE_BINARY_APPDATADIR ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_APPDATADIR})
 
 ### configure subdirectories
 if(LINCITY_BUILD_GUI)
-  include(mk/cmake/CheckFrameCounts.cmake)
   include(TranslateTarget)
 endif()
 add_subdirectory(lincity-core)
-add_subdirectory(src)
-add_subdirectory(lib)
 if(BUILD_TESTING)
-  add_subdirectory(tests)
+  add_subdirectory(tooling/regression)
 endif()
-if(NOT LINCITY_BUILD_GUI)
-  return()
+if(LINCITY_BUILD_GUI)
+  add_subdirectory(lincity-legacy)
+  add_subdirectory(tooling/save-converter)
+  add_subdirectory(docs ${CMAKE_INSTALL_DOCDIR})
+  include(tooling/cmake/PackageDesktop.cmake)
 endif()
-add_subdirectory(data ${CMAKE_INSTALL_APPDATADIR})
-add_subdirectory(doc ${CMAKE_INSTALL_DOCDIR})
-
-
-### runtime dependency installation for Windows
-set_target_properties(lincity-ng PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_BINDIR})
-install(TARGETS lincity-ng
-	RUNTIME_DEPENDENCY_SET dll_dependencies
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-if(WIN32)
-	# from https://gitlab.kitware.com/cmake/cmake/-/issues/20753#note_870046
-	if(MINGW AND CMAKE_CROSSCOMPILING)
-		# workaround for crosscompiling on linux/mingw for windows
-		install(CODE [[
-			set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")
-			set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL "objdump")
-			set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND "${CMAKE_OBJDUMP}")
-			# file(WRITE "objdump_unix2dos.sh" "${CMAKE_OBJDUMP} $@ | unix2dos")
-			# file(CHMOD "objdump_unix2dos.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
-		]])
-	endif()
-
-	install(RUNTIME_DEPENDENCY_SET dll_dependencies
-		DIRECTORIES ${CMAKE_FIND_ROOT_PATH}/bin  # dll's from mingw
-		UNRESOLVED_DEPENDENCIES_VAR DUMMY  # hacky!
-		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-	)
-endif()
-# if (WIN32)
-# 	install(FILES $<TARGET_PDB_FILE:lincity-ng> DESTINATION . OPTIONAL)
-# endif()
-
-
-### packaging
-set(CPACK_VERBATIM_VARIABLES TRUE)
-
-# generators
-set(CPACK_GENERATOR TXZ)
-if(WIN32)
-	set(CPACK_GENERATOR ZIP)
-endif()
-set(CPACK_SOURCE_GENERATOR ${CPACK_GENERATOR})
-if(WIN32 AND LINCITYNG_RELOCATABLE)
-	list(APPEND CPACK_GENERATOR NSIS)
-endif()
-set(CPACK_PACKAGE_CHECKSUM SHA256)
-
-# package metadata
-set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/data/${APPSTREAM_ID}.png")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING.txt")
-set(CPACK_PACKAGE_VERSION ${FULL_PROJECT_VERSION})
-
-# NSIS generator
-set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/data/${APPSTREAM_ID}.ico")
-set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL YES)
-set(CPACK_NSIS_MODIFY_PATH YES)
-set(CPACK_NSIS_IGNORE_LICENSE_PAGE YES)
-set(CPACK_NSIS_DISPLAY_NAME "LinCity-NG")
-
-# misc packaging options
-if(CMAKE_CXX_FLAGS_${BUILD_TYPE_UPPER} MATCHES "(^| )-g( |$)")
-  set(CPACK_STRIP_FILES FALSE)
-else()
-  set(CPACK_STRIP_FILES TRUE)
-endif()
-set(CPACK_SOURCE_IGNORE_FILES
-  "${CMAKE_BINARY_DIR}/"
-  "${CMAKE_SOURCE_DIR}/\\.git/"
-  "${CMAKE_SOURCE_DIR}/build.*/"
-)
-set(CPACK_THREADS 0)
-
-configure_file(mk/cmake/LCCPackConfig.cmake.in LCCPackConfig.cmake @ONLY)
-set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/LCCPackConfig.cmake")
-include(CPack)

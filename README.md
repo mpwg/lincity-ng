@@ -22,7 +22,7 @@ instructions for the wrong build system will definitely cause issues.
 
 ### Dependencies
 
-See [DEPENDENCIES.md](doc/DEPENDENCIES.md) for the list of dependencies.
+See [DEPENDENCIES.md](docs/DEPENDENCIES.md) for the list of dependencies.
 
 ### Building
 
@@ -41,7 +41,7 @@ cmake -B build --install-prefix <expected install path>
 cmake --build build --parallel --target package
 ```
 
-See [BUILD_OPTIONS.md](doc/BUILD_OPTIONS.md) for a list of build
+See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
 configuration options.
 
 ### Running
@@ -80,7 +80,7 @@ LinCity-NG 2.13.0 comes with a completely new load/save system that is,
 unfortunately, not backward compatible. (Some old code just needed to go.) The
 good news is all your hard work toward your super-city-utopia is not lost.
 
-You can use the script located at `contrib/ldsv-format-convert/1328-to-2130.sh`
+You can use the script located at `tooling/save-converter/1328-to-2130.sh`
 in the source code (or `/usr/share/lincity-ng/1328-to-2130.sh` on GNU/Linux
 systems) to convert your game to the new format. The script converts games saved
 with Lincity-NG 2.12.x. And the script is likely to also work with games created
@@ -95,7 +95,7 @@ mv ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz{,.orig}
 Then use use the script by passing the old game as standard input, and saving
 the new game to standard output:
 ```
-./contrib/ldsv-format-convert/1328-to-2130.sh \
+./tooling/save-converter/1328-to-2130.sh \
   < ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz.orig \
   > ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz
 ```

@@ -1,2 +1,0 @@
-add_executable(core_scenario_trace EXCLUDE_FROM_ALL parity/scenario_trace.cpp)
-target_link_libraries(core_scenario_trace PRIVATE LinCity::Core randutil)

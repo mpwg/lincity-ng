@@ -47,16 +47,11 @@ We just want to ensure that the project maintains the highest quality possible
 
 ### Directory Map
 
-- `build` - Build artifacts
-- `CHANGELOG.d` - Unreleased changelog entries
-- `contrib` - Miscellaneous unused files including old art and scripts
-- `data` - Game assets
-- `lib` - External libraries
-- `mk` - Files for configure/build
-- `src` - All source code
-  - `gui` - Custom GUI library for LinCity-NG
-  - `lincity` - LinCity-NG backend library for game mechanics
-  - `lincity-ng` - LinCity-NG frontend
+- `lincity-core/` contains the standalone city simulation and its tests.
+- `lincity-legacy/` contains the SDL frontend, GUI library and desktop assets.
+- `tooling/` contains build, release, save conversion and regression tools.
+- `docs/` contains project documentation, screenshots and unreleased changes.
+- `build/` holds local build artifacts.
 
 ### Changelog
 
@@ -67,10 +62,10 @@ changes with respect to the most recent release.
 
 To avoid git merge conflicts from everyone modifying the same `CHANGELOG.md`
 file. Instead of directly adding to the changelog, you will write your entry in
-a new file in the `CHANGELOG.d` directory. See [template.md](
-CHANGELOG.d/template.md) for an example changelog entry file. After your PR is
+a new file in the `docs/changes` directory. See [template.md](
+docs/changes/template.md) for an example changelog entry file. After your PR is
 merged, as part of routine maintenance, I will compile all the entries from the
-`CHANGELOG.d` directory and add them to the main changelog.
+`docs/changes` directory and add them to the main changelog.
 
 Changelog entries should be categorized into one of four sections:
 - **Gameplay** for changes affecting the game rules
@@ -98,7 +93,7 @@ should not have a changelog entry.
 
 LinCity-NG has a credits screen that is accessible from the main menu. When you
 contribute meaningfully to the game, please add yourself to the credits list by
-adding an entry to [data/gui/creditslist.xml](data/gui/creditslist.xml). If you
+adding an entry to [lincity-legacy/data/gui/creditslist.xml](lincity-legacy/data/gui/creditslist.xml). If you
 already have an entry in the list, just make sure the email and year are
 up-to-date. The entry should include your name, your email, and the calender
 year that you made your contribution. Entries are categorized into several
@@ -268,19 +263,19 @@ Here is the general workflow for translating LinCity-NG:
    - If you are creating a new translation:
      ```
      LANG=<2-character language handle e.g. 'en'>
-     msginit -i build/messages.pot -o data/locale/$LANG.po
+     msginit -i build/messages.pot -o lincity-legacy/data/locale/$LANG.po
      ```
    - If you are updating an existing translation:
      ```
      LANG=<2-character language handle e.g. 'en'>
-     msgmerge -U data/locale/$LANG.po build/messages.pot
+     msgmerge -U lincity-legacy/data/locale/$LANG.po build/messages.pot
      ```
 6. Update and review translations in the .po file with [a PO editor](
    https://www.gnu.org/software/trans-coord/manual/web-trans/html_node/PO-Editors.html)
    or with your favorite text editor.
 7. If you want to edit the help texts, then create a directory with your
-   language shortcut in the data/help directory (e.g. data/help/de) and write
-   new xml files in your language (similar to the ones in the data/help/en
+   language shortcut in the lincity-legacy/data/help directory (e.g. lincity-legacy/data/help/de) and write
+   new xml files in your language (similar to the ones in the lincity-legacy/data/help/en
    directory). You don't need to copy over the english texts, the game will
    automatically use the english version of a text if no translated version
    exists.
