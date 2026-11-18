@@ -260,6 +260,40 @@ void marketStaffingAndAnimation() {
   CHECK(fire.frame == -1);
 }
 
+void evacuationAndNeighborhood() {
+  World world(32);
+  const auto farmSite = site.e(5);
+  const auto roadSite = farmSite.e(GROUP_ORGANIC_FARM_SIZE);
+  marketConstructionGroup.placeItem(world, site);
+  organic_farmConstructionGroup.placeItem(world, farmSite);
+  roadConstructionGroup.placeItem(world, roadSite);
+  auto& market = *world.map(site)->getConstruction();
+  auto& farm = *world.map(farmSite)->getConstruction();
+  auto& road = *world.map(roadSite)->getConstruction();
+  world.evacuateArea(farmSite);
+  CHECK(farm.flags & FLAG_EVACUATE);
+  farm.levelStuff(STUFF_FOOD, 1100);
+  CHECK(farm.tellstuff(STUFF_FOOD, 500) == 1100);
+
+  market.levelStuff(STUFF_LABOR, 1);
+  market.update();
+  CHECK(farm.commodityCount[STUFF_FOOD] == 0 && market.commodityCount[STUFF_FOOD] == 1100);
+  CHECK(farm.tellstuff(STUFF_FOOD, 500) == -1);
+
+  farm.levelStuff(STUFF_FOOD, 1300);
+  road.trade();
+  CHECK(farm.commodityCount[STUFF_FOOD] == 0 && road.commodityCount[STUFF_FOOD] == 1300);
+  world.bulldozeArea(farmSite);
+  farm.levelStuff(STUFF_FOOD, 1000);
+  market.levelStuff(STUFF_LABOR, 1);
+  market.update();
+  road.trade();
+  CHECK(farm.commodityCount[STUFF_FOOD] == 1000);
+  CHECK(market.commodityCount[STUFF_FOOD] == 1100 && road.commodityCount[STUFF_FOOD] == 1300);
+  world.do_time_step();
+  CHECK(world.map.constructionCount() == 2);
+}
+
 void portCommands() {
   World world(32);
   world.total_money = 1000000;
@@ -378,6 +412,7 @@ int main() {
     marketCommands();
     marketSupplyAndWaste();
     marketStaffingAndAnimation();
+    evacuationAndNeighborhood();
     portCommands();
     rocketCommands();
     protectedMonument();
