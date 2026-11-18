@@ -1,7 +1,10 @@
 #include "lincity/ConstructionReport.hpp"
 #include "lincity/UserOperation.hpp"
 #include "lincity/messages.hpp"
+#include "lincity/modules/blacksmith.hpp"
+#include "lincity/modules/cricket.hpp"
 #include "lincity/modules/fire.hpp"
+#include "lincity/modules/firestation.hpp"
 #include "lincity/modules/health_centre.hpp"
 #include "lincity/modules/market.hpp"
 #include "lincity/modules/modules_interfaces.hpp"
@@ -10,13 +13,14 @@
 #include "lincity/modules/residence.hpp"
 #include "lincity/modules/shanty.hpp"
 #include "lincity/modules/tip.hpp"
+#include "lincity/modules/track_road_rail.hpp"
 #include "lincity/modules/university.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
 #include "util/simulation_trace.hpp"
 
-#include <cstdlib>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -154,7 +158,8 @@ void verifyMonument() {
 
 void verifyTip() {
   World world(32);
-  auto& tip = place<Tip>(world, tipConstructionGroup, MapPoint(12, 12));
+  const MapPoint site(12, 12);
+  auto& tip = place<Tip>(world, tipConstructionGroup, site);
   Message::ptr message;
   require(tip.can_bulldoze(message), "empty tip refused demolition");
 
@@ -174,6 +179,16 @@ void verifyTip() {
   require(!tip.can_bulldoze(message) &&
           dynamic_cast<const CannotBulldozeNonemptyTipMessage*>(message.get()),
           "filled tip was bulldozable");
+  try {
+    world.bulldozeArea(site.se());
+    throw std::runtime_error("bulldozing a filled waste tip unexpectedly succeeded");
+  } catch(const CannotBulldozeNonemptyTipMessage::Exception& error) {
+    const auto refusal = error.getMessage();
+    require(refusal->getPoint() == site && &refusal->getGroup() == &tipConstructionGroup &&
+            refusal->str() == "cannot bulldoze a tip that is full of waste: (12,12)" &&
+            world.total_money == 0 && world.map(site)->getConstruction() == &tip,
+            "blocked demolition did not identify the tip or altered the city");
+  }
 
   tip.degration_days = TIP_DEGRADE_TIME - WASTE_BURRIED;
   tip.levelStuff(STUFF_WASTE, critical);
@@ -468,6 +483,28 @@ void verifyMonthlyInsolvency(int cash) {
   }
 }
 
+void verifyAnnualInterest() {
+  World world(32);
+  const int lastDay = NUMOF_DAYS_IN_YEAR - 1;
+  world.total_time = lastDay - 2;
+  world.total_money = -100000;
+  world.do_time_step();
+  require(world.total_money == -100000 && world.stats.expenses.interest.acc == 0,
+          "annual interest was charged before the last day of the year");
+  world.do_time_step();
+  require(world.total_time == lastDay && world.total_money == -101500 &&
+          world.stats.expenses.interest.acc == 1500 && !world.popMessage(),
+          "year-end settlement charged the wrong interest on city debt");
+
+  World insolvent(32);
+  insolvent.total_time = lastDay - 1;
+  insolvent.total_money = -2000000000;
+  insolvent.do_time_step();
+  require(insolvent.total_time == lastDay && insolvent.total_money == -2000000000 &&
+          insolvent.stats.expenses.interest.acc == 0 && !insolvent.popMessage(),
+          "unpayable interest interrupted the calendar or was booked anyway");
+}
+
 void verifyMarketClosedTrade() {
   World world(32);
   const MapPoint site(2, 2);
@@ -502,13 +539,12 @@ void verifyMarketClosedTrade() {
           "market coverage did not respect the interior border or distance limit");
 }
 
-std::string wasteFireChoices(const char* event, MapPoint site, unsigned int size) {
+std::string wasteFireChoices(const char* event, MapPoint site, unsigned int size, int placed = 0) {
   std::ostringstream choices;
   choices << "S " << event << " 1\n";
-  int id = 0;
   for(unsigned int y = 0; y < size; ++y)
     for(unsigned int x = 0; x < size; ++x)
-      choices << "P " << ++id << ' ' << site.x + x << ' ' << site.y + y << ' ' << GROUP_FIRE << '\n';
+      choices << "P " << ++placed << ' ' << site.x + x << ' ' << site.y + y << ' ' << GROUP_FIRE << '\n';
   return choices.str();
 }
 
@@ -550,6 +586,81 @@ void verifyMarketWasteFire(bool covered) {
   }
   market.animate(1000 + ANIM_THRESHOLD(6 * WASTE_BURN_TIME));
   require(burnFrame.frame == -1, "market waste fire stayed visible after its animation ended");
+}
+
+void verifyOverlappingCoverage() {
+  World world(32);
+  world.total_money = 1000000;
+  const MapPoint stationSite(28, 14);
+  auto& station = place<FireStation>(world, fireStationConstructionGroup, stationSite);
+  auto& hospital = place<HealthCentre>(world, healthCentreConstructionGroup, MapPoint(24, 22));
+  auto& cricket = place<Cricket>(world, cricketConstructionGroup, MapPoint(26, 7));
+  station.levelStuff(STUFF_LABOR, FIRESTATION_LABOR);
+  station.levelStuff(STUFF_GOODS, FIRESTATION_GOODS);
+  auto supplyRemainingServices = [&] {
+    hospital.levelStuff(STUFF_LABOR, HEALTH_CENTRE_LABOR);
+    hospital.levelStuff(STUFF_GOODS, HEALTH_CENTRE_GOODS);
+    cricket.levelStuff(STUFF_LABOR, CRICKET_LABOR);
+    cricket.levelStuff(STUFF_GOODS, CRICKET_GOODS);
+  };
+  supplyRemainingServices();
+
+  const MapPoint lastVisible(30, 15);
+  const MapPoint border(31, 15);
+  auto& overlapping = world.map(lastVisible)->flags;
+  overlapping |= FLAG_HAS_UNDERGROUND_WATER;
+  constexpr unsigned int shared = FLAG_FIRE_COVER | FLAG_HEALTH_COVER | FLAG_CRICKET_COVER;
+  world.total_time = 74;
+  world.do_time_step();
+  require((overlapping & shared) == shared && (overlapping & FLAG_HAS_UNDERGROUND_WATER) &&
+          !(world.map(border)->flags & shared),
+          "overlapping services interfered with each other or reached the outer border");
+  require(!(world.map(lastVisible.s())->flags & FLAG_CRICKET_COVER) &&
+          !(world.map(MapPoint(30, 7))->flags & FLAG_HEALTH_COVER),
+          "municipal services ignored their individual ranges");
+
+  world.bulldozeArea(stationSite);
+  supplyRemainingServices();
+  world.total_time = DAYS_BETWEEN_COVER + 73;
+  world.do_time_step();
+  require((overlapping & shared) == shared, "service coverage changed before its renewal day");
+  world.do_time_step();
+  require((overlapping & shared) == (FLAG_HEALTH_COVER | FLAG_CRICKET_COVER),
+          "coverage renewal retained the demolished fire station or cleared a remaining service");
+}
+
+void verifyAnnualFireCoverageAfterBuildingLoss() {
+  World world(32);
+  const MapPoint road(6, 6);
+  const MapPoint site(12, 12);
+  const int auditDay = 3 * NUMOF_DAYS_IN_YEAR;
+  world.total_time = auditDay - 1;
+  world.stats.sustainability.fire_years = 3;
+
+  std::ostringstream choices;
+  choices << "P 1 " << road.x << ' ' << road.y << ' ' << GROUP_ROAD << '\n'
+          << "P 2 " << site.x << ' ' << site.y << ' ' << GROUP_SHANTY << '\n'
+          << "D " << auditDay << " 2 1 2\n"
+          << wasteFireChoices("shanty.waste-fire", site, GROUP_SHANTY_SIZE, 2);
+  replayChoices(choices.str(), [&] {
+    roadConstructionGroup.placeItem(world, road);
+    auto& shanty = place<Shanty>(world, shantyConstructionGroup, site);
+    shanty.levelStuff(STUFF_WASTE, MAX_WASTE_AT_SHANTY - 2 * SHANTY_PUT_WASTE);
+    world.do_time_step();
+  });
+  const auto fire = dynamic_message_cast<FireStartedMessage>(world.popMessage());
+  require(fire && fire->getPoint() == site && &fire->getGroup() == &shantyConstructionGroup,
+          "fire at the annual audit was not reported");
+  require(world.stats.sustainability.fire_years == 6 && world.total_time == auditDay &&
+          world.stats.groupCount[GROUP_SHANTY] == 0 &&
+          world.stats.groupCount[GROUP_FIRE] == GROUP_SHANTY_SIZE * GROUP_SHANTY_SIZE,
+          "fire audit included a lost building, its replacement fires or a road");
+
+  blacksmithConstructionGroup.placeItem(world, MapPoint(20, 20));
+  world.total_time = auditDay + NUMOF_DAYS_IN_YEAR - 1;
+  world.do_time_step();
+  require(world.stats.sustainability.fire_years == 6,
+          "ordinary year boundary reset fire protection before the next triennial audit");
 }
 
 void verifyShantyWaste() {
@@ -741,9 +852,12 @@ int main() {
     verifyUniversityFunding();
     verifyMonthlyInsolvency(-2000000000);
     verifyMonthlyInsolvency(UNNAT_DEATHS_COST);
+    verifyAnnualInterest();
     verifyMarketClosedTrade();
     verifyMarketWasteFire(false);
     verifyMarketWasteFire(true);
+    verifyOverlappingCoverage();
+    verifyAnnualFireCoverageAfterBuildingLoss();
     verifyShantyWaste();
     verifyShantyBulldoze();
     verifyShantyPopulation();

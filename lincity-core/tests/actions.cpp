@@ -26,12 +26,13 @@ static_assert(std::is_same_v<decltype(std::declval<const Construction&>().getCon
 const MapPoint site(8, 8);
 
 template<class Error>
-void checkRejected(const UserOperation& op, World& world, MapPoint point) {
+typename Error::ptr checkRejected(const UserOperation& op, World& world, MapPoint point) {
   try {
     op.execute(world, point);
   } catch(const Message::Exception& e) {
-    CHECK(dynamic_message_cast<Error>(e.getMessage()));
-    return;
+    const auto message = dynamic_message_cast<Error>(e.getMessage());
+    CHECK(message && Message::fromCurrentException() == message);
+    return message;
   }
   throw std::runtime_error("command unexpectedly succeeded");
 }
@@ -138,8 +139,9 @@ void floodAndTransport() {
   CHECK(world.total_money == -cost);
   CHECK(world.map(site)->is_water());
   CHECK(!flood.isAllowedHere(world, site, why));
-  CHECK(dynamic_message_cast<SpaceOccupiedMessage>(why));
-  checkRejected<SpaceOccupiedMessage>(flood, world, site);
+  const auto occupied = dynamic_message_cast<SpaceOccupiedMessage>(why);
+  CHECK(occupied && occupied->getPoint() == site);
+  CHECK(checkRejected<SpaceOccupiedMessage>(flood, world, site)->str() == occupied->str());
   CHECK(world.total_money == -cost);
 
   for(auto [land, bridge] : {std::pair{&trackConstructionGroup, &trackbridgeConstructionGroup},
@@ -174,7 +176,8 @@ void floodRejectedAtCreditLimit() {
   auto& tile = *world.map(site);
   const auto originalFlags = tile.flags;
   UserOperation flood{UserOperation::ACTION_FLOOD};
-  checkRejected<OutOfMoneyMessage>(flood, world, site);
+  const auto limit = checkRejected<OutOfMoneyMessage>(flood, world, site);
+  CHECK(limit->isOutOfCredit() && limit->str() == "no more credit");
   CHECK(tile.group == GROUP_BARE && tile.flags == originalFlags);
   CHECK(world.total_money == -2000000000);
   CHECK(world.stats.expenses.construction.acc == 0);
@@ -376,6 +379,12 @@ void portCommands() {
   world.tech_level = portConstructionGroup.tech;
   CHECK(!build.isAllowedHere(world, site, why));
   CHECK(dynamic_message_cast<PortRequiresRiverMessage>(why));
+  const auto denied = checkRejected<CannotBuildHereMessage>(build, world, site);
+  CHECK(denied->getPoint() == site && &denied->getGroup() == &portConstructionGroup);
+  const auto missingRiver = dynamic_message_cast<PortRequiresRiverMessage>(denied->getReason());
+  CHECK(missingRiver && missingRiver->str() == "ports require connection to river along the east side");
+  CHECK(denied->str().find(missingRiver->str()) != std::string::npos);
+  CHECK(world.total_money == 1000000 && world.map.constructionCount() == 0);
   for(int i = 0; i < portConstructionGroup.size; ++i) {
     auto* tile = world.map(site.e(portConstructionGroup.size).s(i));
     tile->setTerrain(GROUP_WATER);
@@ -401,11 +410,17 @@ void rocketCommands() {
   UserOperation build{UserOperation::ACTION_BUILD, &rocketPadConstructionGroup};
   Message::ptr why;
   CHECK(!build.isAllowed(world, why));
-  CHECK(dynamic_message_cast<NotEnoughTechMessage>(why));
-  checkRejected<CannotBuildMessage>(build, world, site);
+  const auto techRequired = dynamic_message_cast<NotEnoughTechMessage>(why);
+  CHECK(techRequired && techRequired->getCurrentTech() == 0 &&
+        techRequired->getRequiredTech() == rocketPadConstructionGroup.tech);
+  const auto denied = checkRejected<CannotBuildMessage>(build, world, site);
+  const auto deniedTech = dynamic_message_cast<NotEnoughTechMessage>(denied->getReason());
+  CHECK(&denied->getGroup() == &rocketPadConstructionGroup && deniedTech &&
+        deniedTech->str() == techRequired->str());
   world.tech_level = MAX_TECH_LEVEL;
   CHECK(!build.isAllowed(world, why));
-  CHECK(dynamic_message_cast<OutOfMoneyMessage>(why));
+  const auto cashRequired = dynamic_message_cast<OutOfMoneyMessage>(why);
+  CHECK(cashRequired && !cashRequired->isOutOfCredit() && cashRequired->str() == "out of money");
   world.total_money = build.cost(world);
   build.execute(world, site);
   auto* rocket = dynamic_cast<RocketPad*>(world.map(site)->getConstruction());
@@ -415,6 +430,40 @@ void rocketCommands() {
   CHECK(world.launchRocket(site));
   CHECK(rocket->stage == RocketPad::LAUNCHING);
   CHECK(!world.launchRocket(site));
+}
+
+void buildRejectionReasons() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.total_money = 1000000;
+
+  UserOperation well{UserOperation::ACTION_BUILD, &waterwellConstructionGroup};
+  const auto dry = checkRejected<CannotBuildHereMessage>(well, world, site);
+  const auto desert = dynamic_message_cast<DesertHereMessage>(dry->getReason());
+  CHECK(dry->getPoint() == site && &dry->getGroup() == &waterwellConstructionGroup);
+  CHECK(desert && desert->getPoint() == site && desert->str() == "desert here: (8,8)");
+  CHECK(dry->str().find(desert->str()) != std::string::npos);
+
+  UserOperation mine{UserOperation::ACTION_BUILD, &oremineConstructionGroup};
+  world.map(site)->ore_reserve = MIN_ORE_RESERVE_FOR_MINE - 1;
+  const auto depositTooSmall = checkRejected<CannotBuildHereMessage>(mine, world, site);
+  const auto noOre = dynamic_message_cast<NoOreMessage>(depositTooSmall->getReason());
+  CHECK(depositTooSmall->getPoint() == site && &depositTooSmall->getGroup() == &oremineConstructionGroup);
+  CHECK(noOre && noOre->str() == "no ore left" && depositTooSmall->str().find(noOre->str()) != std::string::npos);
+
+  UserOperation university{UserOperation::ACTION_BUILD, &universityConstructionGroup};
+  const auto noSchool = checkRejected<CannotBuildMessage>(university, world, site);
+  const auto students = dynamic_message_cast<NotEnoughStudentsMessage>(noSchool->getReason());
+  CHECK(&noSchool->getGroup() == &universityConstructionGroup);
+  CHECK(students && students->str() == "not enough students" &&
+        noSchool->str().find(students->str()) != std::string::npos);
+
+  CHECK(world.map(site)->is_bare() && world.total_money == 1000000 &&
+        world.map.constructionCount() == 0 && world.stats.expenses.construction.acc == 0);
+  const int lastOffset = oremineConstructionGroup.size - 1;
+  world.map(site.e(lastOffset).s(lastOffset))->ore_reserve = 1;
+  mine.execute(world, site);
+  CHECK(world.map(site)->getGroup() == GROUP_OREMINE);
 }
 
 void populationHistoryWindow() {
@@ -491,6 +540,7 @@ int main() {
     commuterDispatch();
     portCommands();
     rocketCommands();
+    buildRejectionReasons();
     protectedMonument();
     terrainAndSurvey();
     populationHistoryWindow();
