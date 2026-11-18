@@ -56,3 +56,18 @@ fn border_is_stored_but_rejects_player_actions_with_original_coordinates() {
         Err(ActionError::NothingToEvacuate(center))
     );
 }
+
+#[test]
+fn water_and_desert_frontiers_connect_only_adjacent_matching_ground() {
+    let mut city = City::empty(8).unwrap();
+    let site = Point { x: 3, y: 3 };
+    let east = Point { x: 4, y: 3 };
+    city.apply(Action::Flood, site).unwrap();
+    city.apply(Action::Flood, east).unwrap();
+    assert_eq!(city.ground_frame(site), Some(2));
+    assert_eq!(city.ground_frame(east), Some(4));
+    assert_eq!(city.has_groundwater(site), Some(true));
+    city.apply(Action::Bulldoze, east).unwrap();
+    assert_eq!(city.ground_frame(site), Some(0));
+    assert_eq!(city.has_groundwater(east), Some(true));
+}
