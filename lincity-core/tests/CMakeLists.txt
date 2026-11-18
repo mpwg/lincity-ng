@@ -54,3 +54,7 @@ if(Python3_Interpreter_FOUND)
     endif()
   endif()
 endif()
+
+add_executable(core_world_behavior world_behavior.cpp)
+target_link_libraries(core_world_behavior PRIVATE LinCity::Core randutil)
+add_test(NAME core.world_behavior COMMAND core_world_behavior)
