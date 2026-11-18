@@ -248,11 +248,14 @@ void RocketPad::remove_people(int num)
       return true;
     });
 
-    if(!housed && !world.gameEnd) {
-      world.gameEnd = true;
-      world.pushMessage(RocketResultMessage::create(
-        point, RocketResultMessage::LaunchResult::EVAC_WIN));
-      return;
+    if(!housed) {
+      if(!world.gameEnd) {
+        world.gameEnd = true;
+        world.pushMessage(RocketResultMessage::create(
+          point, RocketResultMessage::LaunchResult::EVAC_WIN));
+        return;
+      }
+      break;
     }
   }
 

@@ -126,6 +126,20 @@ void floodAndTransport() {
   checkRejected<CannotEvacuateNothingMessage>(evacuate, world, site.n());
 }
 
+void floodRejectedAtCreditLimit() {
+  World world(32);
+  world.total_money = -2000000000;
+  auto& tile = *world.map(site);
+  const auto originalFlags = tile.flags;
+  UserOperation flood{UserOperation::ACTION_FLOOD};
+  checkRejected<OutOfMoneyMessage>(flood, world, site);
+  CHECK(tile.group == GROUP_BARE && tile.flags == originalFlags);
+  CHECK(world.total_money == -2000000000);
+  CHECK(world.stats.expenses.construction.acc == 0);
+  CHECK(!world.isUpdated(World::Updatable::MAP));
+  CHECK(!world.isUpdated(World::Updatable::MONEY));
+}
+
 void marketCommands() {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -282,6 +296,7 @@ int main() {
     windSelection();
     moveOverlayFrame();
     floodAndTransport();
+    floodRejectedAtCreditLimit();
     marketCommands();
     portCommands();
     rocketCommands();

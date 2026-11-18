@@ -502,8 +502,8 @@ World::floodArea(MapPoint point) {
     OutsideMapMessage::create(point)->throwEx();
   if(!map(point)->is_bare())
     SpaceOccupiedMessage::create(point)->throwEx();
-  map(point)->setTerrain(GROUP_WATER);
   expense(GROUP_WATER_COST, stats.expenses.construction);
+  map(point)->setTerrain(GROUP_WATER);
   map.connect_transport(point.x - 2, point.y - 2, point.x + 2, point.y + 2);
   map.desert_water_frontiers(point.x - 1, point.y - 1, 3, 3);
   map.connect_rivers(point.x, point.y);
