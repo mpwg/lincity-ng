@@ -15,7 +15,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -322,6 +324,42 @@ void verifyPowerCableLimits() {
   require(!(world.map(site.n())->flags & FLAG_POWER_CABLES_0), "removed north cable survived");
 }
 
+void verifyRegistryDiagnostics() {
+  World world(32);
+  auto duplicate = blacksmithConstructionGroup;
+  duplicate.resourceID = "UnregisteredSmithy";
+  const auto& animation = *ResourceGroup::resMap.at("Blacksmith");
+  std::ostringstream output;
+  {
+    struct RestoreOutput {
+      std::streambuf* original;
+      ~RestoreOutput() { std::cout.rdbuf(original); }
+    } restore{std::cout.rdbuf(output.rdbuf())};
+    ConstructionGroup::addConstructionGroup(&duplicate);
+    ConstructionGroup::addResourceID("Blacksmith", &duplicate);
+    ConstructionGroup::printGroups();
+  }
+  require(ConstructionGroup::getConstructionGroup(GROUP_BLACKSMITH) ==
+          &blacksmithConstructionGroup, "duplicate group replaced the registered smithy");
+  require(duplicate.resourceID == "UnregisteredSmithy", "duplicate resource was assigned to a new group");
+  require(ResourceGroup::resMap.at("Blacksmith") == &animation,
+          "duplicate resource replaced the registered animation");
+  require(output.str().find("rejecting") != std::string::npos,
+          "registry did not diagnose the duplicate");
+  require(output.str().find("group #" + std::to_string(GROUP_BLACKSMITH) +
+                            ": " + blacksmithConstructionGroup.name) != std::string::npos,
+          "registry listing omitted the existing smithy");
+
+  auto& tile = *world.map(MapPoint(12, 12));
+  tile.setTerrain(NUM_OF_GROUPS);
+  require(tile.getTileConstructionGroup()->group == GROUP_DESERT,
+          "unrecognized terrain group did not use the desert fallback");
+  require(tile.getTileResourceGroup() == ResourceGroup::resMap.at("Desert"),
+          "unrecognized terrain did not use the desert animation");
+  require(std::string_view(commodityName(STUFF_COUNT)) == "Unknown",
+          "invalid inventory identifier did not display as unknown");
+}
+
 void verifyModule(ConstructionGroup& group) {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -374,6 +412,7 @@ int main() {
   }
   try {
     verifyBlacksmith();
+    verifyRegistryDiagnostics();
     verifyMissingAnimationResource();
     verifyPlacementPreflight();
     verifyPlacementFactoryFailures();

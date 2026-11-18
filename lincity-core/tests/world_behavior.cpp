@@ -239,6 +239,36 @@ void bridgeLayoutFrames() {
   }
 }
 
+void restoreTransportAcrossTerrain() {
+  struct Kind { TransportConstructionGroup& land; TransportConstructionGroup& bridge; };
+  for(const auto& kind : std::array<Kind, 3>{{
+    {trackConstructionGroup, trackbridgeConstructionGroup},
+    {roadConstructionGroup, roadbridgeConstructionGroup},
+    {railConstructionGroup, railbridgeConstructionGroup}
+  }}) {
+    for(bool water : {false, true}) {
+      World world(32);
+      auto& tile = *world.map(site);
+      if(water) tile.setTerrain(GROUP_WATER);
+
+      // Map terrain and the construction group are restored separately.
+      auto& savedGroup = water ? kind.land : kind.bridge;
+      const auto& expectedGroup = water ? kind.bridge : kind.land;
+      std::unique_ptr<Construction> restored(savedGroup.createConstruction(world));
+      restored->commodityCount[STUFF_FOOD] = 79;
+      Construction::placeOwned(std::move(restored), site);
+
+      const auto& placed = *tile.getConstruction();
+      CHECK(placed.getConstructionGroup() == &expectedGroup);
+      CHECK(placed.getFrame().resourceGroup->resourceID == expectedGroup.resourceID);
+      CHECK(placed.commodityCount[STUFF_FOOD] == 79);
+      CHECK(tile.is_water() == water && tile.getTransportGroup() == kind.land.group);
+      CHECK(world.stats.groupCount[savedGroup.group] == 0);
+      CHECK(world.stats.groupCount[expectedGroup.group] == 1 && world.map.constructionCount() == 1);
+    }
+  }
+}
+
 void transportReplacement() {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -572,6 +602,17 @@ void transportMaintenance() {
   CHECK(fire && fire->getPoint() == site && fire->getGroup().group == GROUP_ROAD);
 }
 
+void detachedTransportCannotSpawnVehicle() {
+  World world(32);
+  roadConstructionGroup.placeItem(world, site);
+  auto& road = dynamic_cast<Transport&>(*world.map(site)->getConstruction());
+  CHECK(road.canPlaceVehicle());
+  world.bulldozeArea(site);
+  CHECK(road.isDead() && !world.map(site)->getFrames());
+  CHECK(!road.canPlaceVehicle());
+  world.do_time_step();
+}
+
 void transportWearIntervals() {
   World world(32);
   const auto rail = site.e(3);
@@ -720,6 +761,7 @@ int main() {
     transportFrames();
     railCrossingFrames();
     bridgeLayoutFrames();
+    restoreTransportAcrossTerrain();
     transportReplacement();
     vehicleCrossings();
     vehicleUsesRailCrossing();
@@ -728,6 +770,7 @@ int main() {
     commuterCargoHeadings();
     vehicleLeavesBulldozedTrack();
     transportMaintenance();
+    detachedTransportCannotSpawnVehicle();
     transportWearIntervals();
     controlledWasteBurn();
     inventionThreshold();

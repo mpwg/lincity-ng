@@ -354,35 +354,25 @@ void Transport::init_resources() {
 }
 
 void Transport::place(MapPoint point) {
-  // set the constructionGroup to build bridges iff over water
-  if(world.map(point)->is_water()) {
-    assert(dynamic_cast<TransportConstructionGroup *>(constructionGroup)
-      ->isBridge()); // player was billed wrong
-    switch (constructionGroup->group) {
+  // Saved terrain and construction groups are restored independently.
+  const bool water = world.map(point)->is_water();
+  const auto& transportGroup = static_cast<TransportConstructionGroup&>(*constructionGroup);
+  if(transportGroup.isBridge() != water) {
+    switch(transportGroup.group) {
       case GROUP_TRACK:
-        constructionGroup = &trackbridgeConstructionGroup;
-      break;
-      case GROUP_ROAD:
-        constructionGroup = &roadbridgeConstructionGroup;
-      break;
-      case GROUP_RAIL:
-        constructionGroup = &railbridgeConstructionGroup;
-      break;
-    }
-  }
-  else {
-    assert(!dynamic_cast<TransportConstructionGroup *>(constructionGroup)
-      ->isBridge()); // player was billed wrong
-    switch (constructionGroup->group) {
       case GROUP_TRACK_BRIDGE:
-        constructionGroup = &trackConstructionGroup;
-      break;
+        constructionGroup = water ? &trackbridgeConstructionGroup : &trackConstructionGroup;
+        break;
+      case GROUP_ROAD:
       case GROUP_ROAD_BRIDGE:
-        constructionGroup = &roadConstructionGroup;
-      break;
+        constructionGroup = water ? &roadbridgeConstructionGroup : &roadConstructionGroup;
+        break;
+      case GROUP_RAIL:
       case GROUP_RAIL_BRIDGE:
-        constructionGroup = &railConstructionGroup;
-      break;
+        constructionGroup = water ? &railbridgeConstructionGroup : &railConstructionGroup;
+        break;
+      default:
+        assert(false);
     }
   }
 
