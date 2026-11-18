@@ -263,8 +263,8 @@ MpsMap::query(const MapTile *tile) {
 void
 MpsMap::refreshInvProd(bool production) {
   const ConstructionGroup *tileCstGrp = tile->getTileConstructionGroup();
-  if(tile->reportingConstruction) {
-    tile->reportingConstruction->report(*this, production);
+  if(tile->getReportingConstruction()) {
+    tile->getReportingConstruction()->report(*this, production);
   }
   else if(tileCstGrp == &waterConstructionGroup) {
     add_sdd(waterConstructionGroup.name, tile->point.x, tile->point.y);

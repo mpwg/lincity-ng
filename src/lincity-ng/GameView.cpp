@@ -1037,8 +1037,8 @@ void GameView::drawOverlay(Painter& painter, const MapPoint &tile){
 MapPoint GameView::realTile(MapPoint point) {
   if(!inCity(point))
     return point;
-  else if(getWorld().map(point)->reportingConstruction)
-    return getWorld().map(point)->reportingConstruction->point;
+  else if(getWorld().map(point)->getReportingConstruction())
+    return getWorld().map(point)->getReportingConstruction()->point;
   else
     return point;
 }
@@ -1107,7 +1107,7 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
 
     const ConstructionGroup *cstgrp =
       getWorld().map(upperLeft)->getTopConstructionGroup();
-    ResourceGroup *resgrp;
+    const ResourceGroup *resgrp;
     unsigned short size = cstgrp->size;
 
     //Attention map is rotated for displaying
@@ -1127,7 +1127,7 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
         }
         GraphicsInfo *graphicsInfo = 0;
         //draw visible tiles underneath constructions
-        if(const Construction *cst = getWorld().map(upperLeft)->reportingConstruction;
+        if(const Construction *cst = getWorld().map(upperLeft)->getReportingConstruction();
           !cst || (cst->flags & FLAG_TRANSPARENT))
         {
             if (textures_ready && tileImages.at(resgrp).loaded)
@@ -1146,22 +1146,21 @@ void GameView::drawTile(Painter& painter, const MapPoint &tile)
         if( (size==1 || !hideHigh) )
         {
             draw_colored_site = false;
-            if (getWorld().map(upperLeft)->framesptr)
+            if (const auto* frames = getWorld().map(upperLeft)->getFrames())
             {
-                for(auto frit = getWorld().map(upperLeft)->framesptr->cbegin();
-                    frit != getWorld().map(upperLeft)->framesptr->cend(); ++frit)
+                for(const auto& frame : *frames)
                 {
-                    if(textures_ready && frit->resourceGroup && tileImages.at(frit->resourceGroup).loaded)
+                    if(textures_ready && frame.resourceGroup && tileImages.at(frame.resourceGroup).loaded)
                     {
-                        size_t s2 = tileImages.at(frit->resourceGroup).frames.size();
-                        if((frit->frame >= 0) && s2)
+                        size_t s2 = tileImages.at(frame.resourceGroup).frames.size();
+                        if((frame.frame >= 0) && s2)
                         {
-                            graphicsInfo = &tileImages.at(frit->resourceGroup).frames[ frit->frame % s2 ]; //needed
+                            graphicsInfo = &tileImages.at(frame.resourceGroup).frames[ frame.frame % s2 ]; //needed
                             int old_x = graphicsInfo->x;
                             int old_y = graphicsInfo->y;
-                            graphicsInfo->x = old_x - frit->move_x;
-                            graphicsInfo->y = old_y - frit->move_y;
-                            if( frit->resourceGroup->is_vehicle)
+                            graphicsInfo->x = old_x - frame.move_x;
+                            graphicsInfo->y = old_y - frame.move_y;
+                            if( frame.resourceGroup->is_vehicle)
                             {
                                 //only draw vehicles on top of...
                                 switch (cstgrp->group)
@@ -1240,9 +1239,9 @@ void GameView::markTile(Painter& painter, MapPoint point) {
       if(game->getMpsMap().tile
         && upperLeft == realTile(game->getMpsMap().tile->point)
         && getUserOperation()->action == UserOperation::ACTION_QUERY
-        && (cst = getWorld().map(point)->reportingConstruction)
+        && (cst = getWorld().map(point)->getReportingConstruction())
       ) {
-        const ConstructionGroup *constructionGroup = cst->constructionGroup;
+        const ConstructionGroup *constructionGroup = cst->getConstructionGroup();
         int range = constructionGroup->range;
         int edgelen = 2 * range + constructionGroup->size;
         painter.setFillColor(Color(0, 255, 0, 64));

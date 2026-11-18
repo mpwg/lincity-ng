@@ -158,9 +158,9 @@ World::do_random_fire() {
   if(!map.is_visible(loc))
     return;
 
-  Construction *cst = map(loc)->reportingConstruction;
+  Construction *cst = map(loc)->getReportingConstruction();
   if(!cst) return; // no building to burn down
-  const ConstructionGroup& cstGrp = *cst->constructionGroup;
+  const ConstructionGroup& cstGrp = *cst->getConstructionGroup();
   if(rand() % 100 >= cstGrp.fire_chance)
     return;
   if(map(loc)->flags & FLAG_FIRE_COVER)

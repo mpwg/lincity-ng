@@ -134,11 +134,12 @@ public:
 
 
 
-  ConstructionGroup *constructionGroup;
+  const ConstructionGroup* getConstructionGroup() const { return constructionGroup; }
+  const ExtraFrame& getFrame() const { return *frameIt; }
+  ExtraFrame& getFrame() { return *frameIt; }
 
   MapPoint point;
   unsigned int flags = 0;              //flags are defined in lin-city.h
-  World& world;
 
   // std::map<Commodities, int> commodityCount;  //map that holds all kinds of stuff
   std::array<int, STUFF_COUNT> commodityCount;    // inventory
@@ -146,9 +147,6 @@ public:
   std::array<int, STUFF_COUNT> commodityProdPrev; // production last month
   std::array<int, STUFF_COUNT> commodityMaxProd;  // max production
   std::array<int, STUFF_COUNT> commodityMaxCons;  // max consumption
-  std::vector<Construction*> neighbors;       //adjacent for transport
-  std::vector<Construction*> partners;        //remotely for markets
-  std::list<ExtraFrame>::iterator frameIt;
   static std::string getStuffName(Commodity stuff_id); //translated name of a commodity
   virtual void init_resources(void);              //sets sounds and graphics according to constructionGroup
   void list_commodities(ConstructionReport& report, bool production) const;
@@ -170,6 +168,13 @@ public:
   int equilibrate_stuff(int *rem_lvl, CommodityRule rem_rule , int ratio, Commodity stuff_ID);
   //equilibrates stuff with an external reservoir (e.g. another construction invoking this method)
   bool isDead() const; // true if this construction is no longer on the map
+
+protected:
+  ConstructionGroup *constructionGroup;
+  World& world;
+  std::vector<Construction*> neighbors;       //adjacent for transport
+  std::vector<Construction*> partners;        //remotely for markets
+  std::list<ExtraFrame>::iterator frameIt;
 };
 
 class ConstructionGroup {

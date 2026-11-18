@@ -324,7 +324,7 @@ World::sust_fire_cover(void) {
     if(cst->isDead()) continue;
     if(cst->flags & FLAG_IS_TRANSPORT)
       continue;
-    unsigned short grp = cst->constructionGroup->group;
+    unsigned short grp = cst->getConstructionGroup()->group;
     if(grp == GROUP_MONUMENT
       || grp == GROUP_OREMINE
       || grp == GROUP_ROCKET

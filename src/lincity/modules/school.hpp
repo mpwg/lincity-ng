@@ -101,7 +101,9 @@ public:
     virtual void save(xmlTextWriterPtr xmlWriter) const override;
     virtual bool loadMember(xmlpp::TextReader& xmlReader, unsigned int ldsv_version) override;
 
+private:
     std::list<ExtraFrame>::iterator frit;
+public:
     int anim;
     int anim2;
     // bool animate_enable;

@@ -30,7 +30,7 @@ void checkRocketTiming() {
   world.total_money = 1000000;
   world.rockets_launched = 10; // full technology and experience guarantee success
   rocketPadConstructionGroup.placeItem(world, site);
-  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->construction);
+  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->getConstruction());
   rocket.steps = ROCKET_PAD_STEPS - 1;
   rocket.levelStuff(STUFF_LABOR, ROCKET_PAD_LABOR);
   rocket.levelStuff(STUFF_GOODS, ROCKET_PAD_GOODS);
@@ -38,19 +38,19 @@ void checkRocketTiming() {
   world.do_time_step();
   require(rocket.stage == RocketPad::AWAITING, "pad failed to finish building");
   world.do_animate(0);
-  require(rocket.frameIt->frame == 4, "ready frame");
+  require(rocket.getFrame().frame == 4, "ready frame");
   require(world.launchRocket(site), "launch command rejected");
 
   const unsigned long start = 100;
   const unsigned long deadline = start + ANIM_THRESHOLD(ROCKET_ANIMATION_SPEED);
   world.do_animate(start);
-  require(rocket.frameIt->frame == 5, "takeoff frame");
+  require(rocket.getFrame().frame == 5, "takeoff frame");
   world.do_time_step();
   world.do_animate(deadline - 1);
-  require(rocket.stage == RocketPad::LAUNCHING && rocket.frameIt->frame == 5,
+  require(rocket.stage == RocketPad::LAUNCHING && rocket.getFrame().frame == 5,
     "takeoff finished before its animation deadline");
   world.do_animate(deadline);
-  require(rocket.stage == RocketPad::LAUNCH && rocket.frameIt->frame == 6,
+  require(rocket.stage == RocketPad::LAUNCH && rocket.getFrame().frame == 6,
     "takeoff did not finish at its animation deadline");
   require(world.rockets_launched == 10, "animation calculated a launch result");
 
@@ -65,7 +65,7 @@ void checkRocketTiming() {
   }
   require(success, "successful launch result missing");
   world.do_animate(deadline);
-  require(rocket.frameIt->frame == 7, "completed rocket frame");
+  require(rocket.getFrame().frame == 7, "completed rocket frame");
   world.do_time_step();
   require(world.rockets_launched == 11, "launch result applied twice");
 }

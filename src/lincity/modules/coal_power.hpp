@@ -101,7 +101,9 @@ public:
     virtual bool loadMember(xmlpp::TextReader& xmlReader,
       unsigned int ldsv_version) override;
 
+private:
     std::array<std::list<ExtraFrame>::iterator, 8> frits;
+public:
     int anim;
     int  hivolt_output;
     int  tech;

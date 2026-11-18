@@ -231,17 +231,17 @@ protected:
 
 class CannotEvacuateThisMessage : public Message {
 public:
-  CannotEvacuateThisMessage(const MapPoint point, ConstructionGroup &grp) :
+  CannotEvacuateThisMessage(const MapPoint point, const ConstructionGroup &grp) :
     point(point), group(grp) { }
 
   virtual std::string str() const override;
 
   MapPoint getPoint() const { return point; }
-  ConstructionGroup& getGroup() const { return group; }
+  const ConstructionGroup& getGroup() const { return group; }
 
 protected:
   const MapPoint point;
-  ConstructionGroup& group;
+  const ConstructionGroup& group;
 
   DEFINE_MESSAGE_BOILERPLATE(CannotEvacuateThisMessage, Message);
 };

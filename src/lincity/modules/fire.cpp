@@ -125,9 +125,9 @@ void Fire::spread() {
   // TODO: fire cover should only slow down spread -- not stop it
   if(!world.map.is_visible(loc))
     return;
-  Construction *cst = world.map(loc)->reportingConstruction;
+  Construction *cst = world.map(loc)->getReportingConstruction();
   if(!cst) return;
-  if(rand() % 100 >= cst->constructionGroup->fire_chance)
+  if(rand() % 100 >= cst->getConstructionGroup()->fire_chance)
     return;
   if(world.map(loc)->flags & FLAG_FIRE_COVER)
     return;

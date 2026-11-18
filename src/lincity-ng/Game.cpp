@@ -272,7 +272,7 @@ Game::executeUserOperation(MapPoint point) {
     case UserOperation::ACTION_QUERY: {
       // TODO: do dialogs on double-click, not 'second-click'
       if(getMpsMap().tile == world->map(point)) {
-        Construction *cst = world->map(point)->reportingConstruction;
+        Construction *cst = world->map(point)->getReportingConstruction();
         switch(world->map(point)->getGroup()) {
         case GROUP_MARKET:
           new Dialog(*this, EDIT_MARKET, cst->point);
@@ -328,11 +328,11 @@ Game::executeUserOperation(MapPoint point) {
       if(!warnStatus || warnStatus->accepted)
         break;
 
-      Construction *cst = world->map(point)->reportingConstruction;
+      Construction *cst = world->map(point)->getReportingConstruction();
       warnStatus->onAccept.connect([this, point, cst, grp]() {
         // make sure things haven't changed
         // there must be a better way to do this
-        if(world->map(point)->reportingConstruction == cst
+        if(world->map(point)->getReportingConstruction() == cst
           && world->map(point)->getGroup() == grp
         ) {
           try{

@@ -81,8 +81,10 @@ public:
   //       Option 3: convert Map::maptile to a vector<unique_ptr<MapTile>>
   MapPoint point;
   Ground ground;                        //the Ground associated to an instance of MapTile
-  Construction *construction;           //the actual construction (e.g. for simulation)
-  Construction *reportingConstruction;  //the construction covering the tile
+  Construction *getConstruction() { return construction; }
+  const Construction *getConstruction() const { return construction; }
+  Construction *getReportingConstruction() { return reportingConstruction; }
+  const Construction *getReportingConstruction() const { return reportingConstruction; }
   unsigned short type;                  //type of terrain (underneath constructions)
   unsigned short group;                 //group of the terrain (underneath constructions)
   unsigned int flags;                   //flags are defined in lin-city.h
@@ -90,8 +92,8 @@ public:
   unsigned short coal_reserve;          //underground coal
   unsigned short ore_reserve;           //underground ore
   int pollution;                        //air pollution (under ground pollution is in ground[][])
-  std::list<ExtraFrame> *framesptr;     //Overlays to be rendered on top of type, mostly NULL
-                                        //use memberfunctions to add and remove sprites
+  const std::list<ExtraFrame>* getFrames() const { return framesptr; }
+  void moveFrameTo(MapTile& destination, std::list<ExtraFrame>::iterator frame);
 
   void setTerrain(unsigned short group); //places type & group at MapTile
   std::list<ExtraFrame>::iterator createframe(); //creates new empty ExtraFrames
@@ -105,11 +107,11 @@ public:
   unsigned short getTopGroup() const;     //group of bare land or the actual construction
   unsigned short getLowerstVisibleGroup() const; //like getGroup but group of terrain underneath transparent constructions
   unsigned short getTransportGroup() const; //like getGroup but bridges are reported normal transport tiles
-  ConstructionGroup* getTileConstructionGroup() const; //constructionGroup of the maptile
-  ResourceGroup*     getTileResourceGroup() const;     //resourceGroup of a tile
-  ConstructionGroup* getConstructionGroup() const;     //constructionGroup of maptile or the covering construction
-  ConstructionGroup* getTopConstructionGroup() const;  //constructionGroup of maptile or the actual construction
-  ConstructionGroup* getLowerstVisibleConstructionGroup() const;
+  const ConstructionGroup* getTileConstructionGroup() const; //constructionGroup of the maptile
+  const ResourceGroup*     getTileResourceGroup() const;     //resourceGroup of a tile
+  const ConstructionGroup* getConstructionGroup() const;     //constructionGroup of maptile or the covering construction
+  const ConstructionGroup* getTopConstructionGroup() const;  //constructionGroup of maptile or the actual construction
+  const ConstructionGroup* getLowerstVisibleConstructionGroup() const;
 
   bool is_bare() const;                    //true if we there is neither a covering construction nor water
   bool is_lake() const;                    //true on lakes (also under bridges)
@@ -120,6 +122,11 @@ public:
   bool is_residence() const;               //true if any residence covers the tile
   void writeTemplate();              //create maptile template
   void saveMembers(std::ostream *os);//write maptile AND ground members as XML to stram
+private:
+  friend class Construction; // placement and removal of the building footprint
+  Construction *construction;          // building anchored on this tile
+  Construction *reportingConstruction; // building covering this tile
+  std::list<ExtraFrame> *framesptr;
 };
 
 class Map {
@@ -157,9 +164,7 @@ public:
 
   int alt_min, alt_max, alt_step;
 
-  // Using std::set instead of std::unordered_set so iterators remain valid
-  // after insertion.
-  std::set<Construction *> constructions;
+  std::size_t constructionCount() const { return constructions.size(); }
 
   MapPoint recentPoint;
 
@@ -176,6 +181,11 @@ protected:
   std::vector<MapTile> maptile;
 
 private:
+  friend class World; // simulation order and persistence
+  friend class Construction; // placement registers the new construction
+  friend class RocketPad; // evacuates residents in simulation order
+  // Iterators used by the simulation must remain valid after insertion.
+  std::set<Construction *> constructions;
 
   bool is_bare_area(MapPoint point, int size);
 };
@@ -268,9 +278,6 @@ public:
 
   enum class VehicleTraffic { Disabled, Reduced, Normal };
   VehicleTraffic vehicleTraffic = VehicleTraffic::Disabled;
-  std::list<Vehicle*> vehicleList;
-
-
 
   void income(int amt, Stat<int>& account);
   void expense(int amt, Stat<int>& account, bool allowCredit = true);
@@ -283,6 +290,9 @@ public:
   void do_coal_survey();
 
 private:
+  friend class Construction; // dispatches vehicles during trade
+  friend class Vehicle; // unregisters itself when removed
+  std::list<Vehicle*> vehicleList;
   std::deque<Message::ptr> messageQueue;
   std::unordered_set<Updatable> updatedSet;
 

@@ -270,7 +270,7 @@ void Construction::place(MapPoint point) {
         tile.setTerrain(GROUP_DESERT);
       }
     }
-    assert(!tile.reportingConstruction);
+    assert(!tile.getReportingConstruction());
     tile.reportingConstruction = this;
   }
   world.map(point)->construction = this;
@@ -285,7 +285,7 @@ void Construction::place(MapPoint point) {
 
 bool
 Construction::can_bulldoze(Message::ptr& message) const {
-  assert(world.map(point)->construction == this);
+  assert(world.map(point)->getConstruction() == this);
   return true;
 }
 
@@ -316,7 +316,7 @@ void Construction::detach()
 {
   //std::cout << "detaching: " << constructionGroup->name << std::endl;
   // world.map.constructions.erase(this);
-  if(world.map(point)->construction == this) {
+  if(world.map(point)->getConstruction() == this) {
     world.map(point)->construction = NULL;
     world.map(point)->killframe(frameIt);
     world.stats.groupCount[constructionGroup->group]--;
@@ -333,7 +333,7 @@ void Construction::detach()
   for(int i = 0; i < size; i++)
   for(unsigned short j = 0; j < size; j++) {
     MapTile& tile = *world.map(point.e(i).s(j));
-    if(tile.reportingConstruction == this)
+    if(tile.getReportingConstruction() == this)
       tile.reportingConstruction = nullptr;
   }
   world.setUpdated(World::Updatable::MAP);
@@ -346,7 +346,7 @@ void Construction::detach()
 
 bool
 Construction::isDead() const {
-  return world.map(point)->construction != this;
+  return world.map(point)->getConstruction() != this;
 }
 
 void Construction::deneighborize()
@@ -401,25 +401,25 @@ void Construction::neighborize()
             unsigned short size = constructionGroup->size;
             for(unsigned short edge = 0; edge < size; ++edge) {
               //here we rely on invisible edge tiles
-              cst = world.map(point.w().s(edge))->reportingConstruction;
+              cst = world.map(point.w().s(edge))->getReportingConstruction();
               if(cst && cst != cst1
                 && cst->constructionGroup->group != GROUP_FIRE
                 && cst->constructionGroup->group != GROUP_POWER_LINE
               )
                 link_to(cst1 = cst);
-              cst = world.map(point.w(edge).n())->reportingConstruction;
+              cst = world.map(point.w(edge).n())->getReportingConstruction();
               if(cst && cst != cst2
                 && cst->constructionGroup->group != GROUP_FIRE
                 && cst->constructionGroup->group != GROUP_POWER_LINE
               )
                 link_to(cst2 = cst);
-              cst = world.map(point.e(size).s(edge))->reportingConstruction;
+              cst = world.map(point.e(size).s(edge))->getReportingConstruction();
               if(cst && cst != cst3
                 && cst->constructionGroup->group != GROUP_FIRE
                 && cst->constructionGroup->group != GROUP_POWER_LINE
               )
                 link_to(cst3 = cst);
-              cst = world.map(point.e(edge).s(size))->reportingConstruction;
+              cst = world.map(point.e(edge).s(size))->getReportingConstruction();
               if(cst && cst != cst4
                 && cst->constructionGroup->group != GROUP_FIRE
                 && cst->constructionGroup->group != GROUP_POWER_LINE
@@ -439,7 +439,7 @@ void Construction::neighborize()
           for(MapPoint p = nw; p.y < se.y; p.y++)
           for(p.x = nw.x; p.x < se.x; p.x++) {
             if(p == point) continue;
-            Construction *cst = world.map(p)->construction;
+            Construction *cst = world.map(p)->getConstruction();
             if(!cst) continue;
             if(cst->constructionGroup->group == GROUP_FIRE
               || cst->constructionGroup->group == GROUP_POWER_LINE
@@ -873,7 +873,7 @@ ConstructionGroup::placeItem(World& world, MapPoint point) {
   for(unsigned short i = 0; i < size; i++)
   for(unsigned short j = 0; j < size; j++) {
     MapTile& tile = *world.map(point.s(i).e(j));
-    Construction *cst = tile.reportingConstruction;
+    Construction *cst = tile.getReportingConstruction();
     if(cst) {
       throw std::logic_error("space occupied");
     }

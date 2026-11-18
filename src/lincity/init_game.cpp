@@ -956,7 +956,7 @@ static void random_start(World& world, bool without_trees) {
   organic_farmConstructionGroup.placeItem(world, p.e(17).s(5));
 
   residenceMLConstructionGroup.placeItem(world, p.e(10).s(6));
-  dynamic_cast<Residence *>(map(p.e(10).s(6))->construction)->local_population = 50;
+  dynamic_cast<Residence *>(map(p.e(10).s(6))->getConstruction())->local_population = 50;
 
   potteryConstructionGroup.placeItem(world, p.e(9).s(9));
 
@@ -964,7 +964,7 @@ static void random_start(World& world, bool without_trees) {
   waterwellConstructionGroup.placeItem(world, p.e(16).s(9));
 
   residenceMLConstructionGroup.placeItem(world, p.e(14).s(6));
-  dynamic_cast<Residence *>(map(p.e(14).s(6))->construction)->local_population = 50;
+  dynamic_cast<Residence *>(map(p.e(14).s(6))->getConstruction())->local_population = 50;
 
   marketConstructionGroup.placeItem(world, p.e(14).s(9));
 

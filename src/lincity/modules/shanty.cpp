@@ -141,7 +141,7 @@ void update_shanty(World& world) {
         return;
       }
       Shanty *shanty = dynamic_cast<Shanty *>(
-        world.map(*r)->reportingConstruction);
+        world.map(*r)->getReportingConstruction());
       assert(shanty);
       shanty->detach();
       shanty->makeFire();
@@ -270,7 +270,7 @@ Shanty::makeFire() {
   for(MapPoint p(point); p.y < point.y + size; p.y++)
   for(p.x = point.x; p.x < point.x + size; p.x++) {
     fireConstructionGroup.placeItem(world, p);
-    Fire *fire = dynamic_cast<Fire *>(world.map(p)->construction);
+    Fire *fire = dynamic_cast<Fire *>(world.map(p)->getConstruction());
     assert(fire); if(!fire) continue;
     fire->burning_days = FIRE_LENGTH - 25;
   }

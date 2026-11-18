@@ -670,7 +670,7 @@ void MiniMap::refreshTexture(Painter& painter) {
   for(const MapTile& tile : game->getWorld().map) {
     if(!game->getWorld().map.is_visible(tile.point))
       continue;
-    if(tile.reportingConstruction && !tile.construction && !tileMode)
+    if(tile.getReportingConstruction() && !tile.getConstruction() && !tileMode)
       continue;
 
     const int size = tileMode ? 1 : tile.getConstructionGroup()->size;
@@ -753,7 +753,7 @@ MiniMap::getColor(const MapTile& tile) const {
   }
   case FIRE:
     if(tile.getGroup() == GROUP_FIRE) {
-      if(!static_cast<const Fire*>(tile.reportingConstruction)->smoking_days) {
+      if(!static_cast<const Fire*>(tile.getReportingConstruction())->smoking_days) {
         return Color(0xFF,0,0); //still burning (red)
       } else  {
         return Color(0xFF,0x99,0); //unbulldozable (orange)
@@ -778,8 +778,8 @@ MiniMap::getColor(const MapTile& tile) const {
     if(tile.getConstructionGroup() == &healthCentreConstructionGroup && mMode==HEALTH) {
       return Color(0,0xFF,0); //green
     }
-    int csttileflags = tile.reportingConstruction
-      ? game->getWorld().map(tile.reportingConstruction->point)->flags
+    int csttileflags = tile.getReportingConstruction()
+      ? game->getWorld().map(tile.getReportingConstruction()->point)->flags
       : tile.flags;
     if((csttileflags & FLAG_FIRE_COVER) && mMode==FIRE
       || (csttileflags & FLAG_CRICKET_COVER) && mMode==CRICKET
@@ -794,8 +794,8 @@ MiniMap::getColor(const MapTile& tile) const {
   }
   case UB40: {
     /* Display residence with un/employed people (red / green) == too many people here */
-    int job_level = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(STUFF_LABOR, -1)
+    int job_level = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(STUFF_LABOR, -1)
       : -1;
     if(job_level == -1) { // Not a "jobby" place at all
       return makeGrey(getColorNormal(tile));
@@ -836,11 +836,11 @@ MiniMap::getColor(const MapTile& tile) const {
       return Color(0x77,0,0);
   }
   case STARVE: {
-    int food_level = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(STUFF_FOOD, -1)
+    int food_level = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(STUFF_FOOD, -1)
       : 1;
-    int water_level = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(STUFF_WATER, -1)
+    int water_level = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(STUFF_WATER, -1)
       : 1;
     int crit_level = water_level < food_level ? water_level : food_level;
     //don't care about other eaters or drinkers
@@ -860,11 +860,11 @@ MiniMap::getColor(const MapTile& tile) const {
     /* default color = grey */
     //mc = Color(0x3F,0x3F,0x3F);
     mc = makeGrey(getColorNormal(tile));
-    int lovolt_level = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(STUFF_LOVOLT, -1)
+    int lovolt_level = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(STUFF_LOVOLT, -1)
       : -1;
-    int hivolt_level = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(STUFF_HIVOLT, -1)
+    int hivolt_level = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(STUFF_HIVOLT, -1)
       : -1;
     if(lovolt_level > -1 || hivolt_level > -1) {
       /* not enough power */
@@ -881,20 +881,20 @@ MiniMap::getColor(const MapTile& tile) const {
     return mc;
   }
   case TRAFFIC: {
-    int conflags = tile.reportingConstruction
-      ? tile.reportingConstruction->flags : 0;
+    int conflags = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->flags : 0;
     if((conflags & FLAG_IS_TRANSPORT) || (tile.getGroup() == GROUP_POWER_LINE)) {
       float loc_lvl = -1;
       if (conflags & FLAG_IS_TRANSPORT) {
         const Transport *transport =
-          static_cast<const Transport *>(tile.reportingConstruction);
-        if(transport->constructionGroup->commodityRuleCount[stuff_ID].maxload)
+          static_cast<const Transport *>(tile.getReportingConstruction());
+        if(transport->getConstructionGroup()->commodityRuleCount[stuff_ID].maxload)
           loc_lvl = transport->trafficCount[stuff_ID];
       }
       else if(tile.getGroup() == GROUP_POWER_LINE) {
         const Powerline *powerline =
-          static_cast<const Powerline *>(tile.reportingConstruction);
-        if(powerline->constructionGroup->commodityRuleCount[stuff_ID].maxload)
+          static_cast<const Powerline *>(tile.getReportingConstruction());
+        if(powerline->getConstructionGroup()->commodityRuleCount[stuff_ID].maxload)
           loc_lvl = powerline->trafficCount[stuff_ID];
       }
       if (loc_lvl < 0)
@@ -910,8 +910,8 @@ MiniMap::getColor(const MapTile& tile) const {
       return mc;
     }
     else { //not a Transport, make bluish if in range of a markt
-      int csttileflags = tile.reportingConstruction
-        ? game->getWorld().map(tile.reportingConstruction->point)->flags
+      int csttileflags = tile.getReportingConstruction()
+        ? game->getWorld().map(tile.getReportingConstruction()->point)->flags
         : tile.flags;
       if((csttileflags & FLAG_MARKET_COVER)
         && marketConstructionGroup.commodityRuleCount[stuff_ID].maxload
@@ -927,8 +927,8 @@ MiniMap::getColor(const MapTile& tile) const {
     if(conflags & FLAG_IS_TRANSPORT)
       return makeGrey(getColorNormal(p.x,p.y));
 */
-    float loc_lvl = tile.reportingConstruction
-      ? tile.reportingConstruction->tellstuff(stuff_ID, -1)
+    float loc_lvl = tile.getReportingConstruction()
+      ? tile.getReportingConstruction()->tellstuff(stuff_ID, -1)
       : -1;
     float red, green, blue;
 
@@ -939,11 +939,11 @@ MiniMap::getColor(const MapTile& tile) const {
       loc_lvl = 1 - loc_lvl;
     red = 1 - 2.25 * loc_lvl;
     if(red < 0) red = 0;
-    if(!tile.reportingConstruction->constructionGroup->commodityRuleCount[stuff_ID].take)
+    if(!tile.getReportingConstruction()->getConstructionGroup()->commodityRuleCount[stuff_ID].take)
       red = 0;
     blue = 1 - 2.25 * (1 - loc_lvl);
     if(blue < 0) blue = 0;
-    if(!tile.reportingConstruction->constructionGroup->commodityRuleCount[stuff_ID].give)
+    if(!tile.getReportingConstruction()->getConstructionGroup()->commodityRuleCount[stuff_ID].give)
       blue = 0;
     green = 1 - red - blue;
     Color mc(static_cast<int>(0xFF*red), static_cast<int>(0xFF*green),static_cast<int>(0xFF*blue));

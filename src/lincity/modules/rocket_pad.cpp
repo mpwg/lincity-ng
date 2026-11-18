@@ -209,7 +209,7 @@ void RocketPad::compute_launch_result() {
         .e(std::normal_distribution(.0, 10.)(BasicUrbg::get()))
         .s(std::normal_distribution(.0, 10.)(BasicUrbg::get()));
       if(!world.map.is_visible(crashFire)) continue;
-      Construction *cst = world.map(crashFire)->reportingConstruction;
+      Construction *cst = world.map(crashFire)->getReportingConstruction();
       if(!cst) continue;
       cst->torch();
     }
@@ -229,7 +229,7 @@ void RocketPad::remove_people(int num)
     int housed = 0;
     for(Construction *cst : world.map.constructions) {
       if(cst->isDead()) continue;
-      unsigned short grp = cst->constructionGroup->group;
+      unsigned short grp = cst->getConstructionGroup()->group;
       if(  grp == GROUP_RESIDENCE_LL
         || grp == GROUP_RESIDENCE_ML
         || grp == GROUP_RESIDENCE_HL

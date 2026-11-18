@@ -19,5 +19,7 @@
  # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ## ---------------------------------------------------------------------- ##
 
-add_subdirectory(cfgpath)
+if(LINCITY_BUILD_GUI)
+  add_subdirectory(cfgpath)
+endif()
 add_subdirectory(gettext)

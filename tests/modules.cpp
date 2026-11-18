@@ -35,7 +35,7 @@ void verifyBlacksmith() {
   World world(32);
   const MapPoint site(12, 12);
   blacksmithConstructionGroup.placeItem(world, site);
-  auto& building = *world.map(site)->construction;
+  auto& building = *world.map(site)->getConstruction();
   building.levelStuff(STUFF_COAL, BLACKSMITH_COAL_USED);
   building.levelStuff(STUFF_STEEL, BLACKSMITH_STEEL_USED);
   building.levelStuff(STUFF_LABOR, BLACKSMITH_LABOR - 1);
@@ -55,7 +55,7 @@ void verifyMill(Commodity fuel, int amount) {
   World world(32);
   const MapPoint site(12, 12);
   millConstructionGroup.placeItem(world, site);
-  auto& building = *world.map(site)->construction;
+  auto& building = *world.map(site)->getConstruction();
   building.levelStuff(STUFF_FOOD, FOOD_USED_BY_MILL);
   building.levelStuff(STUFF_LABOR, MILL_LABOR);
   building.levelStuff(fuel, amount);
@@ -70,7 +70,7 @@ void verifySolarPower(int tech, int output) {
   world.tech_level = tech;
   const MapPoint site(12, 12);
   solarPowerConstructionGroup.placeItem(world, site);
-  auto& building = *world.map(site)->construction;
+  auto& building = *world.map(site)->getConstruction();
   building.levelStuff(STUFF_LABOR, SOLAR_POWER_LABOR);
   building.update();
   require(building.commodityCount[STUFF_HIVOLT] == output, "solar output changed");
@@ -92,11 +92,11 @@ void verifyModule(ConstructionGroup& group) {
      group.group == GROUP_RAIL_BRIDGE)
     world.map(origin)->setTerrain(GROUP_WATER);
   group.placeItem(world, origin);
-  auto* building = world.map(origin)->construction;
-  require(building && building->constructionGroup == &group, "wrong building placed");
+  auto* building = world.map(origin)->getConstruction();
+  require(building && building->getConstructionGroup() == &group, "wrong building placed");
   for(int y = 0; y < group.size; ++y) {
     for(int x = 0; x < group.size; ++x)
-      require(world.map(origin.e(x).s(y))->reportingConstruction == building,
+      require(world.map(origin.e(x).s(y))->getReportingConstruction() == building,
               "incomplete footprint");
   }
   for(unsigned long frame = 1; frame <= 3; ++frame) {
@@ -104,7 +104,7 @@ void verifyModule(ConstructionGroup& group) {
     world.do_time_step();
   }
   require(world.total_time == 3, "world failed to tick");
-  if(world.map(origin)->construction != building) return;
+  if(world.map(origin)->getConstruction() != building) return;
   for(bool production : {false, true}) {
     Report report;
     building->report(report, production);

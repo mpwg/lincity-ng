@@ -543,7 +543,7 @@ void Dialog::editMarket(){
     title << _("Market") << point;
     p->setText( title.str() );
     const auto *market = dynamic_cast<const Market*>(
-      game.getWorld().map(point)->reportingConstruction);
+      game.getWorld().map(point)->getReportingConstruction());
     assert(market);
     for(Commodity c = STUFF_INIT; c != STUFF_COUNT; c++) {
       const auto& rule = market->commodityRuleCount[c];
@@ -579,7 +579,7 @@ void Dialog::editPort(){
     }
     // set Dialog to Port-Data
     const auto *port = dynamic_cast<const Port*>(
-      game.getWorld().map(point)->reportingConstruction);
+      game.getWorld().map(point)->getReportingConstruction());
     assert(port);
     Paragraph* p = getParagraph( *myDialogComponent, "DialogTitle" );
     std::stringstream title;
@@ -640,7 +640,7 @@ void Dialog::applyMarketButtonClicked( Button* ){
 
 void Dialog::applyPortButtonClicked( Button* ){
     const auto *port = dynamic_cast<const Port*>(
-      game.getWorld().map(point)->reportingConstruction);
+      game.getWorld().map(point)->getReportingConstruction());
 
 
     for(Commodity c = STUFF_INIT; c != STUFF_COUNT; c++) {

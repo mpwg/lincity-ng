@@ -93,7 +93,7 @@ void MapTile::setTerrain(unsigned short new_group)
     {   flags |= FLAG_HAS_UNDERGROUND_WATER;}
 }
 
-ConstructionGroup *
+const ConstructionGroup *
 MapTile::getTileConstructionGroup() const {
     switch (group)
     {
@@ -109,7 +109,7 @@ MapTile::getTileConstructionGroup() const {
     }
 }
 
-ResourceGroup* MapTile::getTileResourceGroup() const {
+const ResourceGroup* MapTile::getTileResourceGroup() const {
     static bool initialized = false;
     static ResourceGroup* bare = 0;
     static ResourceGroup* desert = 0;
@@ -144,13 +144,13 @@ ResourceGroup* MapTile::getTileResourceGroup() const {
     }
 }
 
-ConstructionGroup* MapTile::getConstructionGroup() const //constructionGroup of bare land or the covering construction
-{   return (reportingConstruction ? reportingConstruction->constructionGroup : getTileConstructionGroup());}
+const ConstructionGroup* MapTile::getConstructionGroup() const //constructionGroup of bare land or the covering construction
+{   return (reportingConstruction ? reportingConstruction->getConstructionGroup() : getTileConstructionGroup());}
 
-ConstructionGroup* MapTile::getTopConstructionGroup() const //constructionGroup of bare land or the actual construction
-{   return (construction ? construction->constructionGroup : getTileConstructionGroup());}
+const ConstructionGroup* MapTile::getTopConstructionGroup() const //constructionGroup of bare land or the actual construction
+{   return (construction ? construction->getConstructionGroup() : getTileConstructionGroup());}
 
-ConstructionGroup* MapTile::getLowerstVisibleConstructionGroup() const
+const ConstructionGroup* MapTile::getLowerstVisibleConstructionGroup() const
 {
     if(!reportingConstruction || reportingConstruction->flags & FLAG_TRANSPARENT)
     {   return getTileConstructionGroup();}
@@ -159,20 +159,20 @@ ConstructionGroup* MapTile::getLowerstVisibleConstructionGroup() const
 }
 
 unsigned short MapTile::getType() const //type of bare land or the covering construction
-{   return (reportingConstruction ? reportingConstruction->frameIt->frame : type);}
+{   return (reportingConstruction ? reportingConstruction->getFrame().frame : type);}
 
 unsigned short MapTile::getTopType() const //type of bare land or the actual construction
-{   return (construction ? construction->frameIt->frame : type);}
+{   return (construction ? construction->getFrame().frame : type);}
 
 unsigned short MapTile::getLowerstVisibleType() const {
     if(!reportingConstruction || reportingConstruction->flags & FLAG_TRANSPARENT)
     {   return type;}
     else
-    {   return reportingConstruction->frameIt->frame;}
+    {   return reportingConstruction->getFrame().frame;}
 }
 
 unsigned short MapTile::getGroup() const //group of bare land or the covering construction
-{   return (reportingConstruction ? reportingConstruction->constructionGroup->group : group);}
+{   return (reportingConstruction ? reportingConstruction->getConstructionGroup()->group : group);}
 
 unsigned short MapTile::getTransportGroup() const //group of bare land or the covering construction
 {
@@ -202,21 +202,21 @@ unsigned short MapTile::getTopGroup() const //group of bare land or the actual c
     if(!construction) //simple case
     {   return group;}
     else if(construction == reportingConstruction) //regular construction
-    {   return construction->constructionGroup->group;}
+    {   return construction->getConstructionGroup()->group;}
     else // in case a construction has a chile e.g. waste burning on transport
-    {   return (reportingConstruction ? reportingConstruction->constructionGroup->group : group);}
+    {   return (reportingConstruction ? reportingConstruction->getConstructionGroup()->group : group);}
 }
 
 unsigned short MapTile::getLowerstVisibleGroup() const {
   if(!reportingConstruction || reportingConstruction->flags & FLAG_TRANSPARENT)
     return group;
-  else if(reportingConstruction->constructionGroup->group == GROUP_PORT
+  else if(reportingConstruction->getConstructionGroup()->group == GROUP_PORT
     && point.x == reportingConstruction->point.x + 3
   )
     // The water section of a port
     return GROUP_WATER;
   else
-    return reportingConstruction->constructionGroup->group;
+    return reportingConstruction->getConstructionGroup()->group;
 }
 
 
@@ -241,12 +241,12 @@ bool MapTile::is_transport() const //true on tracks, road, rails and bridges
 bool MapTile::is_residence() const //true on residences
 {
     return (reportingConstruction &&(
-        (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_LL)
-     || (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_ML)
-     || (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_HL)
-     || (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_LH)
-     || (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_MH)
-     || (reportingConstruction->constructionGroup->group == GROUP_RESIDENCE_HH) ) );
+        (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_LL)
+     || (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_ML)
+     || (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_HL)
+     || (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_LH)
+     || (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_MH)
+     || (reportingConstruction->getConstructionGroup()->group == GROUP_RESIDENCE_HH) ) );
 }
 
 std::list<ExtraFrame>::iterator MapTile::createframe(void)
@@ -271,6 +271,17 @@ void MapTile::killframe(const std::list<ExtraFrame>::iterator& it)
 }
 
 
+
+void
+MapTile::moveFrameTo(MapTile& destination, std::list<ExtraFrame>::iterator frame) {
+  if(!destination.framesptr)
+    destination.framesptr = new std::list<ExtraFrame>;
+  destination.framesptr->splice(destination.framesptr->end(), *framesptr, frame);
+  if(framesptr->empty()) {
+    delete framesptr;
+    framesptr = nullptr;
+  }
+}
 
 Map::Map(int map_len) :
   side_len(map_len), recentPoint(map_len / 2, map_len / 2)
@@ -440,7 +451,7 @@ World::bulldozeArea(MapPoint point) {
   if(!map.is_visible(point))
     OutsideMapMessage::create(point)->throwEx();
 
-  if(Construction *cst = map(point)->reportingConstruction) {
+  if(Construction *cst = map(point)->getReportingConstruction()) {
     cst->bulldoze();
   }
   else {
@@ -471,14 +482,14 @@ void
 World::evacuateArea(MapPoint point) {
   if(!map.is_visible(point))
     OutsideMapMessage::create(point)->throwEx();
-  Construction *cst = map(point)->reportingConstruction;
+  Construction *cst = map(point)->getReportingConstruction();
   if(!cst)
     CannotEvacuateNothingMessage::create(point)->throwEx();
   if(cst->flags & FLAG_NEVER_EVACUATE)
     CannotEvacuateThisMessage::create(point,
-      *cst->constructionGroup)->throwEx();
+      *cst->getConstructionGroup())->throwEx();
 
-  if(cst->constructionGroup->group == GROUP_MARKET) {
+  if(cst->getConstructionGroup()->group == GROUP_MARKET) {
     dynamic_cast<Market*>(cst)->toggleEvacuation();
     return;
   }

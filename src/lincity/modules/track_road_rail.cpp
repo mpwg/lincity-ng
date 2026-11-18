@@ -146,8 +146,8 @@ TransportConstructionGroup::placeItem(World& world, MapPoint point) {
   MapTile& tile = *world.map(point);
   unsigned short oldGrp = tile.getTransportGroup();
   if(tile.is_transport() && oldGrp != group || oldGrp == GROUP_POWER_LINE) {
-    assert(tile.construction);
-    tile.construction->detach();
+    assert(tile.getConstruction());
+    tile.getConstruction()->detach();
     tile.flags &= ~(FLAG_POWER_CABLES_0 | FLAG_POWER_CABLES_90);
   }
 
@@ -336,9 +336,9 @@ void Transport::report(ConstructionReport& report, bool production) const {
 }
 
 bool Transport::canPlaceVehicle() {
-  if(!world.map(point)->framesptr)
+  if(!world.map(point)->getFrames())
     return false;
-  for(ExtraFrame& exfr : *world.map(point)->framesptr)
+  for(const ExtraFrame& exfr : *world.map(point)->getFrames())
     if(exfr.resourceGroup->is_vehicle)
       return false;
   return true;

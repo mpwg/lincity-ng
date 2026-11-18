@@ -74,7 +74,8 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& World,
 static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
   unsigned int ldsv_version
 );
-static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map);
+static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map,
+  const std::set<Construction*>& constructions);
 static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   unsigned int ldsv_version
 );
@@ -146,7 +147,7 @@ World::save(const std::filesystem::path& filename) const {
       saveGlobals(xmlWriter, *this);
     xmlTextWriterEndElement(xmlWriter);
     xmlTextWriterStartElement(xmlWriter, (xmlStr)"map");
-      saveMap(xmlWriter, map);
+      saveMap(xmlWriter, map, map.constructions);
     xmlTextWriterEndElement(xmlWriter);
   xmlTextWriterEndElement(xmlWriter);
   xmlTextWriterEndDocument(xmlWriter);
@@ -962,7 +963,8 @@ static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
   world.stats.population.population_m.acc++; // don't lose the game immediately
 }
 
-static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map) {
+static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map,
+  const std::set<Construction*>& constructions) {
   xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"size", f(map.len()));
 
   for(const MapTile& tile : map) {
@@ -974,10 +976,10 @@ static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map) {
     xmlTextWriterEndElement(xmlWriter);
   }
 
-  for(Construction *cst : map.constructions) {
+  for(const Construction *cst : constructions) {
     if(cst->isDead()) continue;
     xmlTextWriterStartElement(xmlWriter, (xmlStr)"Construction");
-      xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"group", f(cst->constructionGroup->group));
+      xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"group", f(cst->getConstructionGroup()->group));
       xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"map-x", f(cst->point.x));
       xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"map-y", f(cst->point.y));
       cst->save(xmlWriter);

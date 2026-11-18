@@ -57,8 +57,8 @@ Vehicle::Vehicle(World& world, MapPoint point, VehicleModel model0,
   //TODO Choose a random model for suitable stuff
   this->model = model0;
   this->strategy = vehicleStrategy;
-  this->initial_cargo = world.map(point)->reportingConstruction
-    ? world.map(point)->reportingConstruction->tellstuff(stuff_id,-2)
+  this->initial_cargo = world.map(point)->getReportingConstruction()
+    ? world.map(point)->getReportingConstruction()->tellstuff(stuff_id,-2)
     : -1;
 
   frameIt = world.map(point)->createframe();
@@ -271,17 +271,7 @@ void Vehicle::walk(unsigned long real_time) {
 
 void
 Vehicle::move_frame(MapPoint newPoint) {
-  if(!world.map(newPoint)->framesptr)
-    world.map(newPoint)->framesptr = new std::list<ExtraFrame>;
-  world.map(newPoint)->framesptr->splice(
-    world.map(newPoint)->framesptr->end(),
-    *world.map(framePt)->framesptr,
-    frameIt
-  );
-  if(world.map(framePt)->framesptr->empty()) {
-    delete world.map(framePt)->framesptr;
-    world.map(framePt)->framesptr = NULL;
-  }
+  world.map(framePt)->moveFrameTo(*world.map(newPoint), frameIt);
   framePt = newPoint; //remember where the frame was put
 }
 
@@ -301,21 +291,21 @@ bool Vehicle::acceptable_heading(MapPoint dest) {
   if(strategy == VEHICLE_STRATEGY_RANDOM) return true;
 
   //dont go nowhere
-  if(!world.map(dest)->reportingConstruction) return false;
+  if(!world.map(dest)->getReportingConstruction()) return false;
   //always leave from illegal area
-  if(!world.map(point)->reportingConstruction) return true;
+  if(!world.map(point)->getReportingConstruction()) return true;
 
   switch(strategy) {
   case VEHICLE_STRATEGY_MAXIMIZE:
-    return world.map(point)->reportingConstruction->tellstuff(stuff_id,-2)*24/25
-        < world.map(dest)->reportingConstruction->tellstuff(stuff_id,-2)
+    return world.map(point)->getReportingConstruction()->tellstuff(stuff_id,-2)*24/25
+        < world.map(dest)->getReportingConstruction()->tellstuff(stuff_id,-2)
       && initial_cargo*99/100
-        < world.map(dest)->reportingConstruction->tellstuff(stuff_id,-2);
+        < world.map(dest)->getReportingConstruction()->tellstuff(stuff_id,-2);
   case VEHICLE_STRATEGY_MINIMIZE:
-    return world.map(point)->reportingConstruction->tellstuff(stuff_id,-2)
-        > world.map(dest)->reportingConstruction->tellstuff(stuff_id,-2)*24/25
+    return world.map(point)->getReportingConstruction()->tellstuff(stuff_id,-2)
+        > world.map(dest)->getReportingConstruction()->tellstuff(stuff_id,-2)*24/25
       && initial_cargo
-        > world.map(dest)->reportingConstruction->tellstuff(stuff_id,-2)*99/100;
+        > world.map(dest)->getReportingConstruction()->tellstuff(stuff_id,-2)*99/100;
   default: //silence warning
     return true;
   }

@@ -46,7 +46,7 @@ struct ExtraFrame{
     int move_x; // >0 moves frame to the right
     int move_y; // >0 moves frame downwards
     int frame; //frame >= 0 will be rendered as overlay
-    ResourceGroup *resourceGroup;
+    const ResourceGroup *resourceGroup;
 };
 
 #endif  // __LINCITY_RESOURCES_HPP__

@@ -6,11 +6,21 @@
 #include <deque>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 #define CHECK(expression) do { if(!(expression)) throw std::runtime_error(#expression); } while(false)
 
 namespace {
+static_assert(std::is_same_v<decltype(std::declval<const World&>().map(MapPoint{})), const MapTile*>);
+static_assert(std::is_same_v<decltype(std::declval<const MapTile&>().getConstruction()), const Construction*>);
+static_assert(std::is_same_v<decltype(std::declval<MapTile&>().getConstruction()), Construction*>);
+static_assert(std::is_same_v<decltype(std::declval<const MapTile&>().getReportingConstruction()), const Construction*>);
+static_assert(std::is_same_v<decltype(std::declval<MapTile&>().getReportingConstruction()), Construction*>);
+static_assert(std::is_same_v<decltype(std::declval<const MapTile&>().getFrames()), const std::list<ExtraFrame>*>);
+static_assert(std::is_same_v<decltype(std::declval<const Construction&>().getFrame()), const ExtraFrame&>);
+static_assert(std::is_same_v<decltype(std::declval<const Construction&>().getConstructionGroup()), const ConstructionGroup*>);
+
 const MapPoint site(8, 8);
 
 template<class Error>
@@ -40,6 +50,25 @@ void queryAndBoundaries() {
     CHECK(dynamic_message_cast<OutsideMapMessage>(why));
     checkRejected<OutsideMapMessage>(op, world, site.w(8));
   }
+}
+
+void moveOverlayFrame() {
+  World world(32);
+  auto& source = *world.map(site);
+  auto& destination = *world.map(site.e());
+  auto moving = source.createframe();
+  moving->frame = 7;
+  auto first = destination.createframe();
+  first->frame = 3;
+  source.moveFrameTo(destination, moving);
+  CHECK(!source.getFrames());
+  CHECK(destination.getFrames()->size() == 2);
+  CHECK(destination.getFrames()->front().frame == 3);
+  CHECK(&destination.getFrames()->back() == &*moving);
+  destination.killframe(moving);
+  CHECK(destination.getFrames()->size() == 1);
+  destination.killframe(first);
+  CHECK(!destination.getFrames());
 }
 
 void windSelection() {
@@ -106,7 +135,7 @@ void marketCommands() {
   const int cost = build.cost(world, site);
   build.execute(world, site);
   CHECK(world.total_money == 1000000 - cost);
-  auto* market = dynamic_cast<Market*>(world.map(site.se())->reportingConstruction);
+  auto* market = dynamic_cast<Market*>(world.map(site.se())->getReportingConstruction());
   CHECK(market);
   const int capacity = market->commodityRuleCount[STUFF_FOOD].maxload;
   CHECK(world.setMarketTrade(site.se(), STUFF_FOOD, true, true));
@@ -133,8 +162,8 @@ void marketCommands() {
   CHECK(bulldoze.cost(world, site.se()) == world.map(site.se())->getTileConstructionGroup()->bul_cost);
   bulldoze.execute(world, site.se());
   CHECK(world.total_money == 1000000 - cost - marketConstructionGroup.bul_cost);
-  CHECK(!world.map(site.se())->reportingConstruction);
-  CHECK(!world.map(site)->construction);
+  CHECK(!world.map(site.se())->getReportingConstruction());
+  CHECK(!world.map(site)->getConstruction());
   world.do_time_step(); // remove the detached construction
 }
 
@@ -153,7 +182,7 @@ void portCommands() {
   }
   CHECK(build.isAllowedHere(world, site, why));
   build.execute(world, site);
-  auto* port = dynamic_cast<Port*>(world.map(site)->construction);
+  auto* port = dynamic_cast<Port*>(world.map(site)->getConstruction());
   CHECK(port);
   auto& rule = port->commodityRuleCount[STUFF_FOOD];
   CHECK(world.setPortTrade(site, STUFF_FOOD, true, false));
@@ -178,7 +207,7 @@ void rocketCommands() {
   CHECK(dynamic_message_cast<OutOfMoneyMessage>(why));
   world.total_money = build.cost(world);
   build.execute(world, site);
-  auto* rocket = dynamic_cast<RocketPad*>(world.map(site)->construction);
+  auto* rocket = dynamic_cast<RocketPad*>(world.map(site)->getConstruction());
   CHECK(rocket && world.total_money == 0);
   CHECK(!world.launchRocket(site));
   rocket->stage = RocketPad::AWAITING;
@@ -241,7 +270,7 @@ void protectedMonument() {
   CHECK(!bulldoze.isAllowedHere(world, site, why));
   CHECK(dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(why));
   checkRejected<CannotBulldozeIncompleteMonumentMessage>(bulldoze, world, site);
-  CHECK(world.map(site)->construction && world.total_money == 0);
+  CHECK(world.map(site)->getConstruction() && world.total_money == 0);
 }
 } // namespace
 
@@ -250,6 +279,7 @@ int main() {
   try {
     queryAndBoundaries();
     windSelection();
+    moveOverlayFrame();
     floodAndTransport();
     marketCommands();
     portCommands();

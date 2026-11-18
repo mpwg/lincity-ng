@@ -69,7 +69,7 @@ UserOperation::isAllowedHere(const World& world, MapPoint point, Message::ptr& m
       && actual->can_build_here(world, point, message);
   }
   case ACTION_BULLDOZE: {
-    if(Construction *cst = world.map(point)->reportingConstruction) {
+    if(const Construction *cst = world.map(point)->getReportingConstruction()) {
       return cst->can_bulldoze(message);
     }
     else {
@@ -78,13 +78,13 @@ UserOperation::isAllowedHere(const World& world, MapPoint point, Message::ptr& m
     }
   }
   case ACTION_EVACUATE:
-    if(!world.map(point)->reportingConstruction) {
+    if(!world.map(point)->getReportingConstruction()) {
       message = CannotEvacuateNothingMessage::create(point);
       return false;
     }
-    if(world.map(point)->reportingConstruction->flags & FLAG_NEVER_EVACUATE) {
+    if(world.map(point)->getReportingConstruction()->flags & FLAG_NEVER_EVACUATE) {
       message = CannotEvacuateThisMessage::create(point,
-        *world.map(point)->reportingConstruction->constructionGroup);
+        *world.map(point)->getReportingConstruction()->getConstructionGroup());
       return false;
     }
     return true;
@@ -190,7 +190,7 @@ bool
 World::setMarketTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
   if(!map.is_visible(point) || commodity < STUFF_INIT || commodity >= STUFF_COUNT)
     return false;
-  auto *market = dynamic_cast<Market*>(map(point)->reportingConstruction);
+  auto *market = dynamic_cast<Market*>(map(point)->getReportingConstruction());
   if(!market || !market->commodityRuleCount[commodity].maxload)
     return false;
   auto& rule = market->commodityRuleCount[commodity];
@@ -203,7 +203,7 @@ bool
 World::setPortTrade(MapPoint point, Commodity commodity, bool buy, bool sell) {
   if(!map.is_visible(point) || commodity < STUFF_INIT || commodity >= STUFF_COUNT)
     return false;
-  auto *port = dynamic_cast<Port*>(map(point)->reportingConstruction);
+  auto *port = dynamic_cast<Port*>(map(point)->getReportingConstruction());
   if(!port || !port->commodityRuleCount[commodity].maxload)
     return false;
   auto& rule = port->commodityRuleCount[commodity];
@@ -217,7 +217,7 @@ bool
 World::launchRocket(MapPoint point) {
   if(!map.is_visible(point))
     return false;
-  auto *rocket = dynamic_cast<RocketPad*>(map(point)->construction);
+  auto *rocket = dynamic_cast<RocketPad*>(map(point)->getConstruction());
   if(!rocket || rocket->stage != RocketPad::AWAITING)
     return false;
   rocket->launch_rocket();

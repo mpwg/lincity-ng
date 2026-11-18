@@ -78,13 +78,8 @@ School::School(World& world, ConstructionGroup *cstgrp) :
 }
 
 School::~School() {
-  if(world.map(point)->framesptr) {
-    world.map(point)->framesptr->erase(frit);
-    if(world.map(point)->framesptr->empty()) {
-      delete world.map(point)->framesptr;
-      world.map(point)->framesptr = NULL;
-    }
-  }
+  if(world.map(point)->getFrames())
+    world.map(point)->killframe(frit);
 }
 
 void School::update() {

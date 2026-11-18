@@ -124,7 +124,7 @@ void Market::update()
         {
             lvls[i] = false;
             Construction *pear = partners[i];
-            const CommodityRule& pearrule = pear->constructionGroup->commodityRuleCount[stuff_ID];
+            const CommodityRule& pearrule = pear->getConstructionGroup()->commodityRuleCount[stuff_ID];
             if(pearrule.maxload)
             {
                 int lvlsi = pear->commodityCount[stuff_ID];

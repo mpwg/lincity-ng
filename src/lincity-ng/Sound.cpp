@@ -330,9 +330,9 @@ Sound::playSound(const std::string& name) {
 
 void
 Sound::playSound(const MapTile& tile) {
-  ResourceGroup* resourceGroup;
-  if(tile.reportingConstruction)
-    resourceGroup = tile.reportingConstruction->frameIt->resourceGroup;
+  const ResourceGroup* resourceGroup;
+  if(tile.getReportingConstruction())
+    resourceGroup = tile.getReportingConstruction()->getFrame().resourceGroup;
   else
     resourceGroup = tile.getTileResourceGroup();
   MIX_Audio* chunk;

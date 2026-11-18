@@ -122,7 +122,9 @@ public:
     int anim;
     int market_ratio;
     bool start_burning_waste;
+private:
     std::list<ExtraFrame>::iterator waste_fire_frit;
+public:
     int waste_fire_anim;
 };
 

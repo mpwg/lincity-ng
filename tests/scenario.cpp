@@ -27,7 +27,7 @@ void run(const std::filesystem::path& scenario,
   BasicUrbg::get().seed(714);
   auto world = World::load(scenario);
   const int initialDay = world->total_time;
-  require(!world->map.constructions.empty(), "legacy constructions missing");
+  require(world->map.constructionCount() > 0, "legacy constructions missing");
   advance(*world, NUMOF_DAYS_IN_YEAR + 1);
   require(world->total_time == initialDay + NUMOF_DAYS_IN_YEAR + 1,
           "time did not advance across year boundary");
@@ -40,7 +40,7 @@ void run(const std::filesystem::path& scenario,
   require(loaded->tech_level == world->tech_level, "saved tech level changed");
   require(loaded->map.recentPoint == world->map.recentPoint,
           "saved map position changed");
-  require(loaded->map.constructions.size() == world->map.constructions.size(),
+  require(loaded->map.constructionCount() == world->map.constructionCount(),
           "saved construction count changed");
   advance(*loaded, 1);
   require(loaded->total_time == world->total_time + 1,

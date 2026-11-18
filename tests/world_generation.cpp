@@ -24,7 +24,7 @@ void verify(Generator generator) {
   auto first = generate(generator, {false, true});
   auto replay = generate(generator, {false, true});
   require(first->map.len() == 100, "generated map size differs");
-  require(first->map.constructions.empty(), "village built when disabled");
+  require(first->map.constructionCount() == 0, "village built when disabled");
   const auto sameTerrain = [](const MapTile& a, const MapTile& b) {
     return a.group == b.group && a.type == b.type && a.flags == b.flags &&
       a.ground.altitude == b.ground.altitude && a.coal_reserve == b.coal_reserve &&
@@ -38,7 +38,7 @@ void verify(Generator generator) {
               tile.group == GROUP_TREE3;
           }), "trees generated with trees disabled");
   auto village = generate(generator, {true, true});
-  require(!village->map.constructions.empty(), "starter village missing");
+  require(village->map.constructionCount() > 0, "starter village missing");
   village->do_time_step();
   require(village->total_time == 1, "new village did not simulate");
 }

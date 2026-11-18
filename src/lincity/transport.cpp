@@ -79,8 +79,8 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
     for(MapPoint p(originx, originy); p.y <= lasty; p.y++)
     for(p.x = originx; p.x <= lastx; p.x++) {
       // First, set up a mask according to directions
-      cstr = map(p)->construction;
-      int* frame = cstr ? &(cstr->frameIt->frame) : NULL;
+      cstr = map(p)->getConstruction();
+      int* frame = cstr ? &(cstr->getFrame().frame) : NULL;
       int mask = 0;
       switch (map(p)->getGroup())
       {
@@ -88,30 +88,30 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
       {
           bool far = false;
           int hivolt = -1;
-          map(p)->reportingConstruction->deneighborize();
+          map(p)->getReportingConstruction()->deneighborize();
           /* up -- (ThMO) */
-          hivolt = map(p.n())->reportingConstruction?
-          map(p.n())->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+          hivolt = map(p.n())->getReportingConstruction()?
+          map(p.n())->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           if ((far = ((p.y > 1) && (map(p.n())->is_water() || map(p.n())->is_transport()))))
           {
-              hivolt = map(p.n(2))->reportingConstruction?
-              map(p.n(2))->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+              hivolt = map(p.n(2))->getReportingConstruction()?
+              map(p.n(2))->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           }
           if(hivolt != -1)
           {
               if (far) //suspended cables
               {
                   //opposite edge
-                  if (!map(p.n(2))->reportingConstruction->countPowercables(1))
+                  if (!map(p.n(2))->getReportingConstruction()->countPowercables(1))
                   {
                       map(p.n())->flags |= FLAG_POWER_CABLES_0;
-                      cstr->link_to(map(p.n(2))->reportingConstruction);
+                      cstr->link_to(map(p.n(2))->getReportingConstruction());
                       mask |=8;
                   }
               }
               else
               {
-                  cstr->link_to(map(p.n())->reportingConstruction);
+                  cstr->link_to(map(p.n())->getReportingConstruction());
                   mask |=8;
               }
           }
@@ -119,28 +119,28 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
           {   map(p.n())->flags &= ~FLAG_POWER_CABLES_0;}
 
           /* left -- (ThMO) */
-          hivolt = map(p.w())->reportingConstruction?
-          map(p.w())->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+          hivolt = map(p.w())->getReportingConstruction()?
+          map(p.w())->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           if((far = ((p.x > 1) && (map(p.w())->is_water() || map(p.w())->is_transport()))))
           {
-              hivolt = map(p.w(2))->reportingConstruction?
-              map(p.w(2))->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+              hivolt = map(p.w(2))->getReportingConstruction()?
+              map(p.w(2))->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           }
           if(hivolt != -1)
           {
               if (far) //suspended cables
               {
                   //opposite edge
-                  if ( !map(p.w(2))->reportingConstruction->countPowercables(2) )
+                  if ( !map(p.w(2))->getReportingConstruction()->countPowercables(2) )
                   {
-                      cstr->link_to(map(p.w(2))->reportingConstruction);
+                      cstr->link_to(map(p.w(2))->getReportingConstruction());
                       map(p.w())->flags |= FLAG_POWER_CABLES_90;
                       mask |=4;
                   }
               }
               else
               {
-                  cstr->link_to(map(p.w())->reportingConstruction);
+                  cstr->link_to(map(p.w())->getReportingConstruction());
                   mask |=4;
               }
           }
@@ -148,28 +148,28 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
           {   map(p.w())->flags &= ~FLAG_POWER_CABLES_90;}
 
           /* right -- (ThMO) */
-          hivolt = map(p.e())->reportingConstruction?
-          map(p.e())->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+          hivolt = map(p.e())->getReportingConstruction()?
+          map(p.e())->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           if ((far = ((p.x < map.len() - 2) && (map(p.e())->is_water() || map(p.e())->is_transport()))))
           {
-              hivolt = map(p.e(2))->reportingConstruction?
-              map(p.e(2))->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+              hivolt = map(p.e(2))->getReportingConstruction()?
+              map(p.e(2))->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           }
           if(hivolt != -1)
           {
               if (far) //suspended cables
               {
                   //opposite edge
-                  if ( !map(p.e(2))->reportingConstruction->countPowercables(4) )
+                  if ( !map(p.e(2))->getReportingConstruction()->countPowercables(4) )
                   {
-                      cstr->link_to(map(p.e(2))->reportingConstruction);
+                      cstr->link_to(map(p.e(2))->getReportingConstruction());
                       map(p.e())->flags |= FLAG_POWER_CABLES_90;
                       mask |=2;
                   }
               }
               else
               {
-                  cstr->link_to(map(p.e())->reportingConstruction);
+                  cstr->link_to(map(p.e())->getReportingConstruction());
                   mask |=2;
               }
           }
@@ -177,27 +177,27 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
           {   map(p.e())->flags &= ~FLAG_POWER_CABLES_90;}
 
           /* down -- (ThMO) */
-          hivolt = map(p.s())->reportingConstruction?
-          map(p.s())->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;
+          hivolt = map(p.s())->getReportingConstruction()?
+          map(p.s())->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;
           if ((far = (p.y < map.len() - 2) && (map(p.s())->is_water() || map(p.s())->is_transport())))
           {
-              hivolt = map(p.s(2))->reportingConstruction?
-              map(p.s(2))->reportingConstruction->tellstuff(STUFF_HIVOLT, -2):-1;}
+              hivolt = map(p.s(2))->getReportingConstruction()?
+              map(p.s(2))->getReportingConstruction()->tellstuff(STUFF_HIVOLT, -2):-1;}
           if(hivolt != -1)
           {
               if (far) //suspended cables
               {
                   //opposite edge
-                  if ( !map(p.s(2))->reportingConstruction->countPowercables(8) )
+                  if ( !map(p.s(2))->getReportingConstruction()->countPowercables(8) )
                   {
-                      cstr->link_to(map(p.s(2))->reportingConstruction);
+                      cstr->link_to(map(p.s(2))->getReportingConstruction());
                       map(p.s())->flags |= FLAG_POWER_CABLES_0;
                       mask |=1;
                   }
               }
               else
               {
-                  cstr->link_to(map(p.s())->reportingConstruction);
+                  cstr->link_to(map(p.s())->getReportingConstruction());
                   mask |=1;
               }
           }
@@ -289,8 +289,8 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
               // David: IDK why we're placing a rail, but we don't have
               //        access to the World instance from here
               // railConstructionGroup.placeItem(*this, x,y);
-              // cstr = map(x,y)->construction;
-              // frame = &(cstr->frameIt->frame);
+              // cstr = map(x,y)->getConstruction();
+              // frame = &(cstr->getFrame().frame);
               // //rewind the loops
               // x -= 2;
               // y -= 2;
@@ -310,8 +310,8 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
               // David: IDK why we're placing a rail, but we don't have
               //        access to the World instance from here
               // railConstructionGroup.placeItem(*this, x,y);
-              // cstr = map(x,y)->construction;
-              // frame = &(cstr->frameIt->frame);
+              // cstr = map(x,y)->getConstruction();
+              // frame = &(cstr->getFrame().frame);
               // //rewind the loops
               // x -= 2;
               // y -= 2;
@@ -442,8 +442,8 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
               // David: IDK why we're placing a rail, but we don't have
               //        access to the World instance from here
               // railConstructionGroup.placeItem(*this, x,y);
-              // cstr = map(x,y)->construction;
-              // frame = &(cstr->frameIt->frame);
+              // cstr = map(x,y)->getConstruction();
+              // frame = &(cstr->getFrame().frame);
               // //rewind the loops
               // x -= 2;
               // y -= 2;
@@ -462,8 +462,8 @@ Map::connect_transport(int originx, int originy, int lastx, int lasty) {
               // David: IDK why we're placing a rail, but we don't have
               //        access to the World instance from here
               // railConstructionGroup.placeItem(*this, x,y);
-              // cstr = map(x,y)->construction;
-              // frame = &(cstr->frameIt->frame);
+              // cstr = map(x,y)->getConstruction();
+              // frame = &(cstr->getFrame().frame);
               // //rewind the loops
               // x -= 2;
               // y -= 2;
