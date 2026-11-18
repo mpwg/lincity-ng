@@ -1,9 +1,8 @@
-# First Rust core slice
+# C++ reference cases
 
-The dependency-free Rust crate runs independently of the C++ core. Both runners
-read `cases/v1/input.txt` and compare their entire transcript with the checked-in
-`cases/v1/expected.txt`, recorded by the C++ adapter linked against LinCity::Core.
-Each input line starts a fresh case. The output echoes the case before its results.
+The headless C++ runner reads `cases/v1/input.txt` and checks its transcript against
+`cases/v1/expected.txt`, recorded using LinCity::Core. Each input line starts
+a fresh case. The output echoes the case before its results.
 
 | Case and input fields | Output per observation, in order |
 | --- | --- |
@@ -18,17 +17,8 @@ each building's update as in the simulation. Fixing the visit order isolates the
 trade and production rules from the world's shuffle. The fixtures cover rate-limited
 flow, integer rounding during labor use and power exchange, refused conversion when
 low-voltage storage is full, and several ticks after bulldozing a stockholding station.
-The statistics slice covers the fields listed above. City scheduling, other building
-rules, and serialization are outside this crate's scope.
+The statistics slice covers the fields listed above. The case files use plain text and can be consumed independently of CMake and C++.
 
-From the repository root, run the standalone Rust checks with:
-
-```
-cargo test --locked --offline --manifest-path lincity-core/parity/Cargo.toml --target-dir build/parity-rust
-```
-
-With a configured core test build, build `core_parity_reference`, then run
-`ctest --test-dir <build-dir> -R core.parity --output-on-failure`. CMake
-registers the Rust comparison when Cargo is available. For an intentional rule
-change, review the new C++ transcript against the previous oracle before updating
-the expected file.
+Build `core_parity_reference` and run `ctest --test-dir <build-dir> -R core.parity --output-on-failure`.
+For an intentional rule change, review the new C++ transcript against the previous
+oracle before updating the expected file.
