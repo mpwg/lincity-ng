@@ -49,8 +49,21 @@ struct Tile {
 }
 
 struct Building {
+    stock: [i32; 10],
+    saved: Option<crate::save::Element>,
     kind: BuildingKind,
     evacuating: bool,
+}
+
+impl Building {
+    fn new(kind: BuildingKind) -> Self {
+        Self {
+            kind,
+            stock: [0; 10],
+            saved: None,
+            evacuating: false,
+        }
+    }
 }
 
 /// An independent city, including its terrain and financial accounts.
@@ -317,14 +330,7 @@ impl City {
                     self.stats.group_count[replaced.kind.id() as usize] -= 1;
                 }
                 self.buildings
-                    .place(
-                        point,
-                        size,
-                        Building {
-                            kind,
-                            evacuating: false,
-                        },
-                    )
+                    .place(point, size, Building::new(kind))
                     .expect("validated footprint");
                 self.stats.group_count[kind.id() as usize] += 1;
                 for y in point.y..point.y + size {

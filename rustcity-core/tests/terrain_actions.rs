@@ -98,3 +98,21 @@ fn market_price_and_demolition_apply_across_the_whole_footprint() {
     assert_eq!(city.preview(Action::Bulldoze, site), Ok(0));
     city.apply(build_market, site).unwrap();
 }
+
+#[test]
+fn transactions_that_would_exceed_credit_leave_the_map_and_treasury_untouched() {
+    let mut city = City::empty(4).unwrap();
+    let site = Point { x: 1, y: 1 };
+    for _ in 0..1000 {
+        city.apply(Action::Flood, site).unwrap();
+        city.apply(Action::Bulldoze, site).unwrap();
+    }
+    assert_eq!(city.balance(), -2_000_000_000);
+    assert_eq!(city.preview(Action::Flood, site), Ok(1_000_000));
+    assert_eq!(
+        city.apply(Action::Flood, site),
+        Err(ActionError::OutOfMoney)
+    );
+    assert_eq!(city.terrain(site), Some(Terrain::Grass));
+    assert_eq!(city.balance(), -2_000_000_000);
+}
