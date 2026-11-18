@@ -1,5 +1,6 @@
 //! Read-only views used by simulation hosts and parity tools.
 use super::*;
+use crate::Commodity;
 
 /// Current world values reported by the decision replay protocol.
 #[derive(Clone, Copy, Debug)]
@@ -30,6 +31,8 @@ pub struct TileView {
     pub health_cover: bool,
     pub sports_cover: bool,
     pub market_cover: bool,
+    pub north_south_cable: bool,
+    pub east_west_cable: bool,
     /// The occupying building and its northwestern origin.
     pub building: Option<(BuildingKind, Point)>,
 }
@@ -60,6 +63,37 @@ impl City {
         self.side
     }
 
+    /// Returns a single tile, including the outer border.
+    pub fn tile(&self, point: Point) -> Option<TileView> {
+        self.index(point)
+            .map(|i| self.tile_view(point, &self.tiles[i]))
+    }
+
+    fn tile_view(&self, point: Point, tile: &Tile) -> TileView {
+        use crate::rules::civic::{CRICKET, FIRE, HEALTH, MARKET_CHECK};
+        use crate::rules::transport::{EAST_WEST_CABLE, NORTH_SOUTH_CABLE};
+        TileView {
+            point,
+            terrain: tile.ground,
+            ground_frame: tile.frame,
+            altitude: tile.altitude,
+            water_altitude: tile.water_alt,
+            lake: tile.lake,
+            river: tile.river,
+            groundwater: tile.groundwater,
+            pollution: tile.pollution,
+            coal: tile.coal,
+            ore: tile.ore,
+            fire_cover: tile.coverage & FIRE != 0,
+            health_cover: tile.coverage & HEALTH != 0,
+            sports_cover: tile.coverage & CRICKET != 0,
+            market_cover: tile.coverage & (MARKET_CHECK >> 1) != 0,
+            north_south_cable: tile.cables & NORTH_SOUTH_CABLE != 0,
+            east_west_cable: tile.cables & EAST_WEST_CABLE != 0,
+            building: self.building_at(point),
+        }
+    }
+
     /// Iterates over a half-open rectangle in row order, clipping it to the map.
     pub fn map_region(
         &self,
@@ -69,29 +103,23 @@ impl City {
         let columns = x.start.max(0)..x.end.min(self.side);
         (y.start.max(0)..y.end.min(self.side)).flat_map(move |y| {
             columns.clone().map(move |x| {
-                use crate::rules::civic::{CRICKET, FIRE, HEALTH, MARKET_CHECK};
-                let point = Point { x, y };
-                let tile = &self.tiles[(y * self.side + x) as usize];
-                TileView {
-                    point,
-                    terrain: tile.ground,
-                    ground_frame: tile.frame,
-                    altitude: tile.altitude,
-                    water_altitude: tile.water_alt,
-                    lake: tile.lake,
-                    river: tile.river,
-                    groundwater: tile.groundwater,
-                    pollution: tile.pollution,
-                    coal: tile.coal,
-                    ore: tile.ore,
-                    fire_cover: tile.coverage & FIRE != 0,
-                    health_cover: tile.coverage & HEALTH != 0,
-                    sports_cover: tile.coverage & CRICKET != 0,
-                    market_cover: tile.coverage & (MARKET_CHECK >> 1) != 0,
-                    building: self.building_at(point),
-                }
+                self.tile_view(Point { x, y }, &self.tiles[(y * self.side + x) as usize])
             })
         })
+    }
+
+    /// Returns smoothed commodity flow in parts per thousand of transport capacity.
+    /// A missing reading denotes a tile or commodity outside the transport network.
+    pub fn commodity_traffic(&self, point: Point, commodity: Commodity) -> Option<i32> {
+        let (_, b) = self.buildings.get(self.buildings.at(point)?)?;
+        if b.kind.metadata().rule(commodity).max_load == 0 {
+            return None;
+        }
+        match &b.operation {
+            Operation::Transport(t) => Some(t.traffic[commodity as usize]),
+            Operation::Line(line) => Some(line.traffic),
+            _ => None,
+        }
     }
 
     /// City accounts including period totals, inventory, demographics and their histories.
@@ -100,7 +128,6 @@ impl City {
     }
 
     /// Snapshot of the current day, treasury, population and technology.
-
     pub fn report(&self) -> CityReport {
         CityReport {
             day: self.day,

@@ -41,3 +41,29 @@ fn restored_power_line_spans_a_road_and_delivers_to_a_substation() {
             > 0
     );
 }
+
+#[test]
+fn network_view_reports_suspended_cables_and_commodity_traffic() {
+    let mut city = load(
+        1,
+        r#"<Construction group="2" map-x="4" map-y="4"><hivolt>18000</hivolt></Construction>
+        <Construction group="11" map-x="8" map-y="4"/><Construction group="1" map-x="9" map-y="4"/>
+        <Construction group="3" map-x="10" map-y="4"/>"#,
+    );
+    let road = Point { x: 8, y: 4 };
+    let wire = Point { x: 9, y: 4 };
+    let tile = city.tile(road).unwrap();
+    assert!(tile.east_west_cable);
+    assert!(!tile.north_south_cable);
+    assert_eq!(city.commodity_traffic(road, Commodity::Food), Some(0));
+    assert_eq!(city.commodity_traffic(wire, Commodity::Food), None);
+    assert_eq!(city.tile(Point { x: -1, y: 4 }), None);
+    for _ in 0..4 {
+        city.tick().unwrap();
+    }
+    assert!(
+        city.commodity_traffic(wire, Commodity::HighVoltage)
+            .unwrap()
+            > 0
+    );
+}

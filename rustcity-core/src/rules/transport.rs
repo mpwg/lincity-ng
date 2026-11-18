@@ -21,3 +21,6 @@ pub(crate) const ROAD_BRIDGE_HEIGHT: i32 = 44;
 pub(crate) const TRACK_BRIDGE_HEIGHT: i32 = 22;
 pub(crate) const HIDDEN_CAR_INTERVAL: u64 = 50;
 pub(crate) const TRAFFIC_REPORT_FACTOR: f64 = 107.77;
+
+pub(crate) const NORTH_SOUTH_CABLE: u8 = 1;
+pub(crate) const EAST_WEST_CABLE: u8 = 2;

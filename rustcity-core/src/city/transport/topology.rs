@@ -129,7 +129,11 @@ impl City {
     pub(in crate::city) fn clear_line_cables(&mut self, p: Point) {
         for d in DIRECTIONS {
             if let Some(i) = self.index(step(p, d, 1)) {
-                self.tiles[i].cables &= if d.0 == 0 { !1 } else { !2 };
+                self.tiles[i].cables &= if d.0 == 0 {
+                    !NORTH_SOUTH_CABLE
+                } else {
+                    !EAST_WEST_CABLE
+                };
             }
         }
     }
@@ -146,11 +150,17 @@ impl City {
                         .building_at(near)
                         .is_some_and(|(k, _)| k.is_transport()));
             let end = if far { farther } else { near };
-            let cable = if d.0 == 0 { 1 } else { 2 };
+            let cable = if d.0 == 0 {
+                NORTH_SOUTH_CABLE
+            } else {
+                EAST_WEST_CABLE
+            };
             let Some(peer) = self.buildings.at(end).filter(|&q| {
                 let (_, b) = self.buildings.get(q).unwrap();
                 let cap = b.kind.metadata().rule(HighVoltage).max_load;
-                cap != 0 && i64::from(b.stock[HighVoltage as usize]) * 1000 / i64::from(cap) != -1
+                cap != 0
+                    && i64::from(b.stock[HighVoltage as usize]) * i64::from(QUANTA) / i64::from(cap)
+                        != -1
             }) else {
                 self.tiles[i].cables &= !cable;
                 continue;
