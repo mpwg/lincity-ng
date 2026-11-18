@@ -30,22 +30,24 @@
 
 #ifdef LINCITY_TEST_XML_FAULTS
 namespace {
-enum class XmlFactory { OutputBuffer, Writer, Reader };
+enum class SaveLoadFault { OutputBuffer, Writer, Reader, GzipWrite, GzipClose };
 
-struct FactoryFailure;
-thread_local FactoryFailure* activeFailure = nullptr;
+struct SaveLoadFailure;
+thread_local SaveLoadFailure* activeFailure = nullptr;
 
-struct FactoryFailure {
-  explicit FactoryFailure(XmlFactory factory) : factory(factory) { activeFailure = this; }
-  ~FactoryFailure() { activeFailure = nullptr; }
+struct SaveLoadFailure {
+  explicit SaveLoadFailure(SaveLoadFault fault) : fault(fault) { activeFailure = this; }
+  ~SaveLoadFailure() { activeFailure = nullptr; }
 
-  XmlFactory factory;
+  SaveLoadFault fault;
   bool triggered = false;
+  int gzipWrites = 0;
   int gzipCloses = 0;
+  int nativeCloseStatus = Z_OK;
 };
 
-bool shouldFail(XmlFactory factory) {
-  if(!activeFailure || activeFailure->factory != factory || activeFailure->triggered) return false;
+bool shouldFail(SaveLoadFault fault) {
+  if(!activeFailure || activeFailure->fault != fault || activeFailure->triggered) return false;
   activeFailure->triggered = true;
   return true;
 }
@@ -55,24 +57,25 @@ extern "C" {
 decltype(xmlOutputBufferCreateIO) __real_xmlOutputBufferCreateIO;
 decltype(xmlNewTextWriter) __real_xmlNewTextWriter;
 decltype(xmlReaderForIO) __real_xmlReaderForIO;
+decltype(gzwrite) __real_gzwrite;
 decltype(gzclose) __real_gzclose;
 
 xmlOutputBufferPtr __wrap_xmlOutputBufferCreateIO(xmlOutputWriteCallback write,
   xmlOutputCloseCallback close, void* context, xmlCharEncodingHandlerPtr encoder
 ) {
-  if(shouldFail(XmlFactory::OutputBuffer)) return nullptr;
+  if(shouldFail(SaveLoadFault::OutputBuffer)) return nullptr;
   return __real_xmlOutputBufferCreateIO(write, close, context, encoder);
 }
 
 xmlTextWriterPtr __wrap_xmlNewTextWriter(xmlOutputBufferPtr buffer) {
-  if(shouldFail(XmlFactory::Writer)) return nullptr;
+  if(shouldFail(SaveLoadFault::Writer)) return nullptr;
   return __real_xmlNewTextWriter(buffer);
 }
 
 xmlTextReaderPtr __wrap_xmlReaderForIO(xmlInputReadCallback read,
   xmlInputCloseCallback close, void* context, const char* url, const char* encoding, int options
 ) {
-  if(shouldFail(XmlFactory::Reader)) {
+  if(shouldFail(SaveLoadFault::Reader)) {
     // libxml may close the input even when creating the reader fails.
     if(close) close(context);
     return nullptr;
@@ -80,10 +83,22 @@ xmlTextReaderPtr __wrap_xmlReaderForIO(xmlInputReadCallback read,
   return __real_xmlReaderForIO(read, close, context, url, encoding, options);
 }
 
+int __wrap_gzwrite(gzFile file, voidpc buffer, unsigned int len) {
+  if(activeFailure && len != 0) {
+    ++activeFailure->gzipWrites;
+    // Report an unwritten data chunk once. The real stream can still be closed.
+    if(shouldFail(SaveLoadFault::GzipWrite)) return 0;
+  }
+  return __real_gzwrite(file, buffer, len);
+}
+
 int __wrap_gzclose(gzFile file) {
   // Observe an accidental second close without calling zlib on a freed stream.
   if(activeFailure && ++activeFailure->gzipCloses > 1) return Z_STREAM_ERROR;
-  return __real_gzclose(file);
+  const int status = __real_gzclose(file);
+  if(activeFailure) activeFailure->nativeCloseStatus = status;
+  if(shouldFail(SaveLoadFault::GzipClose)) return Z_ERRNO;
+  return status;
 }
 }
 #endif
@@ -139,7 +154,7 @@ void saveAfterBulldozing(const fs::path& saved) {
 }
 
 void checkMigratedWorld(const World& world) {
-  CHECK(world.given_scene == "Legacy accounting and history" && world.total_time == 309);
+  CHECK(world.given_scene == "Legacy accounting & history" && world.total_time == 309);
   CHECK(world.map.len() == 32 && world.map.recentPoint == MapPoint(12, 12));
   CHECK(world.tech_level == 7500 && world.stats.tech_level == 7500);
   const auto& expenses = world.stats.expenses;
@@ -209,7 +224,8 @@ void migrate2130(const fs::path& fixtures, const fs::path& saved) {
 }
 
 void checkStatistics2140(const World& world) {
-  CHECK(world.given_scene == "Frühjahr in der Altstadt" && world.total_time == 1249);
+  CHECK(world.given_scene == "Frühjahr in der Altstadt & am Fluss <1900>");
+  CHECK(world.total_time == 1249);
   CHECK(world.total_money == -492 && world.stats.total_money == -492 && world.people_pool == 12);
   CHECK(world.tech_level == 96800 && world.stats.highest_tech_level == 98900);
   CHECK(world.rockets_launched == 9 && world.rockets_launched_success == 6);
@@ -396,21 +412,28 @@ void rejectedConstructions(const fs::path& saved) {
 }
 
 #ifdef LINCITY_TEST_XML_FAULTS
-void factoryErrors(const fs::path& fixtures, const fs::path& saved) {
+void xmlIOErrors(const fs::path& fixtures, const fs::path& saved) {
   const World world(32);
-  struct Case { XmlFactory factory; const char* diagnostic; };
+  struct Case { SaveLoadFault fault; const char* diagnostic; };
   for(const auto& test : {
-    Case{XmlFactory::OutputBuffer, "failed to create XML output buffer"},
-    Case{XmlFactory::Writer, "failed to create XML text writer"},
-    Case{XmlFactory::Reader, "failed to initialize XML parser"}
+    Case{SaveLoadFault::OutputBuffer, "failed to create XML output buffer"},
+    Case{SaveLoadFault::Writer, "failed to create XML text writer"},
+    Case{SaveLoadFault::Reader, "failed to initialize XML parser"},
+    Case{SaveLoadFault::GzipWrite, "failed to write save file"},
+    Case{SaveLoadFault::GzipClose, "failed to write save file"}
   }) {
-    FactoryFailure failure(test.factory);
+    SaveLoadFailure failure(test.fault);
     expectFailure([&] {
-      if(test.factory == XmlFactory::Reader) World::load(fixtures / "statistics-2140.xml");
+      if(test.fault == SaveLoadFault::Reader) World::load(fixtures / "statistics-2140.xml");
       else world.save(saved);
     }, test.diagnostic);
     CHECK(failure.triggered);
+    if(test.fault == SaveLoadFault::GzipWrite)
+      CHECK(failure.gzipWrites == 1);
+    if(test.fault == SaveLoadFault::GzipClose)
+      CHECK(failure.gzipWrites > 0);
     CHECK(failure.gzipCloses == 1);
+    CHECK(failure.nativeCloseStatus == Z_OK);
   }
 
   world.save(saved);
@@ -449,6 +472,10 @@ void parserErrors(const fs::path& saved) {
   rejectEmptySave(saved);
   writeXml(saved, "<SaveGame/>");
   expectFailure([&] { World::load(saved); }, "format that is too old");
+  writeXml(saved, "<!-- LinCity settings --><settings/>");
+  expectFailure([&] { World::load(saved); }, "expected <lc-game>, found <settings>");
+  writeXml(saved, "<lc-game/>");
+  expectFailure([&] { World::load(saved); }, "missing attribute ldsv-version in <lc-game>");
   writeXml(saved, "<lc-game ldsv-version='latest'/>");
   expectFailure([&] { World::load(saved); }, "failed to parse XML value");
   // A regular file cannot be the parent of a save path.
@@ -465,6 +492,17 @@ void parserErrors(const fs::path& saved) {
   expectFailure([&] { World::load(saved); }, "missing XML element <y>");
   writeXml(saved, "<lc-game ldsv-version='2140'><map size='medium'/></lc-game>");
   expectFailure([&] { World::load(saved); }, "failed to parse XML value");
+  writeXml(saved, "<lc-game ldsv-version='2140'><map/></lc-game>");
+  expectFailure([&] { World::load(saved); }, "\"size\" in <map>");
+  writeXml(saved, "<lc-game ldsv-version='2140'><map size='32'>"
+                  "<MapTile map-x='8' map-y='12'/></map></lc-game>");
+  expectFailure([&] { World::load(saved); }, "\"group\" in <MapTile>");
+  writeXml(saved, "<lc-game ldsv-version='2140'><map size='32'>"
+                  "<Construction group='6' map-x='8' map-y=''/></map></lc-game>");
+  expectFailure([&] { World::load(saved); }, "\"map-y\" in <Construction>");
+  writeXml(saved, "<lc-game ldsv-version='2130'><globals>"
+                  "<pbar><data>50</data></pbar></globals></lc-game>");
+  expectFailure([&] { World::load(saved); }, "\"id\" in <pbar>");
   writeXml(saved, "<lc-game ldsv-version='2140'><globals><game_end>maybe</game_end>"
                   "</globals></lc-game>");
   expectFailure([&] { World::load(saved); }, "failed to parse bool");
@@ -499,9 +537,6 @@ void rejectFailedWrite() {
 
 #ifdef NDEBUG
 void unknownFields(const fs::path& saved) {
-  writeXml(saved, "<settings/>");
-  expectFailure([&] { World::load(saved); }, "failed to find <lc-game>");
-
   // Release builds skip unknown fields and keep reading the known siblings.
   writeXml(saved, R"xml(
     <lc-game ldsv-version="2140">
@@ -623,7 +658,7 @@ int main(int argc, char** argv) {
     rejectTruncatedCompression(saved);
     rejectedConstructions(saved);
 #ifdef LINCITY_TEST_XML_FAULTS
-    factoryErrors(fixtures, saved);
+    xmlIOErrors(fixtures, saved);
 #endif
 #ifdef __linux__
     rejectFailedWrite();

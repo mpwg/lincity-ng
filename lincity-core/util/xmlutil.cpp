@@ -48,10 +48,11 @@ void missingXmlElement(xmlpp::TextReader& reader, const std::string& name) {
 }
 
 void unexpectedXmlAttribute(xmlpp::TextReader& reader) {
+  const auto name = reader.get_name();
+  const auto value = reader.get_value();
+  reader.move_to_element();
   fmt::println(stderr, "warning: skipping unexpected attribute {}={:?} in <{}>",
-    reader.get_name(), reader.get_value(),
-    (reader.move_to_element(), reader.get_name())
-  );
+    name, value, reader.get_name());
   assert(false);
 }
 
@@ -158,13 +159,9 @@ X xmlParse(const xmlpp::ustring& s) {
   if(r.ec != std::errc{})
     throw std::system_error(std::make_error_code(r.ec), fmt::format(
       "failed to parse XML value of type {:?}: {:?}", typeid(X).name(), s));
-  if(r.ptr != ce) {
-    fmt::println(stderr,
-      "error: detected extra characters after number: {:?}",
-      s
-    );
-  }
-  assert(r.ptr == ce);
+  if(r.ptr != ce)
+    throw std::system_error(std::make_error_code(std::errc::invalid_argument),
+      fmt::format("extra characters after XML number: {:?}", s));
   return x;
 }
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <lc-game ldsv-version="2130">
   <globals>
-    <given_scene>Legacy accounting and history</given_scene>
+    <given_scene>Legacy accounting &amp; history</given_scene>
     <world_id>20</world_id>
     <climate>-1</climate>
     <world_side_len>32</world_side_len>

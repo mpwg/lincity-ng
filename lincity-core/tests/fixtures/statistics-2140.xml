@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <lc-game ldsv-version="2140">
   <globals>
-    <given_scene>Frühjahr in der Altstadt</given_scene>
+    <given_scene>Frühjahr in der Altstadt &amp; am Fluss &lt;1900&gt;</given_scene>
     <total_time>1249</total_time>
     <total_money>-492</total_money>
     <people_pool>12</people_pool>

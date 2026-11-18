@@ -77,6 +77,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       "LINKER:--wrap=xmlOutputBufferCreateIO"
       "LINKER:--wrap=xmlNewTextWriter"
       "LINKER:--wrap=xmlReaderForIO"
+      "LINKER:--wrap=gzwrite"
       "LINKER:--wrap=gzclose")
   endif()
 endif()
@@ -86,3 +87,8 @@ add_test(NAME core.persistence COMMAND core_persistence
 add_executable(core_support support.cpp)
 target_link_libraries(core_support PRIVATE xmlutil randutil)
 add_test(NAME core.support COMMAND core_support)
+
+if(UNIX AND Python3_Interpreter_FOUND)
+  add_test(NAME core.xml_diagnostics COMMAND "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/check_xml_diagnostics.py" "$<TARGET_FILE:core_support>")
+endif()

@@ -70,6 +70,12 @@ static inline const xmlStrF fx(const X x) { return xmlFormatHex(x); }
 template<typename X>
 static inline X p(const xmlpp::ustring& s) { return xmlParse<X>(s); }
 
+static xmlpp::ustring requireAttribute(xmlpp::TextReader& reader, const std::string& name) {
+  auto value = reader.get_attribute(name);
+  if(value.empty()) missingXmlAttribute(reader, name);
+  return value;
+}
+
 static void saveGlobals(xmlTextWriterPtr xmlWriter, const World& world);
 static void loadGlobals(xmlpp::TextReader& xmlReader, World& World,
   unsigned int ldsv_version
@@ -208,27 +214,25 @@ World::load(const std::filesystem::path& filename) {
   if(!xmlReader.read())
     throw std::runtime_error("save file is empty");
 
-  // find the SaveGame node
-  while(true) {
-    if(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::Element);
-    else if(xmlReader.get_name() == "lc-game")
-      break;
-    else if(xmlReader.get_name() == "SaveGame") {
-      // detected pre-2.13.0 format
-      throw std::runtime_error(
-        std::string("Detected a load/save format that is too old.") +
-        " See the readme for how to update the load/save format.");
-    }
-    else
-      unexpectedXmlElement(xmlReader);
+  // Skip the XML declaration and comments before the root element.
+  while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::Element) {
     if(!xmlReader.next())
       throw std::runtime_error("failed to find <lc-game> element in save file");
   }
+  const std::string root = xmlReader.get_name();
+  if(root == "SaveGame") {
+    // Detected pre-2.13.0 format.
+    throw std::runtime_error(
+      "Detected a load/save format that is too old."
+      " See the readme for how to update the load/save format.");
+  }
+  if(root != "lc-game")
+    throw std::runtime_error("invalid save file: expected <lc-game>, found <" + root + ">");
 
   // parse load/save version
   std::string versionStr = xmlReader.get_attribute("ldsv-version");
   if(versionStr.empty())
-    throw std::runtime_error("failed to parse load/save version");
+    throw std::runtime_error("failed to parse load/save version: missing attribute ldsv-version in <lc-game>");
   unsigned int ldsv_version = xmlParse<unsigned int>(versionStr);
   if(ldsv_version > LOADSAVE_VERSION_CURRENT)
     throw std::runtime_error("load/save version too new");
@@ -488,7 +492,7 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
     }
 
     const std::string xml_tag = xmlReader.get_name();
-    if(xml_tag == "given_scene")                      world.given_scene = p<std::string>(xmlReader.read_inner_xml());
+    if(xml_tag == "given_scene")                      world.given_scene = xmlReader.read_string();
     else if(xml_tag == "total_time")                  world.total_time = p<int>(xmlReader.read_inner_xml());
     else if(xml_tag == "people_pool")                 world.people_pool = p<int>(xmlReader.read_inner_xml());
     else if(xml_tag == "total_money")                 world.stats.total_money = world.total_money = p<int>(xmlReader.read_inner_xml());
@@ -820,7 +824,8 @@ static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
     }
 
     const std::string xml_tag = xmlReader.get_name();
-    const std::string xml_val = xmlReader.read_inner_xml();
+    const std::string xml_val =
+      xml_tag == "given_scene" ? xmlReader.read_string() : xmlReader.read_inner_xml();
     if(xml_tag == "given_scene")                      world.given_scene = xml_val;
     else if(xml_tag == "global_aridity")              ; // removed
     else if(xml_tag == "global_mountainity")          ; // removed
@@ -926,7 +931,7 @@ static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
     else if(xml_tag == "monthgraph_nojobs")           readArray_old(xmlReader, world.stats.history.nojobs);
     else if(xml_tag == "monthgraph_ppool")            readArray_old(xmlReader, world.stats.history.ppool);
     else if(xml_tag == "pbar") {
-      int id = p<int>(xmlReader.get_attribute("id"));
+      int id = p<int>(requireAttribute(xmlReader, "id"));
       switch(id) {
       case 0: break; // pop
       case 1: readPbar_old(xmlReader, world.stats.history.tech); break;
@@ -1034,7 +1039,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   std::list<std::pair<std::unique_ptr<Construction>, MapPoint>> constructions;
 
   if(ldsv_version > 2130) {
-    int mapSize = p<int>(xmlReader.get_attribute("size"));
+    int mapSize = p<int>(requireAttribute(xmlReader, "size"));
     map = Map(mapSize);
   }
 
@@ -1050,10 +1055,10 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
     }
 
     if(xmlReader.get_name() == "MapTile") {
-      unsigned short group = p<int>(xmlReader.get_attribute("group"));
+      unsigned short group = p<int>(requireAttribute(xmlReader, "group"));
       MapPoint point(
-        p<int>(xmlReader.get_attribute("map-x")),
-        p<int>(xmlReader.get_attribute("map-y"))
+        p<int>(requireAttribute(xmlReader, "map-x")),
+        p<int>(requireAttribute(xmlReader, "map-y"))
       );
       if(!map.is_inside(point))
         throw std::runtime_error("a MapTile seems to be outside the map");
@@ -1062,10 +1067,10 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
       loadMapTile(xmlReader, tile, ldsv_version);
     }
     else if(xmlReader.get_name() == "Construction") {
-      int group = p<int>(xmlReader.get_attribute("group"));
+      int group = p<int>(requireAttribute(xmlReader, "group"));
       MapPoint point(
-        p<int>(xmlReader.get_attribute("map-x")),
-        p<int>(xmlReader.get_attribute("map-y"))
+        p<int>(requireAttribute(xmlReader, "map-x")),
+        p<int>(requireAttribute(xmlReader, "map-y"))
       );
       ConstructionGroup *cstgrp =
         ConstructionGroup::getConstructionGroup(group);

@@ -2,12 +2,16 @@
 #include "util/simulation_trace.hpp"
 #include "util/xmlutil.hpp"
 
+#include <libxml++/parsers/textreader.h>
+
 #include <filesystem>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
 
 #define CHECK(test) do { if(!(test)) throw std::runtime_error(#test); } while(false)
 
@@ -92,19 +96,60 @@ void xmlTypes() {
   xmlNumbers(-0.125f);
   CHECK(xmlParse<int>("+0X12") == 18);
   CHECK(xmlParse<int>("-0x12") == -18);
+  reject<std::system_error>("extra characters after XML number", [] { xmlParse<int>("12 turns"); });
+  reject<std::system_error>("extra characters after XML number", [] { xmlParse<float>("1.5%"); });
+  reject<std::system_error>("failed to parse XML value", [] { xmlParse<int>(""); });
   CHECK(xmlParse<bool>(xmlFormat(true)));
   CHECK(!xmlParse<bool>(xmlFormat(false)));
   CHECK(xmlParse<bool>("YES") && xmlParse<bool>("1") && !xmlParse<bool>("0"));
   const std::filesystem::path path("opening/Green City.sav.gz");
   CHECK(xmlParse<std::filesystem::path>(xmlFormat(path)) == path);
 }
+
+void xmlAttributeDiagnostics() {
+  const unsigned char input[] = "<tile obsolete='west' altitude='14'/>";
+  xmlpp::TextReader reader(input, sizeof(input) - 1);
+  CHECK(reader.read() && reader.get_name() == "tile");
+  CHECK(reader.move_to_attribute("obsolete"));
+  reject<std::runtime_error>("missing XML attribute \"group\" in <tile>", [&] {
+    missingXmlAttribute(reader, "group");
+  });
+  CHECK(reader.get_name() == "tile");
+  CHECK(reader.get_attribute("altitude") == "14");
 }
 
-int main() {
+void warnAboutXml(std::string_view kind) {
+  const unsigned char input[] = "<tile obsolete='west' altitude='14'/>";
+  xmlpp::TextReader reader(input, sizeof(input) - 1);
+  CHECK(reader.read() && reader.get_name() == "tile");
+#ifdef NDEBUG
+  std::cout << "warnings" << std::endl;
+#else
+  std::cout << "assertions" << std::endl;
+#endif
+  if(kind == "attribute") {
+    CHECK(reader.move_to_attribute("obsolete"));
+    unexpectedXmlAttribute(reader);
+  } else {
+    unexpectedXmlElement(reader);
+  }
+  CHECK(reader.get_name() == "tile");
+  CHECK(reader.get_attribute("altitude") == "14");
+}
+}
+
+int main(int argc, char** argv) {
   try {
+    if(argc == 2 && (std::string_view(argv[1]) == "attribute" ||
+                     std::string_view(argv[1]) == "element")) {
+      warnAboutXml(argv[1]);
+      return 0;
+    }
+    if(argc != 1) return 2;
     traceLifetime();
     traceInputValidation();
     xmlTypes();
+    xmlAttributeDiagnostics();
   } catch(const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
