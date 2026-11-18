@@ -50,6 +50,7 @@
 #include <string>                         // for basic_string, operator==
 #include <string_view>                    // for string_view
 #include <system_error>                   // for system_error, make_error_code
+#include <type_traits>                    // for remove_pointer_t
 #include <unordered_map>                  // for unordered_map, operator!=
 #include <utility>                        // for pair
 #include <vector>                         // for vector
@@ -182,7 +183,8 @@ World::save(const std::filesystem::path& filename) const {
 
 std::unique_ptr<World>
 World::load(const std::filesystem::path& filename) {
-  gzFile gz_file = gzopen(filename.string().c_str(), "rb");
+  std::unique_ptr<std::remove_pointer_t<gzFile>, decltype(&gzclose)> gz_file(
+    gzopen(filename.string().c_str(), "rb"), &gzclose);
   if(!gz_file)
     throw std::runtime_error(
       std::string("failed to open file: ") + filename.string());
@@ -190,16 +192,15 @@ World::load(const std::filesystem::path& filename) {
   xmlTextReaderPtr xmlCReader = xmlReaderForIO(
     [](void *ctx, char *buf, int len){
       return gzread((gzFile)ctx, buf, len);},
-    [](void *ctx){return gzclose((gzFile)ctx);},
-    gz_file,
+    // The gzip stream is owned here even when reader initialization fails.
+    nullptr,
+    gz_file.get(),
     NULL,
     NULL,
     XML_PARSE_NONET
   );
-  if(!xmlCReader) {
-    gzclose(gz_file);
+  if(!xmlCReader)
     throw std::runtime_error("failed to initialize XML parser");
-  }
 
   xmlpp::TextReader xmlReader(xmlCReader);
 

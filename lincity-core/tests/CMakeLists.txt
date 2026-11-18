@@ -68,6 +68,18 @@ endforeach()
 
 add_executable(core_persistence persistence.cpp)
 target_link_libraries(core_persistence PRIVATE LinCity::Core)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  include(CheckLinkerFlag)
+  check_linker_flag(CXX "LINKER:--wrap=xmlReaderForIO" LINCITY_TEST_LINKER_WRAP)
+  if(LINCITY_TEST_LINKER_WRAP)
+    target_compile_definitions(core_persistence PRIVATE LINCITY_TEST_XML_FAULTS)
+    target_link_options(core_persistence PRIVATE
+      "LINKER:--wrap=xmlOutputBufferCreateIO"
+      "LINKER:--wrap=xmlNewTextWriter"
+      "LINKER:--wrap=xmlReaderForIO"
+      "LINKER:--wrap=gzclose")
+  endif()
+endif()
 add_test(NAME core.persistence COMMAND core_persistence
   "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" "${CMAKE_CURRENT_BINARY_DIR}/persistence.sav.gz")
 

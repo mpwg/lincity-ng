@@ -11,6 +11,13 @@
 
 #include <libxml++/exceptions/parse_error.h>
 
+#ifdef LINCITY_TEST_XML_FAULTS
+#include <libxml/xmlIO.h>
+#include <libxml/xmlreader.h>
+#include <libxml/xmlwriter.h>
+#include <zlib.h>
+#endif
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -18,6 +25,66 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+
+#ifdef LINCITY_TEST_XML_FAULTS
+namespace {
+enum class XmlFactory { OutputBuffer, Writer, Reader };
+
+struct FactoryFailure;
+thread_local FactoryFailure* activeFailure = nullptr;
+
+struct FactoryFailure {
+  explicit FactoryFailure(XmlFactory factory) : factory(factory) { activeFailure = this; }
+  ~FactoryFailure() { activeFailure = nullptr; }
+
+  XmlFactory factory;
+  bool triggered = false;
+  int gzipCloses = 0;
+};
+
+bool shouldFail(XmlFactory factory) {
+  if(!activeFailure || activeFailure->factory != factory || activeFailure->triggered) return false;
+  activeFailure->triggered = true;
+  return true;
+}
+}
+
+extern "C" {
+decltype(xmlOutputBufferCreateIO) __real_xmlOutputBufferCreateIO;
+decltype(xmlNewTextWriter) __real_xmlNewTextWriter;
+decltype(xmlReaderForIO) __real_xmlReaderForIO;
+decltype(gzclose) __real_gzclose;
+
+xmlOutputBufferPtr __wrap_xmlOutputBufferCreateIO(xmlOutputWriteCallback write,
+  xmlOutputCloseCallback close, void* context, xmlCharEncodingHandlerPtr encoder
+) {
+  if(shouldFail(XmlFactory::OutputBuffer)) return nullptr;
+  return __real_xmlOutputBufferCreateIO(write, close, context, encoder);
+}
+
+xmlTextWriterPtr __wrap_xmlNewTextWriter(xmlOutputBufferPtr buffer) {
+  if(shouldFail(XmlFactory::Writer)) return nullptr;
+  return __real_xmlNewTextWriter(buffer);
+}
+
+xmlTextReaderPtr __wrap_xmlReaderForIO(xmlInputReadCallback read,
+  xmlInputCloseCallback close, void* context, const char* url, const char* encoding, int options
+) {
+  if(shouldFail(XmlFactory::Reader)) {
+    // libxml may close the input even when creating the reader fails.
+    if(close) close(context);
+    return nullptr;
+  }
+  return __real_xmlReaderForIO(read, close, context, url, encoding, options);
+}
+
+int __wrap_gzclose(gzFile file) {
+  // Observe an accidental second close without calling zlib on a freed stream.
+  if(activeFailure && ++activeFailure->gzipCloses > 1) return Z_STREAM_ERROR;
+  return __real_gzclose(file);
+}
+}
+#endif
 
 namespace {
 namespace fs = std::filesystem;
@@ -44,6 +111,29 @@ void marketDirections(const fs::path& saved) {
   const auto& rules = buildingAt<Market>(*restored, point).commodityRuleCount;
   CHECK(rules[STUFF_FOOD].take && !rules[STUFF_FOOD].give);
   CHECK(!rules[STUFF_GOODS].take && rules[STUFF_GOODS].give);
+}
+
+void saveAfterBulldozing(const fs::path& saved) {
+  World world(32);
+  const MapPoint removed(10, 10);
+  const MapPoint remaining(20, 20);
+  marketConstructionGroup.placeItem(world, removed);
+  marketConstructionGroup.placeItem(world, remaining);
+  CHECK(world.setMarketTrade(remaining, STUFF_FOOD, false, true));
+  world.bulldozeArea(removed.se());
+  CHECK(world.map(removed)->getConstruction() == nullptr);
+
+  // The user can save before the next tick cleans up the demolished market.
+  CHECK(world.map.constructionCount() == 2);
+  world.save(saved);
+  world.do_time_step();
+
+  const auto restored = World::load(saved);
+  CHECK(restored->map.constructionCount() == 1);
+  CHECK(restored->map(removed)->getConstruction() == nullptr);
+  CHECK(restored->map(removed.se())->getReportingConstruction() == nullptr);
+  const auto& rule = buildingAt<Market>(*restored, remaining).commodityRuleCount[STUFF_FOOD];
+  CHECK(!rule.take && rule.give);
 }
 
 void checkMigratedWorld(const World& world) {
@@ -236,6 +326,29 @@ void expectFailure(Operation operation, std::string_view diagnostic) {
   throw std::runtime_error("Expected rejection: " + std::string(diagnostic));
 }
 
+#ifdef LINCITY_TEST_XML_FAULTS
+void factoryErrors(const fs::path& fixtures, const fs::path& saved) {
+  const World world(32);
+  struct Case { XmlFactory factory; const char* diagnostic; };
+  for(const auto& test : {
+    Case{XmlFactory::OutputBuffer, "failed to create XML output buffer"},
+    Case{XmlFactory::Writer, "failed to create XML text writer"},
+    Case{XmlFactory::Reader, "failed to initialize XML parser"}
+  }) {
+    FactoryFailure failure(test.factory);
+    expectFailure([&] {
+      if(test.factory == XmlFactory::Reader) World::load(fixtures / "statistics-2140.xml");
+      else world.save(saved);
+    }, test.diagnostic);
+    CHECK(failure.triggered);
+    CHECK(failure.gzipCloses == 1);
+  }
+
+  world.save(saved);
+  CHECK(World::load(saved)->map.len() == 32);
+}
+#endif
+
 void rejectEmptySave(const fs::path& saved) {
   writeXml(saved, "");
   try {
@@ -418,11 +531,15 @@ int main(int argc, char** argv) {
   const fs::path saved = argv[2];
   try {
     marketDirections(saved);
+    saveAfterBulldozing(saved);
     migrate2130(fixtures, saved);
     statistics2140(fixtures, saved);
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
+#ifdef LINCITY_TEST_XML_FAULTS
+    factoryErrors(fixtures, saved);
+#endif
 #ifdef __linux__
     rejectFailedWrite();
 #endif
