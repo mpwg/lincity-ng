@@ -47,7 +47,8 @@ void queryAndBoundaries() {
       UserOperation::ACTION_FLOOD}) {
     UserOperation op{action, &marketConstructionGroup};
     CHECK(!op.isAllowedHere(world, site.w(8), why));
-    CHECK(dynamic_message_cast<OutsideMapMessage>(why));
+    auto outside = dynamic_message_cast<OutsideMapMessage>(why);
+    CHECK(outside && outside->getPoint() == site.w(8));
     checkRejected<OutsideMapMessage>(op, world, site.w(8));
   }
 }

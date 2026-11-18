@@ -253,7 +253,7 @@ public:
 
   virtual std::string str() const override;
 
-  const MapPoint getPoint() { return point; }
+  MapPoint getPoint() const { return point; }
 
 protected:
   const MapPoint point;
@@ -315,7 +315,7 @@ public:
 
   virtual std::string str() const override;
 
-  const MapPoint getPoint() { return point; }
+  MapPoint getPoint() const { return point; }
 
 protected:
   const MapPoint point;
@@ -350,11 +350,11 @@ public:
 
 class OutsideMapMessage : public Message {
 public:
-  OutsideMapMessage(const MapPoint point) { }
+  OutsideMapMessage(const MapPoint point) : point(point) { }
 
   virtual std::string str() const override;
 
-  MapPoint getPoint() { return point; }
+  MapPoint getPoint() const { return point; }
 
 protected:
   const MapPoint point;
@@ -388,7 +388,7 @@ public:
 
   virtual std::string str() const override;
 
-  MapPoint getPoint() { return point; }
+  MapPoint getPoint() const { return point; }
 
 protected:
   const MapPoint point;
@@ -403,7 +403,7 @@ public:
 
   virtual std::string str() const override;
 
-  int getTime() { return time; }
+  int getTime() const { return time; }
 
 protected:
   const int time;
@@ -418,7 +418,7 @@ public:
 
   virtual std::string str() const override;
 
-  int getTime() { return time; }
+  int getTime() const { return time; }
 
 protected:
   const int time;
