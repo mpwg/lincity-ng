@@ -334,6 +334,40 @@ void evacuationAndNeighborhood() {
   CHECK(world.map.constructionCount() == 2);
 }
 
+void commuterDispatch() {
+  for(auto profile : {World::VehicleTraffic::Disabled, World::VehicleTraffic::Reduced,
+                      World::VehicleTraffic::Normal}) {
+    World world(32);
+    const auto homes = site.e();
+    roadConstructionGroup.placeItem(world, site);
+    residenceLLConstructionGroup.placeItem(world, homes);
+    auto& road = *world.map(site)->getConstruction();
+    auto& residence = *world.map(homes)->getConstruction();
+    world.vehicleTraffic = profile;
+
+    const bool enabled = profile != World::VehicleTraffic::Disabled;
+    // This labor flow admits draw 20 under Normal traffic. Reduced traffic
+    // admits the second draw only, so both profiles finish with one vehicle.
+    std::istringstream input(enabled
+      ? "LINCITY-SIMULATION-TRACE 1\nC 20\nC 0\nZ\n"
+      : "LINCITY-SIMULATION-TRACE 1\nZ\n");
+    SimulationTrace trace(input);
+    for(int trip = 0; trip < 2; ++trip) {
+      road.levelStuff(STUFF_LABOR, 0);
+      residence.levelStuff(STUFF_LABOR,
+        residenceLLConstructionGroup.commodityRuleCount[STUFF_LABOR].maxload);
+      road.trade();
+      CHECK(road.commodityCount[STUFF_LABOR] == 640);
+      int vehicles = 0;
+      for(const auto& frame : *world.map(site)->getFrames())
+        if(frame.resourceGroup->is_vehicle) ++vehicles;
+      const bool expected = enabled && (trip == 1 || profile == World::VehicleTraffic::Normal);
+      CHECK(vehicles == (expected ? 1 : 0));
+    }
+    trace.finish();
+  }
+}
+
 void portCommands() {
   World world(32);
   world.total_money = 1000000;
@@ -454,6 +488,7 @@ int main() {
     marketSupplyAndWaste();
     marketStaffingAndAnimation();
     evacuationAndNeighborhood();
+    commuterDispatch();
     portCommands();
     rocketCommands();
     protectedMonument();
