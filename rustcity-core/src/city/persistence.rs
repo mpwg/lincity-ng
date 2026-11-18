@@ -52,7 +52,9 @@ impl Tile {
     fn load(node: &Element) -> io::Result<Self> {
         let flag = flags(node)?;
         Ok(Self {
-            altitude:node.child_i32("altitude",0)?, water_alt:node.child_i32("water_alt",0)?, lake:flag & LAKE != 0,
+            altitude: node.child_i32("altitude", 0)?,
+            water_alt: node.child_i32("water_alt", 0)?,
+            lake: flag & LAKE != 0,
             diffuses: node.attr("diffusion-active") == Some("1"),
             coverage: flag & super::civic::COVER_MASK,
             river: flag & RIVER != 0,
@@ -74,12 +76,13 @@ impl Tile {
             node.remove_attr("diffusion-active");
         }
         let flag = (flags(node)? & !(LAKE | RIVER | GROUNDWATER | super::civic::COVER_MASK))
-            | if self.lake {LAKE} else {0}
+            | if self.lake { LAKE } else { 0 }
             | self.coverage
             | if self.river { RIVER } else { 0 }
             | if self.groundwater { GROUNDWATER } else { 0 };
         node.set_child("flags", format!("{flag:#x}"));
-        node.set_child("altitude", self.altitude); node.set_child("water_alt", self.water_alt);
+        node.set_child("altitude", self.altitude);
+        node.set_child("water_alt", self.water_alt);
         node.set_child("type", self.frame);
         node.set_child("ore", self.ore);
         node.set_child("coal", self.coal);
@@ -108,6 +111,25 @@ impl Tile {
         }
         node.order_children(&FIELDS);
         Ok(())
+    }
+}
+
+/// Replace historical trade fields, whose ordering changed between save versions.
+pub(super) fn store_trade_rules(
+    n: &mut Element,
+    rules: impl IntoIterator<Item = (Commodity, bool, bool)>,
+) {
+    n.retain_elements(|e| {
+        let commodity = e
+            .name
+            .strip_prefix("give_")
+            .or_else(|| e.name.strip_prefix("take_"));
+        commodity.and_then(Commodity::from_save_name).is_none()
+    });
+    for (commodity, take, give) in rules {
+        let name = commodity.save_name();
+        n.set_child(&format!("give_{name}"), i32::from(give));
+        n.set_child(&format!("take_{name}"), i32::from(take));
     }
 }
 

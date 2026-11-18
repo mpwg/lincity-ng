@@ -1,6 +1,6 @@
-use crate::rules::economy::*;
 use super::{BuildingId, City, Operation, finance::expense};
 use crate::rules::DAYS_PER_MONTH;
+use crate::rules::economy::*;
 use crate::{BuildingKind, Commodity, save::Element};
 use std::io;
 
@@ -31,12 +31,13 @@ impl Port {
     }
     pub(super) fn store(&self, n: &mut Element) {
         n.set_child("tech_made", self.tech_made);
-        for (c, _) in PORT_PRICES {
-            let name = c.save_name();
-            let (buy, sell) = self.rules[c as usize];
-            n.set_child(&format!("take_{name}"), i32::from(buy));
-            n.set_child(&format!("give_{name}"), i32::from(sell));
-        }
+        super::persistence::store_trade_rules(
+            n,
+            PORT_PRICES.map(|(c, _)| {
+                let (take, give) = self.rules[c as usize];
+                (c, take, give)
+            }),
+        );
     }
 }
 
@@ -105,7 +106,8 @@ impl City {
                 }
             }
             if imports != 0 || exports != 0 {
-                b.production.change(&mut b.stock, Commodity::Labor, -PORT_LABOR);
+                b.production
+                    .change(&mut b.stock, Commodity::Labor, -PORT_LABOR);
                 self.tiles[(point.y * self.side + point.x) as usize].pollution += 1;
                 self.stats.sustainability.trade_flag = false;
                 self.tech_level += 1 + i32::from(imports != 0 && exports != 0);

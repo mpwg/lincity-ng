@@ -57,3 +57,36 @@ fn smithy_stocks_continue_across_the_month_boundary_after_a_save() {
         }
     }
 }
+
+#[test]
+fn historical_market_saves_policy_in_reference_commodity_order() {
+    use std::io::Read;
+    let city =
+        City::load(include_bytes!("../../lincity-core/opening/extreme_arid.scn.gz").as_slice())
+            .unwrap();
+    let mut checkpoint = Vec::new();
+    city.save(&mut checkpoint).unwrap();
+    let mut xml = String::new();
+    flate2::read::GzDecoder::new(checkpoint.as_slice())
+        .read_to_string(&mut xml)
+        .unwrap();
+    let market = xml
+        .split("<Construction group=\"6\"")
+        .nth(1)
+        .unwrap()
+        .split("</Construction>")
+        .next()
+        .unwrap();
+    let mut fields = market;
+    for commodity in [
+        "food", "labor", "coal", "goods", "ore", "steel", "waste", "water",
+    ] {
+        for direction in ["give", "take"] {
+            let tag = format!("<{direction}_{commodity}>");
+            fields = fields
+                .split_once(&tag)
+                .unwrap_or_else(|| panic!("missing or out of order: {tag}"))
+                .1;
+        }
+    }
+}

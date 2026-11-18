@@ -44,13 +44,13 @@ impl Market {
         Ok(())
     }
     pub(super) fn store(&self, n: &mut Element) {
-        for c in Commodity::ALL {
-            let r = self.rules[c as usize];
-            if r.max_load > 0 {
-                n.set_child(&format!("take_{}", c.save_name()), i32::from(r.take));
-                n.set_child(&format!("give_{}", c.save_name()), i32::from(r.give));
-            }
-        }
+        super::persistence::store_trade_rules(
+            n,
+            Commodity::ALL.into_iter().filter_map(|c| {
+                let rule = self.rules[c as usize];
+                (rule.max_load > 0).then_some((c, rule.take, rule.give))
+            }),
+        );
     }
     pub(super) fn evacuate(&mut self, active: bool) {
         for r in &mut self.rules {
@@ -67,9 +67,13 @@ impl Market {
         if time >= self.fire_until {
             self.frame = -1;
         } else if time >= self.next_frame {
-            let speed = i64::from(coverage::FIRE_MIN_FRAME_MS + choices.c_modulo(coverage::FIRE_FRAME_VARIATION_MS)?);
+            let speed = i64::from(
+                coverage::FIRE_MIN_FRAME_MS
+                    + choices.c_modulo(coverage::FIRE_FRAME_VARIATION_MS)?,
+            );
             let quantum = i64::from(coverage::ANIMATION_QUANTUM_MS);
-            self.next_frame = time.saturating_add_signed((speed + quantum / 2) / quantum * quantum - quantum / 2);
+            self.next_frame =
+                time.saturating_add_signed((speed + quantum / 2) / quantum * quantum - quantum / 2);
             self.frame = (self.frame + 1) % coverage::FIRE_FRAMES;
         }
         Ok(())
@@ -116,7 +120,8 @@ impl City {
             }
             let mut center = TradeStock::new(rule.max_load, rule.take, rule.give);
             center.amount = b.stock[i];
-            let ratio = i64::from(center.amount) * i64::from(transport::QUANTA) / i64::from(rule.max_load);
+            let ratio =
+                i64::from(center.amount) * i64::from(transport::QUANTA) / i64::from(rule.max_load);
             fill += ratio as i32;
             count += 1;
             let mut sum = i64::from(center.amount);
@@ -129,7 +134,8 @@ impl City {
                     continue;
                 }
                 if !peer.evacuating {
-                    let density = i64::from(peer.stock[i]) * i64::from(transport::QUANTA) / i64::from(r.max_load);
+                    let density = i64::from(peer.stock[i]) * i64::from(transport::QUANTA)
+                        / i64::from(r.max_load);
                     if (density > ratio && !(rule.take && r.give))
                         || (density < ratio && !(rule.give && r.take))
                     {
@@ -146,7 +152,11 @@ impl City {
                 let mut stock = TradeStock::new(r.max_load, r.take, r.give);
                 stock.amount = peer.stock[i];
                 stock.evacuating = peer.evacuating;
-                exchange(&mut center, &mut stock, sum * i64::from(transport::QUANTA) / cap);
+                exchange(
+                    &mut center,
+                    &mut stock,
+                    sum * i64::from(transport::QUANTA) / cap,
+                );
                 if stock.amount > peer.stock[i] && !peer.evacuating {
                     self.economy.tax_receipt(c, stock.amount - peer.stock[i]);
                 }
@@ -166,15 +176,21 @@ impl City {
         }
         let waste_cap = rules[Commodity::Waste as usize].max_load;
         let mut ignite = false;
-        if self.day % WASTE_REST_PERIOD !=  0 && b.stock[Commodity::Waste as usize] >= WASTE_THRESHOLD_PERCENT * waste_cap / PERCENT {
+        if self.day % WASTE_REST_PERIOD != 0
+            && b.stock[Commodity::Waste as usize] >= WASTE_THRESHOLD_PERCENT * waste_cap / PERCENT
+        {
             m.burning = true;
             self.tiles[((origin.y + 1) * self.side + origin.x + 1) as usize].pollution +=
                 waste_cap / POLLUTION_DIVISOR;
-            b.production
-                .change(&mut b.stock, Commodity::Waste, -(WASTE_BURN_NUMERATOR * waste_cap / WASTE_BURN_DENOMINATOR));
+            b.production.change(
+                &mut b.stock,
+                Commodity::Waste,
+                -(WASTE_BURN_NUMERATOR * waste_cap / WASTE_BURN_DENOMINATOR),
+            );
             ignite = self.decisions.bernoulli(
                 "market.waste-fire",
-                transport::UNCONTROLLED_FIRE * f64::from(b.kind.metadata().fire_chance) / f64::from(PERCENT),
+                transport::UNCONTROLLED_FIRE * f64::from(b.kind.metadata().fire_chance)
+                    / f64::from(PERCENT),
             )? && self.tiles[(origin.y * self.side + origin.x) as usize].coverage
                 & coverage::FIRE
                 == 0;
@@ -189,11 +205,17 @@ impl City {
             } else {
                 0
             };
-            m.labor = STAFF_LEVELS.iter().find(|(minimum, _)| m.fill >= *minimum)
+            m.labor = STAFF_LEVELS
+                .iter()
+                .find(|(minimum, _)| m.fill >= *minimum)
                 .map_or(MIN_LABOR, |&(_, labor)| labor);
         }
         if self.day % coverage::COVER_PERIOD == coverage::COVER_DAY {
-            self.mark_coverage(origin, BuildingKind::Market.metadata().range, coverage::MARKET_CHECK);
+            self.mark_coverage(
+                origin,
+                BuildingKind::Market.metadata().range,
+                coverage::MARKET_CHECK,
+            );
         }
         if ignite {
             self.ignite_building(id, origin)?;
