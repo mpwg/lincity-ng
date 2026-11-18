@@ -23,7 +23,31 @@ Desktop-Vergleich haben jeweils eigene Einstiegspunkte.
 | Format 2130, Format 2140 und Fortsetzung | Migration alter Konten, Historien, Gebäude, XML und gzip. Schmiede (2140) und Beach (2130) werden je fünf Ticks bis zur Übergabe gespielt. Beide Kerne speichern und spielen die Zwischenstände des jeweils anderen Kerns sieben weitere Ticks. [Persistenztests](../rustcity-core/tests/persistence.rs) · [Mehrtägiger Kreuztest](../lincity-core/tests/replay/check_continuation.py) |
 | Generierte Städte | Für Fluss-, Wüsten-, gemäßigte und Sumpfkarten laufen Kombinationen mit und ohne Wald sowie mit und ohne Dorf in 50×50 und 100×100. Vier weitere Fälle prüfen die Mindestgrößen 13 und 26 sowie zwei Küsten bei Größe 50. C++ und Rust nahmen abwechselnd auf und spielten das jeweils andere Tape ab. Alle 72 daraus gespeicherten Kartenpaare stimmten einschließlich Gelände, Höhen, Wasserständen, Rohstoffreserven und Dorfgebäuden überein. [Kreuztest](../rustcity-core/tests/world_generation.rs) · [C++-Referenzprogramm](../lincity-core/parity/generation_reference.cpp) |
 | Kommune, Feuer und Raketenrampe | Gezielte Gebäude- und Replaytests ergänzen die Szenarien. Die Langzeitläufe prüfen auch Wechselwirkungen mit Handel, Bevölkerung und Umwelt. [Kommunen](../rustcity-core/src/city/commune.rs) · [Feuer](../rustcity-core/src/city/civic.rs) · [Raketenstarts](../rustcity-core/tests/rocket.rs) |
-| SDL-Anbindung, FFI und eigenständige Crate | Die Desktop-Abnahme setzt erfolgreiche Headless-Parität voraus. Der [Abnahmeplan](superpowers/plans/2026-11-18-rustcity-core.md) benennt die Tests für Build-Auswahl, Eingaben, Kreuzladen und Lebenszyklus. |
+| Historischer SDL-Desktop | Zwei kompilierte Backends mit getrennten Startkennungen, reale Maus- und Tastatureingaben, Bildprüfung und Fortsetzung der Spielstände in beiden Richtungen. [GUI-Test](../tooling/regression/desktop_replay.py) |
+
+## Eigenständige Quellbäume
+
+Der Rust-Core enthält die zehn Referenzdateien für seine regulären Tests in
+`tests/fixtures`. Sie stammen unverändert aus den C++-Szenarien, den XML-Tests
+und den versionierten Replay- und Paritätsfällen. Damit lassen sich die
+Bibliothek, der Replay-Runner und ihre Tests aus einer allein kopierten Crate
+bauen. Die Kopie des Abschlussstands bestand die Format-, Typ-, Dokumentations-
+und Clippy-Prüfung sowie je 95 Tests in Debug und Release. Die vier expliziten
+Referenztests bestanden separat mit den C++-Programmen und dem Vergleichsprüfer
+aus dem gemeinsamen Repository. Sie decken das Kreuzladen, den Langzeitlauf des
+Wohn- und Versorgungsviertels, CLI-Diagnosen und die Landschaftserzeugung ab.
+[Fixtures](../rustcity-core/tests/fixtures/)
+
+Für die Prüfung einer Kopie mit Rust und Cargo 1.99.0:
+
+```sh
+cargo fmt --check
+cargo check --locked --all-targets
+RUSTDOCFLAGS='-D warnings' cargo doc --locked --no-deps
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo test --locked --release
+```
 
 ## Szenariovergleich
 
@@ -60,17 +84,37 @@ Tageszustände und Spielstände an.
 | extreme_wetland | 1.202 / 4 | 1.202 / 4 |
 | good_times | 1.202 / 4 | 1.202 / 4 |
 
-Für alle Läufe wurde dasselbe Linux-Release-Binary von Rust verwendet. Seine
+Die Abschlussmessung verwendete die Quellen von
+`fe8008e6570428589cd39465f63da0b2b50b0da7`. Das Rust-Programm wurde
+aus der allein kopierten Crate als Linux-Release-Binary gebaut. Seine
 SHA-256-Prüfsumme war
-`60f39b162915b2e6e20524c001e2bfc44077d17857ed16c497426f2dda8b6be9`.
+`ddb7d3bbeaae774ed71c63c134f47e9a354d998827ac8d3f3427c935947375d8`.
 Das C++-Referenzprogramm hatte die SHA-256-Prüfsumme
-`50a672eb9dc13fdf4b20e7c2b3a5f66e3198423bd560109d1df4ee7c5d3bae2f`.
+`5d529ecc96056d61ab92922aff48312b96f75e3825c8f8f350ca0489ed7957bf`.
 
 Für die Schmiede in Format 2140 bestand außerdem der Vergleich in beiden
 Richtungen. Rust spielte das versionierte C++-Tape ab. Anschließend zeichnete
 Rust ein neues Tape auf, das der C++-Runner abspielte. Beide Vergleiche
 bestätigten sechs Tageszustände und die drei vollständigen Spielstände an
 den Tagen 0, 1 und 5.
+
+## C++-Abnahme nach der Entkopplung des Desktops
+
+Die allein kopierte C++-Bibliothek mit `Map::discardConstruction` bestand alle
+30 Debug-CTests ohne benachbarten Rust-Quellbaum. Mit beiden Quellbäumen
+bestanden unter GCC 16.2.1 im Debug- und Release-Build jeweils 43 CTests.
+Clang 23.1.5 bestand alle 43 CTests mit AddressSanitizer, UndefinedBehaviorSanitizer
+und aktivierter Leckerkennung.
+Der erneute Vergleich gegen den historischen Desktop-Commit
+`21796de530d68b30881c6b0f6a6a9d6bbfb1e31a` bestätigte erneut die vier
+Spielstände sowie die Meldungsfolge für jedes der zwölf Szenario-/Verkehrspaare.
+[Referenzstand und Befehle](rustcity-core-baseline.md)
+
+Die Seeerzeugung zieht zuerst die y- und danach die x-Koordinate. Diese Reihenfolge
+stand früher implizit in zwei C++-Funktionsargumenten. GCC und Clang werteten
+sie unterschiedlich aus. Die explizite Reihenfolge erhält die historischen
+GCC-Ziehungen und ermöglicht denselben Referenztest unter Clang.
+[Referenzgenerator](../lincity-core/lincity/init_game.cpp)
 
 ## Weltgenerierung wiederholen
 
@@ -104,3 +148,56 @@ CTest-Lauf die Kreuztests aus. Für einen gezielten Lauf nach einem CMake-Build:
 ```sh
 ctest --test-dir build/core -R '^rustcity[.]cross[.]' --output-on-failure
 ```
+
+## Lebensdauer am Desktop-Adapter
+
+Alle sechs Rust-Adaptertests bestanden. Zwei davon liefen zusätzlich unter Miri.
+Einer gibt zuerst die Stadt und danach zwei unabhängige Kartenansichten frei.
+Der andere speichert eine Stadt, gibt ihren Handle frei und lädt die Datei in
+einen neuen Handle. Die beiden C++-Adaptertests prüfen Aufrufe durch die echte
+Sprachgrenze, einschließlich Gebäudeabriss und Darstellung. Sie bestanden
+auch je vier Durchläufe mit AddressSanitizer, LeakSanitizer und UBSan.
+Der integrierte Desktop-Build bestand alle 45 CTests.
+
+## SDL-Desktop und wechselseitige Spielstandfortsetzung
+
+Der GUI-Test startet die installierte Oberfläche für jeden Lauf auf einem
+isolierten X-Server mit eigener Konfiguration und eigenen Spielständen.
+Er kontrolliert den Backendnamen im Startprotokoll. Bildschirmfotos und
+Texterkennung belegen den Raketenbereitschaftsdialog, den Bericht des Marktes
+und seine Handelssteuerung. Bildausschnitte prüfen die Feueranimation und die
+Umschaltung der Minikarte auf Luftverschmutzung.
+
+Am 18. November 2026 bestanden beide Desktops die Prüfung. Bis zur ersten Pause
+erhielt der Markt im C++-Lauf 456 und im Rust-Lauf 224 Einheiten Lebensmittel
+vom angrenzenden Weg. Insgesamt blieben jeweils 760 Einheiten erhalten. Anschließend wurde
+der Einkauf per Mausklick deaktiviert, ein Weg gebaut, abgerissen und durch
+Schnellladen wiederhergestellt. Die Spielstände belegten außerdem Stillstand
+bei Pause und unterschiedliche Tagesfortschritte bei normalem und schnellem
+Tempo. Rust setzte die im C++-Desktop gespeicherte Stadt von Tag 65 bis 81
+fort, C++ die im Rust-Desktop gespeicherte Stadt von Tag 70 bis 86. In
+beiden Fortsetzungen wurde der übernommene Weg abgerissen und der Markt für
+Lebensmitteleinkäufe wieder geöffnet. Die neu gebauten Programme hatten folgende
+SHA-256-Prüfsummen.
+
+| Programm | SHA-256 |
+| --- | --- |
+| LinCity Core (C++) | `37f1a7b3f9dc3b054edbfecb3a9164f9d94492a7dc651c681151e254a579d8e8` |
+| RustCity Core | `5f17b104b54096a697d7ff5a4b55a0bc2c1e057040682e6b07dda4fb5ad33a5d` |
+
+Der Test benötigt Python mit Pillow/XCB, Xvfb, xvfb-run, xauth, xdotool und
+Tesseract mit englischen oder deutschen Sprachdaten. Das Zielverzeichnis
+muss neu sein. Für projektlokale X11-Werkzeuge akzeptiert der Test zusätzlich
+`--tools-prefix PFAD` mit den Unterverzeichnissen `bin` und `lib`.
+
+```sh
+python3 -B tooling/regression/desktop_replay.py \
+  --cpp build/desktop/bin/lincity-ng \
+  --rust build/rustcity-desktop/bin/lincity-ng \
+  --assets build/desktop/share/lincity-ng \
+  --artifacts build/desktop-regression
+```
+
+Jeder der vier Läufe hinterlegt Screenshots, gzip-Spielstände, das
+Desktop-Protokoll und eine `results.json` mit SHA-256 des Programms und den
+beobachteten Werten. [GUI-Test](../tooling/regression/desktop_replay.py)
