@@ -293,6 +293,39 @@ void eventDiagnostics() {
   CHECK(world.map(site)->getGroup() == GROUP_FIRE);
 }
 
+void vehicleTurns() {
+  struct Turn { MapPoint entry, exit; int frame; bool left; };
+  for(const auto& turn : std::array<Turn, 8>{{
+    {{1, 0}, {0, 1}, 1, false}, {{0, 1}, {1, 0}, 1, true},
+    {{1, 0}, {0, -1}, 3, true}, {{0, -1}, {1, 0}, 3, false},
+    {{-1, 0}, {0, -1}, 5, false}, {{0, -1}, {-1, 0}, 5, true},
+    {{-1, 0}, {0, 1}, 7, true}, {{0, 1}, {-1, 0}, 7, false}
+  }}) {
+    World world(32);
+    const MapPoint start(site.x - turn.entry.x, site.y - turn.entry.y);
+    const MapPoint end(site.x + turn.exit.x, site.y + turn.exit.y);
+    const MapPoint beyond(end.x + turn.exit.x, end.y + turn.exit.y);
+    for(const auto p : {start, site, end, beyond})
+      trackConstructionGroup.placeItem(world, p);
+
+    auto car = std::make_unique<Vehicle>(world, start, VEHICLE_BLUECAR);
+    car->update(1);
+    const auto began = car->anim + 1;
+    car->update(began);
+    CHECK(car->point == end && car->prev == site);
+    const int expires = car->anim;
+    CHECK(car->frameIt->frame == turn.frame && car->turn_left == turn.left);
+    CHECK(expires - began == (turn.left ? 2250 : 750));
+
+    car->update(began + (expires - began) / 4);
+    const auto earlyX = car->xr, earlyY = car->yr;
+    car->update(began + 3 * (expires - began) / 4);
+    CHECK(car->point == end && car->next == beyond);
+    CHECK(car->xr != earlyX || car->yr != earlyY);
+    CHECK(car->frameIt->frame == turn.frame && world.map.is_visible(car->framePt));
+  }
+}
+
 void transportMaintenance() {
   World world(32);
   const auto rail = site.e(3);
@@ -431,6 +464,7 @@ int main() {
     sustainability();
     transportFrames();
     vehicleCrossings();
+    vehicleTurns();
     transportMaintenance();
     inventionThreshold();
     eventDiagnostics();
