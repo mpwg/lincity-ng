@@ -152,6 +152,13 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
 
 ## Eingabevalidierung und historische Transportdaten
 
+- Der Core prüft die Kartengröße beim Erzeugen der Karte. Eine Karte
+  braucht mindestens ein sichtbares Feld, und ihre Fläche muss als
+  Index darstellbar sein. Die Stadtgenerierung prüft auch ihre
+  Mindestgrößen für Kohlevorkommen und ein Startdorf. Die geschlossenen
+  Originaltickets betreffen Abstürze bei Kartengröße null oder bei
+  negativen Werten in den Desktop-Einstellungen.
+  [#366](https://github.com/lincity-ng/lincity-ng/issues/366) · [#37](https://github.com/lincity-ng/lincity-ng/issues/37)
 - Beim Laden werden Wege, Straßen und Schienen in beiden
   Build-Konfigurationen an das Gelände angepasst. Alle sechs Übergänge
   zwischen Land- und Brückengruppe erhalten die jeweiligen Warenbestände.

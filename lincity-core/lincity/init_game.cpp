@@ -34,6 +34,7 @@
 #include <memory>                   // for unique_ptr
 #include <optional>                 // for optional
 #include <queue>                    // for priority_queue
+#include <stdexcept>                // for invalid_argument
 #include <unordered_set>            // for unordered_set
 #include <utility>                  // for pair
 #include <vector>                   // for vector
@@ -234,7 +235,13 @@ std::unique_ptr<World>
 create_new_city(city_settings *city, int mapSize, int old_setup_ground,
   int climate
 ) {
-  assert(city);
+  if(!city)
+    throw std::invalid_argument("city generation requires settings");
+  // Coal veins need at least 13 tiles per side. A starting village needs 26.
+  if(mapSize <= 12 || (city->with_village && mapSize <= 25))
+    throw std::invalid_argument("map size too small for the selected city generation settings");
+  if(climate < 0 || climate > 3)
+    throw std::invalid_argument("unknown climate for city generation");
 
   std::unique_ptr<World> worldPtr(new World(mapSize));
   World& world = *worldPtr;
@@ -266,7 +273,7 @@ create_new_city(city_settings *city, int mapSize, int old_setup_ground,
   else
     new_setup_river_ground(world.map, global_mountainity, global_aridity);
 
-  setup_land(world.map, global_aridity, city && city->without_trees);
+  setup_land(world.map, global_aridity, city->without_trees);
   ore_reserve_setup(world.map);
 
   if(city->with_village)

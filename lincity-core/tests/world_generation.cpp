@@ -35,6 +35,35 @@ void require(bool condition, const char* description) {
   if(!condition) throw std::runtime_error(description);
 }
 
+void verifyInvalidDimensionsAndSettings() {
+  const auto invalid = [](auto operation, const char* description) {
+    try {
+      operation();
+    } catch(const std::invalid_argument&) {
+      return;
+    }
+    throw std::runtime_error(description);
+  };
+  invalid([] { World world(2); }, "a world without visible tiles was accepted");
+  invalid([] { World world(0); }, "a zero-size world was accepted");
+  invalid([] { World world(-1); }, "a negative world size was accepted");
+  invalid([] { World world(std::numeric_limits<int>::max()); },
+          "a world with an unrepresentable area was accepted");
+
+  World minimum(3);
+  require(minimum.map.is_visible(MapPoint(1, 1)), "minimum world lost its visible tile");
+  minimum.do_time_step();
+  require(minimum.total_time == 1, "minimum world did not simulate");
+
+  city_settings settings{false, true};
+  invalid([&] { create_new_city(&settings, 50, false, 4); }, "invalid climate was accepted");
+  invalid([&] { create_new_city(&settings, 50, false, -1); }, "negative climate was accepted");
+  invalid([] { new_temperate_city(nullptr, 50); }, "missing city settings were accepted");
+  invalid([&] { new_temperate_city(&settings, 12); }, "invalid terrain size was accepted");
+  settings.with_village = true;
+  invalid([&] { new_temperate_city(&settings, 25); }, "invalid village size was accepted");
+}
+
 std::unique_ptr<World> generate(Generator generator, city_settings settings,
                                 unsigned seed = 615, int size = 100) {
   std::srand(seed);
@@ -198,6 +227,12 @@ void verifySmallCoastalMap() {
 }
 
 int main() {
+  try {
+    verifyInvalidDimensionsAndSettings();
+  } catch(const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
+  }
   for(const auto& ref : maps) {
     try {
       verify(ref);

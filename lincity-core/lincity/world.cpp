@@ -31,7 +31,9 @@
 #include <initializer_list>    // for initializer_list
 #include <iostream>            // for basic_ostream, operator<<, basic_ostre...
 #include <iterator>            // for advance
+#include <limits>              // for numeric_limits
 #include <map>                 // for map
+#include <stdexcept>           // for invalid_argument
 #include <string>              // for basic_string, char_traits, operator<
 
 #include "Vehicles.hpp"        // for Vehicle
@@ -287,6 +289,8 @@ MapTile::moveFrameTo(MapTile& destination, std::list<ExtraFrame>::iterator frame
 Map::Map(int map_len) :
   side_len(map_len), recentPoint(map_len / 2, map_len / 2)
 {
+  if(map_len < 3 || map_len > std::numeric_limits<int>::max() / map_len)
+    throw std::invalid_argument("map size must be at least 3 and its square must fit in an int");
   maptile.reserve(map_len * map_len);
   for(MapPoint p; p.y < map_len; p.y++)
   for(p.x = 0; p.x < map_len; p.x++) {
