@@ -40,6 +40,20 @@ endforeach()
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
+  set(LINCITY_REPLAY_CANDIDATE "" CACHE FILEPATH
+    "Candidate replay executable for the check_replay_quick target (defaults to C++ self-check)")
+  set(replay_candidate "$<TARGET_FILE:core_replay>")
+  if(LINCITY_REPLAY_CANDIDATE)
+    set(replay_candidate "${LINCITY_REPLAY_CANDIDATE}")
+  endif()
+  add_custom_target(check_replay_quick
+    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py"
+      "$<TARGET_FILE:core_replay>" differential --candidate "${replay_candidate}" --quick
+    DEPENDS core_replay USES_TERMINAL VERBATIM)
+  if(UNIX)
+    add_test(NAME core.replay.differential_diagnostic COMMAND "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/replay/test_differential.py" "$<TARGET_FILE:core_replay>")
+  endif()
   foreach(case small scenario)
     add_test(NAME "core.replay.${case}" COMMAND "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py" $<TARGET_FILE:core_replay> "${case}")

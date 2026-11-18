@@ -76,6 +76,33 @@ does not require either random generator.
 
 ## Running the checks
 
+### Comparing two implementations
+
+From the repository root, pass two executables implementing the replay CLI
+to the differential runner. The first records the decision tape and the second
+replays it. With a standalone C++ build in `build/core`, run:
+
+```sh
+python3 -B lincity-core/tests/replay/check.py build/core/tests/core_replay differential \
+  --candidate /path/to/candidate_replay
+```
+
+The default matrix runs six bundled scenarios under both traffic profiles for
+1,201 ticks each. Including day zero, it compares 14,424 daily observations
+and 48 complete saves. Each process receives the six commands from
+`tests/replay/actions.txt`. Use `--actions FILE` to supply different commands.
+The runner processes one scenario and profile at a time, streams the daily
+observations, and removes that pair's temporary outputs before starting the next.
+Set `TMPDIR` to choose temporary storage on Unix.
+
+For development, add `--quick` to compare five ticks of `good_times` under
+both profiles, including the same six commands. The CMake target
+`check_replay_quick` runs this check against the C++ executable by default.
+Set `-DLINCITY_REPLAY_CANDIDATE=/absolute/path/to/candidate_replay` when
+configuring CMake to select another executable.
+
+### Existing reference cases
+
 `ctest --output-on-failure` runs the reference cases. With Python 3 it also
 checks the replay and its diagnostics. On Linux, if jemalloc is found, a
 separate test replays `good_times` with that allocator in the child process.

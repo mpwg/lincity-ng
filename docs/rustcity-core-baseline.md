@@ -22,6 +22,16 @@ Attribut `diffusion-active="1"` aus der aktuellen Ausgabe. Der CTest
 `core.characterization.saves` prüft die Fortsetzung der Diffusion nach dem Laden.
 [Vergleichsvertrag](../lincity-core/parity/PARITY-CONTRACT.md)
 
+## Eigenprüfung des Differential-Replays
+
+Der neue Prüfer lief am selben Tag mit dem Release-C++-Programm als Referenz
+und als Kandidat. Alle zwölf Läufe führten die sechs versionierten Aktionen
+aus. Für 14.424 Tageszustände einschließlich Tag null und 48 vollständige
+Spielstände bestätigte der Prüfer Übereinstimmung. Der Schnelllauf verglich
+zwölf Tageszustände und sechs Spielstände. Ein separater Test änderte im
+Kandidaten die beobachtete Geldänderung der ersten Aktion von 0 auf 17 und
+prüfte die Fehlermeldung für Tag, Aktion, Feld und Werte.
+
 ## Wiederholung
 
 Benötigt werden CMake, Ninja, ein C++17-Compiler, pkg-config, zlib, libxml2,
