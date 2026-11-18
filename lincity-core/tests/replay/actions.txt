@@ -1,0 +1,7 @@
+# Relative day, operation, x, y, optional numeric construction group.
+1 query 0 8
+1 evacuate 8 8
+2 build 8 8 7
+3 bulldoze 8 8
+4 flood 8 8
+5 build 8 8 7

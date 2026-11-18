@@ -27,9 +27,28 @@ add_executable(core_world_generation world_generation.cpp)
 target_link_libraries(core_world_generation PRIVATE LinCity::Core randutil)
 add_test(NAME core.world_generation COMMAND core_world_generation)
 
+add_executable(core_replay replay/main.cpp replay/events.cpp)
+target_link_libraries(core_replay PRIVATE LinCity::Core randutil)
+
 add_executable(core_characterization characterization.cpp)
 target_link_libraries(core_characterization PRIVATE LinCity::Core randutil)
 foreach(case port vehicles calendar fire windmill saves)
   add_test(NAME "core.characterization.${case}" COMMAND core_characterization "${case}"
     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" "${CMAKE_CURRENT_BINARY_DIR}/${case}.sav.gz")
 endforeach()
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  foreach(case small scenario)
+    add_test(NAME "core.replay.${case}" COMMAND "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py" $<TARGET_FILE:core_replay> "${case}")
+  endforeach()
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_library(LINCITY_JEMALLOC NAMES jemalloc libjemalloc.so.2)
+    if(LINCITY_JEMALLOC)
+      add_test(NAME core.replay.allocator COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/replay/check.py" $<TARGET_FILE:core_replay>
+        scenario --allocator "${LINCITY_JEMALLOC}")
+    endif()
+  endif()
+endif()

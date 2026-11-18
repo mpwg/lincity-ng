@@ -19,3 +19,8 @@ ctest --test-dir build --output-on-failure
 A project can add this directory with `add_subdirectory(lincity-core)` and
 link its own target to `LinCity::Core`. The simulation headers are available
 under `lincity/`, including `lincity/world.hpp` and `lincity/UserOperation.hpp`.
+
+The [simulation reference contract](parity/PARITY-CONTRACT.md) describes
+deterministic scenario replay and field-level comparisons. The
+[versioned rules cases](parity/README.md) cover inventories, accounting
+periods and a production and trade chain using the C++ core.
