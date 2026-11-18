@@ -97,9 +97,7 @@ World::do_periodic_events(void) {
   if(total_time % DAYS_PER_POLLUTION == 3)
     do_pollution();
 
-  int fire_rate = DAYS_BETWEEN_FIRES*100/map.len()*100/map.len();
-  int fire_tech = GROUP_FIRESTATION_TECH;
-  if(total_time % fire_rate == 9 && tech_level > fire_tech)
+  if(tech_level > GROUP_FIRESTATION_TECH && isRandomFireDay(total_time, map.len()))
     do_random_fire();
 
   if(total_time % DAYS_BETWEEN_COVER == 75)

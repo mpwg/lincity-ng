@@ -764,6 +764,33 @@ void pollutionAndRecovery() {
   recovery.finish();
   CHECK(map(site)->group == GROUP_BARE);
 }
+
+void randomFireSchedule() {
+  CHECK(!isRandomFireDay(8, 100));
+  CHECK(isRandomFireDay(9, 100));
+  CHECK(isRandomFireDay(DAYS_BETWEEN_FIRES + 9, 100));
+  CHECK(isRandomFireDay(19, 1500));  // 10-day interval
+  CHECK(!isRandomFireDay(9, 1600)); // 9-day interval
+  CHECK(!isRandomFireDay(9, 5000)); // rounds down to a zero-day interval
+  CHECK(!isRandomFireDay(9, 10000));
+
+  World world(100);
+  world.total_time = 8;
+  world.tech_level = GROUP_FIRESTATION_TECH;
+  std::istringstream disabled("LINCITY-SIMULATION-TRACE 1\nD 9 0\nZ\n");
+  {
+    SimulationTrace trace(disabled);
+    world.do_time_step();
+    trace.finish();
+  }
+
+  world.total_time = 8;
+  ++world.tech_level;
+  std::istringstream enabled("LINCITY-SIMULATION-TRACE 1\nD 9 0\nC 12\nC 12\nZ\n");
+  SimulationTrace trace(enabled);
+  world.do_time_step();
+  trace.finish();
+}
 }
 
 int main() {
@@ -772,6 +799,7 @@ int main() {
     mapSearchAndTerrain();
     riversAndCables();
     pollutionAndRecovery();
+    randomFireSchedule();
     sustainability();
     transportFrames();
     railCrossingFrames();

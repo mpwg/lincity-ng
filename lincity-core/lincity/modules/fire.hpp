@@ -49,6 +49,9 @@ class World;
 #define FIRE_LENGTH (NUMOF_DAYS_IN_YEAR*5)
 #define AFTER_FIRE_LENGTH (NUMOF_DAYS_IN_YEAR*10)
 
+// mapSide is the length of a valid map, including the border.
+bool isRandomFireDay(int day, int mapSide);
+
 class FireConstructionGroup: public ConstructionGroup {
 public:
     FireConstructionGroup(

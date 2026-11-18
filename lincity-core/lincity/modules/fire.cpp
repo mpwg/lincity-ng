@@ -59,6 +59,12 @@ FireConstructionGroup fireConstructionGroup(
 //helper groups for graphics and sound sets, dont add them to ConstructionGroup::groupMap
 //FireConstructionGroup fireWasteLandConstructionGroup = fireConstructionGroup;
 
+bool isRandomFireDay(int day, int mapSide) {
+  const int interval = DAYS_BETWEEN_FIRES * 100 / mapSide * 100 / mapSide;
+  // A remainder of nine is impossible for intervals of nine days or less.
+  return interval > 9 && day % interval == 9;
+}
+
 Construction *FireConstructionGroup::createConstruction(World& world) {
   return new Fire(world, this);
 }
