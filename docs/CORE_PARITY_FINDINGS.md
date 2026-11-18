@@ -188,6 +188,11 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   Rest von neun Tagen im Intervall nicht vorkommen kann. Der Test prüft
   auch den normalen Rhythmus und die Technologieschwelle im Tagesschritt.
   Im geprüften Issue-Bestand fand sich kein Bericht zu dieser Rechnung.
+- Bei großen Karten konnte die Berechnung für die Seenanzahl überlaufen.
+  Ein Rechentest prüft die Desktop-Obergrenze von 10.000 Feldern je Seite.
+  Die Geländegenerierung verwendet breitere Zwischenwerte für Rasterfläche,
+  Rasterindex und Seenanzahl und legt zwei unbenutzte Raster nicht mehr an.
+  Im geprüften Issue-Bestand fand sich kein direkter Bericht.
 - Geländegruppen lehnen Bauvorschau und Bauauftrag ab. In Debug konnte
   die Gebäude-Factory zuvor mit einer Assertion abbrechen. Die Tests
   prüfen bei der Ablehnung Karte, Kasse und Änderungsindikatoren. #339 und

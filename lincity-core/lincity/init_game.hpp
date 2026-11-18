@@ -53,6 +53,10 @@ new_temperate_city(city_settings *city, int mapSize
 std::unique_ptr<World>
 new_swamp_city(city_settings *city, int mapSize);
 
+// River generation supplies the climate aridity, a density of 5 to 15 and
+// the side length of a valid map.
+int terrainLakeCount(int aridity, int density, int mapSide);
+
 #endif /* __init_game_h__ */
 
 /** @file lincity/init_game.h */

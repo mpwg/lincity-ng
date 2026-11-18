@@ -27,6 +27,8 @@
 #include <cassert>                  // for assert
 #include <climits>                  // for INT_MIN, INT_MAX
 #include <cmath>                    // for pow, exp
+#include <cstddef>                  // for size_t
+#include <cstdint>                  // for int64_t, uint64_t
 #include <cstdlib>                  // for srand, RAND_MAX
 #include <deque>                    // for deque
 #include <initializer_list>         // for initializer_list
@@ -107,37 +109,23 @@ new_swamp_city(city_settings *city, int mapSize) {
 template<class T>
 class Array2D {
 public:
-  Array2D(int lenx, int leny) {
-    this->lenx = lenx;
-    this->leny = leny;
-    matrix.resize(lenx * leny, (T)0);
-  }
-  ~Array2D() {
-    matrix.clear();
-  }
-  void initialize(T init) {
-    for(int index = 0; index < lenx * leny; index++) {
-      matrix[index] = init;
-    }
-  }
-  T* operator()(MapPoint p) {
-    return &(matrix[p.x + p.y * lenx]);
-  }
-  T* operator()(int x, int y) {
-    return &(matrix[x + y * lenx]);
-  }
-  T* operator()(int index) {
-    return &(matrix[index]);
-  }
-  bool is_inside(int x, int y) {
-    return x >= 0 && x < lenx && y >= 0 && y < leny;
-  }
-  bool is_inside(int index) {
-    return index >= 0 && index < lenx * leny;
+  Array2D(int width, int height) : width(width) {
+    const auto area = std::uint64_t(width) * height;
+    if(area > matrix.max_size())
+      throw std::length_error("terrain generation grid is too large");
+    matrix.resize(area);
   }
 
-protected:
-  int lenx, leny;
+  T* operator()(int x, int y) {
+    return &matrix[x + std::size_t(y) * width];
+  }
+
+  T* operator()(MapPoint point) {
+    return (*this)(point.x, point.y);
+  }
+
+private:
+  int width;
   std::vector<T> matrix;
 };
 
@@ -375,8 +363,6 @@ static void new_setup_river_ground(Map& map,
      */
 
     float mat[2 * mask_size + 1][2 * mask_size + 1];
-    Array2D <int> g1(sz,sz);
-    Array2D <int> g2(sz,sz);
     Array2D <float> f1(sz+1,sz+1);
     Array2D <float> f2(sz,sz);
     float min = 10000000000000000000.;
@@ -403,10 +389,8 @@ static void new_setup_river_ground(Map& map,
 
     //inialization for classic Block algorithm
     //int h = ( rand() % Keco + rand() % Keco ) * global_mountainity ;
-    //f1.initialize(h);
 
     //initialization for Diamond Square Algorithm
-    f1.initialize(0);
     *f1(0,0) = (float)(simulationRand() % Keco + simulationRand() % Keco ) * global_mountainity ;
     *f1(0,sz) = (float)(simulationRand() % Keco + simulationRand() % Keco ) * global_mountainity ;
     *f1(sz,0) = (float)(simulationRand() % Keco + simulationRand() % Keco ) * global_mountainity ;
@@ -632,9 +616,13 @@ static void new_setup_river_ground(Map& map,
     }
 }
 
+int terrainLakeCount(int aridity, int density, int mapSide) {
+  return std::int64_t(100 - aridity / 4) * density * mapSide * mapSide / 1000000;
+}
+
 static void new_setup_river(Map& map, int global_aridity) {
   int r = 5 + simulationBinomial("river.lake-count", 10, 0.5);
-  int c = (100 - global_aridity/4) * r * map.len()*map.len() / 1000000;
+  int c = terrainLakeCount(global_aridity, r, map.len());
 
   std::cout << "pooring " << c << " lakes ..." << std::endl;
   std::cout.flush();

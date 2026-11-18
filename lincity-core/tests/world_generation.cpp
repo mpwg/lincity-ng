@@ -35,6 +35,13 @@ void require(bool condition, const char* description) {
   if(!condition) throw std::runtime_error(description);
 }
 
+std::unique_ptr<World> generate(Generator generator, city_settings settings,
+                                unsigned seed = 615, int size = 100) {
+  std::srand(seed);
+  BasicUrbg::get().seed(seed);
+  return generator(&settings, size);
+}
+
 void verifyInvalidDimensionsAndSettings() {
   const auto invalid = [](auto operation, const char* description) {
     try {
@@ -62,13 +69,20 @@ void verifyInvalidDimensionsAndSettings() {
   invalid([&] { new_temperate_city(&settings, 12); }, "invalid terrain size was accepted");
   settings.with_village = true;
   invalid([&] { new_temperate_city(&settings, 25); }, "invalid village size was accepted");
+
+  auto bare = generate(new_city, {false, true}, 615, 13);
+  require(bare->map.len() == 13 && bare->map.constructionCount() == 0,
+          "minimum terrain size did not generate an empty city");
+  auto village = generate(new_temperate_city, settings, 448, 26);
+  require(village->map.len() == 26 && village->stats.groupCount[GROUP_MARKET] == 1,
+          "minimum village size did not generate a market");
 }
 
-std::unique_ptr<World> generate(Generator generator, city_settings settings,
-                                unsigned seed = 615, int size = 100) {
-  std::srand(seed);
-  BasicUrbg::get().seed(seed);
-  return generator(&settings, size);
+void verifyLakeDensity() {
+  require(terrainLakeCount(0, 10, 100) == 10, "ordinary map has the wrong lake count");
+  require(terrainLakeCount(200, 10, 50) == 1, "fractional lake count was not rounded down");
+  require(terrainLakeCount(-200, 15, 10000) == 225000,
+          "large wet map has the wrong lake count");
 }
 
 // FNV-1a over row-major terrain, with each field encoded as a little-endian
@@ -229,6 +243,7 @@ void verifySmallCoastalMap() {
 int main() {
   try {
     verifyInvalidDimensionsAndSettings();
+    verifyLakeDensity();
   } catch(const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
