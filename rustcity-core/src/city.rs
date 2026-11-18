@@ -39,23 +39,39 @@ pub enum Action {
     Bulldoze,
     Evacuate,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Reason an action could not be applied at its target.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ActionError {
+    #[error("decision trace error: {0}")]
     DecisionTrace(String),
+    #[error("outside the playable map at {0:?}")]
     OutsideMap(Point),
+    #[error("occupied site at {0:?}")]
     SpaceOccupied(Point),
+    #[error("no building to evacuate at {0:?}")]
     NothingToEvacuate(Point),
+    #[error("building at {0:?} cannot be evacuated")]
     CannotEvacuate(Point),
+    #[error(transparent)]
     BuildDenied(BuildDenial),
+    #[error("desert at {0:?}")]
     DesertHere(Point),
+    #[error("port requires a river")]
     RequiresRiver,
+    #[error("insufficient ore at the site")]
     NoOre,
+    #[error("landfill at {0:?} still contains waste")]
     NonemptyTip(Point),
+    #[error("unfinished monument at {0:?}")]
     IncompleteMonument(Point),
+    #[error("active fire at {0:?}")]
     ProtectedFire(Point),
+    #[error("insufficient funds")]
     OutOfMoney,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The requested map dimensions exceed the supported range or available allocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("unsupported city map size")]
 pub struct MapSizeError;
 #[derive(Clone, Copy)]
 struct Tile {

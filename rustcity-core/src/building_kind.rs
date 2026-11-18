@@ -107,10 +107,13 @@ impl BuildingMetadata {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum BuildDenial {
+    #[error("insufficient students")]
     NotEnoughStudents,
+    #[error("insufficient technology")]
     NotEnoughTech,
+    #[error("insufficient funds for construction")]
     OutOfMoney,
 }
 
