@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------- *
- * src/lincity/util.hpp
+ * src/lincity-ng/util.hpp
  * This file is part of Lincity-NG.
  *
  * Copyright (C) 1995-1997 I J Peters
@@ -22,25 +22,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ** ---------------------------------------------------------------------- */
 
-#ifndef __LINCITYNG_LINCITY_UTIL_HPP__
-#define __LINCITYNG_LINCITY_UTIL_HPP__
+#ifndef LINCITYNG_DISPLAY_FORMAT_HPP
+#define LINCITYNG_DISPLAY_FORMAT_HPP
 
 #include <string>
 
-#ifdef NDEBUG
-#define used_in_assert maybe_unused
-#else
-#define used_in_assert
-#endif
-
-// TODO: move to NG
 const char *current_month(int current_time);
 int current_year(int current_time);
-//void format_number5(char *str, int num);
-//void format_pos_number4(char *str, int num);
-//void format_power(char *str, size_t size, long power);
 std::string num_to_ansi(long num);
 
-#endif // __LINCITYNG_LINCITY_UTIL_HPP__
+#endif // LINCITYNG_DISPLAY_FORMAT_HPP
 
-/** @file lincity/lclib.h */
+/** @file lincity-ng/DisplayFormat.hpp */

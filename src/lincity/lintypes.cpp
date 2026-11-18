@@ -47,7 +47,6 @@
 #include "modules/all_modules.hpp"        // for Powerline, GROUP_MARKET_RANGE
 #include "stats.hpp"                      // for Stats, Stat
 #include "transport.hpp"                  // for TRANSPORT_QUANTA, TRANSPORT...
-#include "util.hpp"                       // for used_in_assert
 #include "util/gettextutil.hpp"           // for _
 #include "util/xmlutil.hpp"               // for xmlParse, xmlStr, xmlStrF
 #include "world.hpp"                      // for World, Map, MapTile
@@ -74,7 +73,7 @@ std::string Construction::getStuffName(Commodity stuff_id)
 }
 
 void Construction::list_commodities(ConstructionReport& report, bool production) const {
-  report.addLabel(production ? _("Production:") : _("Inventory:"));
+  report.addLabel(production ? N_("Production:") : N_("Inventory:"));
   for(int r = 0; r < 4; r++) {
     const char *arrow;
     bool give, take;
@@ -203,7 +202,7 @@ void
 Construction::load(xmlpp::TextReader& xmlReader, unsigned int ldsv_version) {
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "Construction");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);

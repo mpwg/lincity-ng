@@ -29,8 +29,6 @@ add_library(lincity_lib  STATIC
   Vehicles.hpp
   world.cpp
   world.hpp
-  util.cpp
-  util.hpp
   xmlloadsave.cpp
   xmlloadsave.hpp
 )

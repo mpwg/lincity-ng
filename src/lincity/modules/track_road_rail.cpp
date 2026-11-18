@@ -327,7 +327,7 @@ void Transport::report(ConstructionReport& report, bool production) const {
   report.addLabel(constructionGroup->name);
   report.addBlank();
   if(production) {
-    report.addLabel(_("Traffic"));
+    report.addLabel(N_("Traffic"));
     list_traffic(report);
   }
   else {

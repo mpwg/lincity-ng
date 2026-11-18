@@ -5,6 +5,8 @@ add_executable(lincity-ng
   Config.hpp
   Dialog.cpp
   Dialog.hpp
+  DisplayFormat.cpp
+  DisplayFormat.hpp
   EconomyGraph.cpp
   EconomyGraph.hpp
   Game.cpp

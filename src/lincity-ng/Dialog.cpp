@@ -58,7 +58,7 @@
 #include "lincity/lintypes.hpp"             // for Construction, NUMOF_DAYS_...
 #include "lincity/modules/all_modules.hpp"  // for Market, Port, RocketPad
 #include "lincity/stats.hpp"                // for Stats, Stat
-#include "lincity/util.hpp"                 // for current_year, current_month
+#include "DisplayFormat.hpp"                 // for current_year, current_month
 #include "lincity/world.hpp"                // for World, Map, MapTile
 #include "util/gettextutil.hpp"             // for _
 #include "util/ptrutil.hpp"                 // for dynamic_unique_cast

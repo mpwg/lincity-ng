@@ -47,7 +47,7 @@
 #include "lincity/lintypes.hpp"             // for NUMOF_DAYS_IN_MONTH, Cons...
 #include "lincity/modules/all_modules.hpp"  // for TileConstructionGroup
 #include "lincity/stats.hpp"                // for Stat, Stats
-#include "lincity/util.hpp"                 // for num_to_ansi, current_year
+#include "DisplayFormat.hpp"                 // for num_to_ansi, current_year
 #include "lincity/world.hpp"                // for MapTile, World, Ground
 #include "util/gettextutil.hpp"             // for N_, _
 #include "util/xmlutil.hpp"                 // for unexpectedXmlAttribute

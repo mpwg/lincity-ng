@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------- *
- * src/lincity/util.cpp
+ * src/lincity-ng/util.cpp
  * This file is part of Lincity-NG.
  *
  * Copyright (C) 1995-1997 I J Peters
@@ -22,7 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ** ---------------------------------------------------------------------- */
 
-#include "util.hpp"
+#include "DisplayFormat.hpp"
 
 #include <stdio.h>               // for snprintf
 #include <string.h>              // for strdup
@@ -30,10 +30,9 @@
 #include <cstdlib>               // for abs
 #include <string>                // for basic_string, string
 
-#include "lintypes.hpp"          // for NUMOF_DAYS_IN_YEAR, NUMOF_DAYS_IN_MONTH
+#include "lincity/lintypes.hpp"          // for NUMOF_DAYS_IN_YEAR, NUMOF_DAYS_IN_MONTH
 #include "util/gettextutil.hpp"  // for N_, _
 
-// TODO: move to NG
 const char *current_month(int current_time) {
   static const char *months[] = { (char*)N_("Jan"), (char*)N_("Feb"), (char*)N_("Mar"), (char*)N_("Apr"),
       (char*)N_("May"), (char*)N_("Jun"), (char*)N_("Jul"), (char*)N_("Aug"),

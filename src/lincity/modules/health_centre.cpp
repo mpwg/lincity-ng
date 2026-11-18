@@ -136,7 +136,7 @@ void HealthCentre::report(ConstructionReport& report, bool production) const {
   report.addLabel(constructionGroup->name);
   report.addPercentage(N_("busy"), (float) busy);
   list_commodities(report, production);
-  report.addLabeledText(N_("Health Care"), active ? _("Yes") : _("No"));
+  report.addLabeledText(N_("Health Care"), active ? N_("Yes") : N_("No"));
 }
 
 void HealthCentre::save(xmlTextWriterPtr xmlWriter) const {

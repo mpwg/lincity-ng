@@ -48,7 +48,7 @@
 #include "lincity/commodities.hpp"        // for Commodity
 #include "lincity/lintypes.hpp"           // for NUMOF_DAYS_IN_MONTH
 #include "lincity/stats.hpp"              // for Stats
-#include "lincity/util.hpp"               // for num_to_ansi
+#include "DisplayFormat.hpp"               // for num_to_ansi
 #include "lincity/world.hpp"              // for World
 #include "util/xmlutil.hpp"               // for xmlParse, unexpectedXmlAttr...
 

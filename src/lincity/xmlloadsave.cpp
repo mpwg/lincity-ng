@@ -57,7 +57,6 @@
 #include "lin-city.hpp"                   // for VOLATILE_FLAGS, FLAG_CRICKE...
 #include "lintypes.hpp"                   // for xmlTextWriterPtr, Construction
 #include "stats.hpp"                      // for Stats, Stat
-#include "util.hpp"                       // for used_in_assert
 #include "util/xmlutil.hpp"               // for xmlParse, xmlStr, xmlFormat
 #include "world.hpp"                      // for World, MapTile, Map, Ground
 
@@ -217,7 +216,7 @@ World::load(const std::filesystem::path& filename) {
   // parse sections
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "lc-game");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   assert(depth == 0);
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
@@ -448,7 +447,7 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
 
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "globals");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
@@ -776,7 +775,7 @@ static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
 
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "globals");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
@@ -1004,7 +1003,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
 
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "map");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
@@ -1111,7 +1110,7 @@ static void loadMapTile(xmlpp::TextReader& xmlReader, MapTile& tile,
 ) {
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "MapTile");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
@@ -1186,7 +1185,7 @@ static void readArray(xmlpp::TextReader& xmlReader, A& array,
 ) {
   // array.resize(std::stoull(xmlReader.get_attribute("size")));
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     if(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::Element) {
@@ -1238,7 +1237,7 @@ static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
   int diff = 0;
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "pbar");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
@@ -1284,7 +1283,7 @@ static void readPbar_old(xmlpp::TextReader& xmlReader,
   int diff = 0;
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "pbar");
-  [[used_in_assert]] int depth = xmlReader.get_depth();
+  [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
   while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
     assert(xmlReader.get_depth() == depth + 1);
