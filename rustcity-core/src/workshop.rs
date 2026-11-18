@@ -1,5 +1,5 @@
 //! Handicraft production and machine animation.
-use crate::rules::DAYS_PER_MONTH;
+use crate::rules::{DAYS_PER_MONTH, workshop::*};
 use crate::{BuildingKind, Commodity};
 
 #[derive(Clone, Default)]
@@ -10,7 +10,7 @@ pub(crate) struct Workshop {
     batches: i32,
     animation: bool,
     next_frame: u64,
-    frame: u16,
+    pub(crate) frame: u16,
 }
 
 impl Workshop {
@@ -27,17 +27,20 @@ impl Workshop {
             }
         }
         let (output, inputs) = match kind {
-            BuildingKind::Blacksmith => (50, [(Coal, 1), (Steel, 1), (Labor, 35)]),
-            BuildingKind::Pottery => (35, [(Coal, 2), (Ore, 11), (Labor, 35)]),
+            BuildingKind::Blacksmith => (SMITHY_OUTPUT, SMITHY_INPUTS),
+            BuildingKind::Pottery => (POTTERY_OUTPUT, POTTERY_INPUTS),
             BuildingKind::Mill => {
-                let fuel = if i64::from(stock[Coal as usize]) * 60
+                let fuel = if i64::from(stock[Coal as usize]) * i64::from(MILL_POWER_PER_COAL)
                     > i64::from(stock[LowVoltage as usize])
                 {
                     (Coal, 1)
                 } else {
-                    (LowVoltage, 60)
+                    (LowVoltage, MILL_POWER_PER_COAL)
                 };
-                (75, [fuel, (Food, 37), (Labor, 35)])
+                (
+                    MILL_OUTPUT,
+                    [fuel, (Food, MILL_FOOD), (Labor, LABOR_PER_BATCH)],
+                )
             }
             _ => unreachable!("not a workshop"),
         };
@@ -52,19 +55,19 @@ impl Workshop {
             stock[Goods as usize] += output;
             self.batches += 1;
             match kind {
-                BuildingKind::Blacksmith if self.batches == 100 => {
+                BuildingKind::Blacksmith if self.batches == SMITHY_BATCHES_PER_EMISSION => {
                     self.animation = true;
                     pollution = 1;
                     self.batches = 0;
                 }
                 BuildingKind::Pottery => {
                     self.animation = true;
-                    pollution = i32::from(self.working_days % 10 == 0);
+                    pollution = i32::from(self.working_days % POTTERY_DAYS_PER_EMISSION == 0);
                     self.batches = 0;
                 }
                 BuildingKind::Mill => {
                     self.animation = true;
-                    if self.batches == 7 {
+                    if self.batches == MILL_BATCHES_PER_EMISSION {
                         pollution = 1;
                         self.batches = 0;
                     }
@@ -75,7 +78,7 @@ impl Workshop {
         } else if kind != BuildingKind::Mill {
             self.animation = false;
             if kind == BuildingKind::Pottery {
-                self.pause = 25;
+                self.pause = POTTERY_RESTART_DAYS;
             }
         }
         if kind != BuildingKind::Pottery && day % DAYS_PER_MONTH == DAYS_PER_MONTH - 1 {
@@ -90,9 +93,9 @@ impl Workshop {
             self.next_frame = 0;
         } else if self.animation && time >= self.next_frame {
             let (delay, frames) = match kind {
-                BuildingKind::Blacksmith => (150, 7),
-                BuildingKind::Mill => (250, 7),
-                BuildingKind::Pottery => (250, 11),
+                BuildingKind::Blacksmith => SMITHY_ANIMATION,
+                BuildingKind::Mill => MILL_ANIMATION,
+                BuildingKind::Pottery => POTTERY_ANIMATION,
                 _ => unreachable!("not a workshop"),
             };
             self.next_frame = time.saturating_add(delay);

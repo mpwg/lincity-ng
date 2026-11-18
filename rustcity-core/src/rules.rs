@@ -20,4 +20,6 @@ pub(crate) mod industry;
 pub(crate) mod market;
 pub(crate) mod power;
 pub(crate) mod rocket;
+pub(crate) mod statistics;
 pub(crate) mod transport;
+pub(crate) mod workshop;

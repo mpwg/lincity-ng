@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use std::ops::{AddAssign, SubAssign};
 
 use crate::Commodity;
+use crate::rules::{statistics::*, transport::QUANTA};
 
 const COMMODITIES: usize = Commodity::ALL.len();
 
@@ -69,7 +70,7 @@ impl Inventory {
         if self.capacity == 0 {
             return 0;
         }
-        ((i64::from(self.amount) * 1000) / i64::from(self.capacity)) as i32
+        ((i64::from(self.amount) * i64::from(QUANTA)) / i64::from(self.capacity)) as i32
     }
 }
 
@@ -175,18 +176,20 @@ pub struct History {
 impl Default for History {
     fn default() -> Self {
         Self {
-            pop: VecDeque::from([0; 190]),
-            starve: VecDeque::from([0; 190]),
-            nojobs: VecDeque::from([0; 190]),
-            ppool: VecDeque::from([0; 190]),
-            tech: VecDeque::from([0; 12]),
-            money: VecDeque::from([0; 12]),
-            pollution: VecDeque::from([0; 2]),
-            births: VecDeque::from([0; 12]),
-            deaths: VecDeque::from([0; 12]),
-            unnat_deaths: VecDeque::from([0; 12]),
-            inventory: std::array::from_fn(|_| VecDeque::from([Inventory::default(); 2])),
-            tenants: VecDeque::from([Inventory::default(); 12]),
+            pop: VecDeque::from([0; POPULATION_SAMPLES]),
+            starve: VecDeque::from([0; POPULATION_SAMPLES]),
+            nojobs: VecDeque::from([0; POPULATION_SAMPLES]),
+            ppool: VecDeque::from([0; POPULATION_SAMPLES]),
+            tech: VecDeque::from([0; FISCAL_SAMPLES]),
+            money: VecDeque::from([0; FISCAL_SAMPLES]),
+            pollution: VecDeque::from([0; POLLUTION_SAMPLES]),
+            births: VecDeque::from([0; FISCAL_SAMPLES]),
+            deaths: VecDeque::from([0; FISCAL_SAMPLES]),
+            unnat_deaths: VecDeque::from([0; FISCAL_SAMPLES]),
+            inventory: std::array::from_fn(|_| {
+                VecDeque::from([Inventory::default(); INVENTORY_SAMPLES])
+            }),
+            tenants: VecDeque::from([Inventory::default(); FISCAL_SAMPLES]),
         }
     }
 }
@@ -283,7 +286,7 @@ impl Stats {
             &mut p.starve_deaths_history,
         ] {
             // The C++ expression promotes its float operand to double before multiplication.
-            *counter = (f64::from(*counter) * 0.99) as f32;
+            *counter = (f64::from(*counter) * YEARLY_HISTORY_RETENTION) as f32;
         }
         self.income.income_tax.finalize();
         self.income.coal_tax.finalize();
