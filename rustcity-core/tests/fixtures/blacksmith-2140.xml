@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<lc-game ldsv-version="2140">
+  <globals>
+    <given_scene>Reference smithy</given_scene>
+    <total_time>96</total_time><people_pool>7</people_pool>
+    <total_money>1703</total_money><tech_level>41</tech_level>
+  </globals>
+  <map size="32">
+    <recentPoint><x>9</x><y>15</y></recentPoint>
+    <MapTile group="21" map-x="6" map-y="8">
+      <ore>37</ore><altitude>14</altitude><water_alt>17</water_alt>
+    </MapTile>
+    <Construction group="27" map-x="12" map-y="12">
+      <labor>175</labor><coal>5</coal><steel>5</steel><goods>7</goods>
+    </Construction>
+  </map>
+</lc-game>

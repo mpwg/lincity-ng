@@ -19,8 +19,10 @@ pub(crate) const MIGRANTS_PER_DEPARTURE: i32 = 10;
 pub(crate) const TECH_LOSS_START: i32 = 11_000;
 pub(crate) const TECH_LOSS: f64 = 500.0;
 pub(crate) const UNAIDED_TECH_GAIN: i32 = 2;
-pub(crate) const NORMAL_POPULATION_FACTOR: f64 = 1.0 / super::DAYS_PER_MONTH as f64 / 120.0 / (TECH_LOSS - 200.0);
-pub(crate) const EXCESS_POPULATION_FACTOR: f64 = 1.0 / super::DAYS_PER_MONTH as f64 / 120.0 / (TECH_LOSS - 100.0);
+pub(crate) const NORMAL_POPULATION_FACTOR: f64 =
+    1.0 / super::DAYS_PER_MONTH as f64 / 120.0 / (TECH_LOSS - 200.0);
+pub(crate) const EXCESS_POPULATION_FACTOR: f64 =
+    1.0 / super::DAYS_PER_MONTH as f64 / 120.0 / (TECH_LOSS - 100.0);
 pub(crate) const SUSTAINABLE_POPULATION: i32 = 5000;
 pub(crate) const POPULATION_TOLERANCE_DIVISOR: i64 = 40;
 pub(crate) const TECH_TOLERANCE_DIVISOR: i64 = 100;

@@ -10,12 +10,13 @@ mod market;
 mod persistence;
 mod port;
 mod rocket;
+pub use rocket::RocketStage;
 mod search;
-pub use search::Landform;
 use crate::buildings::{BuildingId, Buildings};
 use crate::decisions::{Decisions, PlacementId, VisitPhase};
 use crate::stats::Stats;
 use crate::{BuildDenial, BuildingKind};
+pub use search::Landform;
 use std::{collections::BTreeMap, io};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -160,7 +161,8 @@ impl Building {
             stock: [0; 10],
             saved: None,
             evacuating: false,
-            never_evacuate: kind.is_transport() || matches!(kind, PowerLine | Parkland | ParkPond | Tip | Shanty),
+            never_evacuate: kind.is_transport()
+                || matches!(kind, PowerLine | Parkland | ParkPond | Tip | Shanty),
         }
     }
 }
@@ -272,7 +274,11 @@ impl City {
         self.install_industry(id, point)?;
         self.connect_building(point);
         if self.buildings.get(id).unwrap().1.kind == BuildingKind::Market {
-            self.mark_coverage(point, BuildingKind::Market.metadata().range, civic::MARKET_CHECK);
+            self.mark_coverage(
+                point,
+                BuildingKind::Market.metadata().range,
+                civic::MARKET_CHECK,
+            );
         }
         Ok(id)
     }
@@ -499,9 +505,19 @@ impl City {
         match action {
             Action::Build(kind) => self.quote_build(kind, point),
             Action::Query => Ok(0),
-            Action::Evacuate => match self.buildings.at(point).and_then(|id| self.buildings.get(id)) {
+            Action::Evacuate => match self
+                .buildings
+                .at(point)
+                .and_then(|id| self.buildings.get(id))
+            {
                 None => Err(ActionError::NothingToEvacuate(point)),
-                Some((_, Building { never_evacuate: true, .. })) => Err(ActionError::CannotEvacuate(point)),
+                Some((
+                    _,
+                    Building {
+                        never_evacuate: true,
+                        ..
+                    },
+                )) => Err(ActionError::CannotEvacuate(point)),
                 Some(_) => Ok(0),
             },
             Action::Flood if ground == Terrain::Water || self.buildings.at(point).is_some() => {
@@ -552,19 +568,30 @@ impl City {
     pub fn apply(&mut self, action: Action, point: Point) -> Result<(), ActionError> {
         let cost = self.preview(action, point)?;
         let index = (point.y * self.side + point.x) as usize;
-        if action == Action::Query || (action == Action::Bulldoze
-            && self.tiles[index].ground == Terrain::Desert && self.buildings.at(point).is_none()) {
+        if action == Action::Query
+            || (action == Action::Bulldoze
+                && self.tiles[index].ground == Terrain::Desert
+                && self.buildings.at(point).is_none())
+        {
             return Ok(());
         }
         if action == Action::Evacuate {
-            let building = self.buildings.get_mut(self.buildings.at(point).unwrap()).unwrap();
+            let building = self
+                .buildings
+                .get_mut(self.buildings.at(point).unwrap())
+                .unwrap();
             building.evacuating = !building.evacuating;
             if let Operation::Market(market) = &mut building.operation {
                 market.evacuate(building.evacuating);
             }
             return Ok(());
         }
-        if !finance::expense(&mut self.balance, &mut self.stats.expenses.construction, &mut self.events, cost) {
+        if !finance::expense(
+            &mut self.balance,
+            &mut self.stats.expenses.construction,
+            &mut self.events,
+            cost,
+        ) {
             return Err(ActionError::OutOfMoney);
         }
         let mut origin = point;
@@ -654,8 +681,8 @@ impl City {
 mod observations;
 mod report;
 mod visuals;
-pub use report::{ReportMode,ReportRow};
-pub use visuals::{BuildingVisual,SpriteLayer};
+pub use report::{ReportMode, ReportRow};
+pub use visuals::{BuildingVisual, SpriteLayer};
 mod simulation;
 mod trading;
 mod transport;

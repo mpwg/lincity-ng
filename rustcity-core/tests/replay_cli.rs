@@ -2,12 +2,12 @@ use std::{fs, path::Path, process::Command};
 
 #[test]
 fn replays_the_versioned_smithy_with_actions_and_checkpoint_days() {
-    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("../lincity-core/tests");
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let target = std::env::temp_dir().join(format!("rustcity-smithy-{}", std::process::id()));
     let result = Command::new(env!("CARGO_BIN_EXE_rustcity-replay"))
         .arg("replay")
         .arg(src.join("replay/decisions-v1.txt"))
-        .arg(src.join("fixtures/blacksmith-2140.xml"))
+        .arg(src.join("blacksmith-2140.xml"))
         .args(["no-traffic", "5"])
         .arg(src.join("replay/actions.txt"))
         .arg(&target)
@@ -42,8 +42,7 @@ fn check_invalid_inputs(runner: &Path) {
     let name = runner.file_stem().unwrap().to_string_lossy();
     let root = std::env::temp_dir().join(format!("rustcity-invalid-{name}-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../lincity-core/tests/fixtures/blacksmith-2140.xml");
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/blacksmith-2140.xml");
     let usage = Command::new(runner).output().unwrap();
     assert_eq!(usage.status.code(), Some(2));
     for (mode, days, input, diagnostic) in [

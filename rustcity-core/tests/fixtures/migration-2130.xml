@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<lc-game ldsv-version="2130">
+  <globals>
+    <given_scene>Legacy accounting &amp; history</given_scene>
+    <world_id>20</world_id>
+    <climate>-1</climate>
+    <world_side_len>32</world_side_len>
+    <main_screen_originx>12</main_screen_originx>
+    <main_screen_originy>12</main_screen_originy>
+    <total_time>309</total_time>
+    <total_money>1700</total_money>
+    <tech_level>7500</tech_level>
+    <ly_income_tax>37</ly_income_tax>
+    <income_tax>91</income_tax>
+    <ly_import_cost>58</ly_import_cost>
+    <import_cost>467</import_cost>
+    <import_cost_rate>15</import_cost_rate>
+    <unemployment_cost>105</unemployment_cost>
+    <dole_rate>20</dole_rate>
+    <transport_cost>113</transport_cost>
+    <transport_cost_rate>12</transport_cost_rate>
+    <windmill_cost>13</windmill_cost>
+    <university_cost>9</university_cost>
+    <recycle_cost>6</recycle_cost>
+    <deaths_cost>3</deaths_cost>
+    <health_cost>25</health_cost>
+    <rocket_pad_cost>11</rocket_pad_cost>
+    <school_cost>4</school_cost>
+    <fire_cost>32</fire_cost>
+    <cricket_cost>7</cricket_cost>
+    <tpopulation>72121</tpopulation>
+    <thousing>91800</thousing>
+    <tstarving_population>1034</tstarving_population>
+    <tunemployed_population>1037</tunemployed_population>
+    <total_starve_deaths>6</total_starve_deaths>
+    <starve_deaths_history>2.75</starve_deaths_history>
+    <total_pollution_deaths>8</total_pollution_deaths>
+    <pollution_deaths_history>3.125</pollution_deaths_history>
+    <total_unemployed_days>17</total_unemployed_days>
+    <total_unemployed_years>2</total_unemployed_years>
+    <sust_dig_ore_coal_tip_flag>0</sust_dig_ore_coal_tip_flag>
+    <sust_dig_ore_coal_count>4</sust_dig_ore_coal_count>
+    <sust_port_count>7</sust_port_count>
+    <sust_port_flag>1</sust_port_flag>
+    <import_Food_enable>0</import_Food_enable>
+    <export_Goods_enable>0</export_Goods_enable>
+    <monthgraph_pop>
+      901 801
+      701
+    </monthgraph_pop>
+    <monthgraph_starve>31 23 11</monthgraph_starve>
+    <monthgraph_nojobs>41 39 27</monthgraph_nojobs>
+    <monthgraph_ppool>121 109 99</monthgraph_ppool>
+    <!-- The monthly population series supersedes the old population bar. -->
+    <pbar id="0"><diff>12</diff><data>905</data></pbar>
+    <pbar id="1">
+      <!-- Older progress bars stored values oldest first. -->
+      <diff>50</diff>
+      <data>7000 7250 7500</data>
+    </pbar>
+    <pbar id="2">
+      <diff>-45</diff>
+      <data>-326</data>
+    </pbar>
+    <pbar id="3">
+      <!-- Inventories stored fractions in thousandths. -->
+      <diff>40</diff>
+      <data>660</data>
+    </pbar>
+    <pbar id="4"><diff>-14</diff><data>480</data></pbar>
+    <pbar id="5"><diff>22</diff><data>560</data></pbar>
+    <pbar id="6"><diff>30</diff><data>380</data></pbar>
+    <pbar id="7"><diff>-15</diff><data>295</data></pbar>
+    <pbar id="8"><diff>25</diff><data>765</data></pbar>
+    <pbar id="9">
+      <diff>19</diff>
+      <data>275</data>
+    </pbar>
+    <pbar id="10"><diff>-45</diff><data>812</data></pbar>
+    <pbar id="11"><diff>66</diff><data>916</data></pbar>
+    <pbar id="12"><diff>17</diff><data>371</data></pbar>
+    <pbar id="13"><diff>-8</diff><data>213</data></pbar>
+    <pbar id="14">
+      <diff>20</diff>
+      <data>910</data>
+    </pbar>
+  </globals>
+  <map>
+    <MapTile group="21" map-x="6" map-y="8">
+      <flags>0x20800100</flags>
+      <altitude>17</altitude>
+    </MapTile>
+    <MapTile group="21" map-x="7" map-y="8">
+      <flags>0x01700000</flags>
+      <altitude>14</altitude>
+    </MapTile>
+    <MapTile group="0" map-x="20" map-y="12">
+      <flags>536870912</flags>
+    </MapTile>
+    <Construction group="5" map-x="20" map-y="12">
+      <tech>200000</tech>
+      <tech_bonus>75</tech_bonus>
+      <food>20</food>
+      <labor>30</labor>
+      <lovolt>75</lovolt>
+      <water>350</water>
+      <waste>20</waste>
+    </Construction>
+    <Construction group="25" map-x="12" map-y="12">
+      <tech_made>3</tech_made>
+      <tail_off>2</tail_off>
+      <completion>18</completion>
+      <jobs_consumed>63000</jobs_consumed>
+    </Construction>
+  </map>
+</lc-game>

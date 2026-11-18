@@ -1,8 +1,8 @@
 use super::*;
 use std::{fs, path::Path, process::Command};
 
-const LEGACY: &[u8] = include_bytes!("../../../lincity-core/tests/fixtures/migration-2130.xml");
-const CURRENT: &[u8] = include_bytes!("../../../lincity-core/tests/fixtures/statistics-2140.xml");
+const LEGACY: &[u8] = include_bytes!("../../tests/fixtures/migration-2130.xml");
+const CURRENT: &[u8] = include_bytes!("../../tests/fixtures/statistics-2140.xml");
 
 #[test]
 fn round_trip_preserves_building_data_and_encoded_text() {

@@ -3,7 +3,7 @@ use rustcity_core::decisions::{Decisions, VisitPhase::*};
 use std::io::{self, Cursor, Write};
 use std::sync::{Arc, Mutex};
 
-const SMALL: &str = include_str!("../../lincity-core/tests/replay/decisions-v1.txt");
+const SMALL: &str = include_str!("fixtures/replay/decisions-v1.txt");
 
 fn replay(tape: &str) -> io::Result<Decisions> {
     Decisions::replay(Cursor::new(tape.as_bytes().to_vec()))

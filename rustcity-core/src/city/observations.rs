@@ -19,9 +19,15 @@ pub struct CityReport {
 #[derive(Debug)]
 pub struct BuildingState<'city> {
     pub origin: Point,
+    /// Stable for the lifetime of this placement in this city.
+    pub instance_id: u64,
     pub kind: BuildingKind,
+    pub never_evacuate: bool,
+    pub occupants: i32,
+    pub fire_age: Option<(i32, i32)>,
     pub evacuating: bool,
     pub ready_to_launch: bool,
+    pub rocket_stage: Option<RocketStage>,
     inventory: &'city [i32; Commodity::ALL.len()],
 }
 
@@ -154,12 +160,28 @@ impl City {
 
     /// Selects the building occupying any square of its footprint.
     pub fn building_state(&self, point: Point) -> Option<BuildingState<'_>> {
-        let (origin, b) = self.buildings.get(self.buildings.at(point)?)?;
+        use slotmap::Key;
+        let id = self.buildings.at(point)?;
+        let (origin, b) = self.buildings.get(id)?;
         Some(BuildingState {
+            instance_id: id.data().as_ffi(),
+            never_evacuate: b.never_evacuate,
+            occupants: match &b.operation {
+                Operation::Civic(c) => c.occupants(),
+                _ => 0,
+            },
+            fire_age: match &b.operation {
+                Operation::Civic(civic::Civic::Fire(f)) => Some((f.burning, f.smoking)),
+                _ => None,
+            },
             origin,
             kind: b.kind,
             evacuating: b.evacuating,
             inventory: &b.stock,
+            rocket_stage: match &b.operation {
+                Operation::Rocket(r) => Some(r.stage),
+                _ => None,
+            },
             ready_to_launch: matches!(&b.operation, Operation::Rocket(r) if r.ready_to_launch()),
         })
     }

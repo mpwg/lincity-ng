@@ -180,8 +180,8 @@ mod tests {
     #[test]
     fn reference_chains_match_every_tick() {
         use std::fmt::Write;
-        let inputs = include_str!("../../lincity-core/parity/cases/v1/input.txt");
-        let expected = include_str!("../../lincity-core/parity/cases/v1/expected.txt");
+        let inputs = include_str!("../tests/fixtures/cases/v1/input.txt");
+        let expected = include_str!("../tests/fixtures/cases/v1/expected.txt");
         for command in inputs.lines().filter(|line| line.starts_with("chain ")) {
             let values = command
                 .split_whitespace()

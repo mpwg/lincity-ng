@@ -1,6 +1,6 @@
 use rustcity_core::{Action, BuildingKind, City, Point, Terrain};
-const SMITHY: &[u8] = include_bytes!("../../lincity-core/tests/fixtures/blacksmith-2140.xml");
-const LEGACY: &[u8] = include_bytes!("../../lincity-core/tests/fixtures/migration-2130.xml");
+const SMITHY: &[u8] = include_bytes!("fixtures/blacksmith-2140.xml");
+const LEGACY: &[u8] = include_bytes!("fixtures/migration-2130.xml");
 
 #[test]
 fn changes_and_actions_continue_after_loading_a_saved_city() {
@@ -62,8 +62,7 @@ fn smithy_stocks_continue_across_the_month_boundary_after_a_save() {
 fn historical_market_saves_policy_in_reference_commodity_order() {
     use std::io::Read;
     let city =
-        City::load(include_bytes!("../../lincity-core/opening/extreme_arid.scn.gz").as_slice())
-            .unwrap();
+        City::load(include_bytes!("fixtures/opening/extreme_arid.scn.gz").as_slice()).unwrap();
     let mut checkpoint = Vec::new();
     city.save(&mut checkpoint).unwrap();
     let mut xml = String::new();
@@ -94,8 +93,7 @@ fn historical_market_saves_policy_in_reference_commodity_order() {
 #[test]
 fn legacy_rocket_pad_fields_follow_the_cpp_writer() {
     use std::io::Read;
-    let city = City::load(include_bytes!("../../lincity-core/opening/Rocket_98.scn.gz").as_slice())
-        .unwrap();
+    let city = City::load(include_bytes!("fixtures/opening/Rocket_98.scn.gz").as_slice()).unwrap();
     let mut checkpoint = Vec::new();
     city.save(&mut checkpoint).unwrap();
     let mut xml = String::new();

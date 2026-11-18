@@ -31,7 +31,7 @@ pub use city::{
     Action, ActionError, City, CityEvent, CityReport, Climate, GenerationOptions, MapSizeError,
     Point, Terrain, VehicleTraffic,
 };
-pub use city::{BuildingState, Landform, TileView, VehicleFrame};
+pub use city::{BuildingState, Landform, RocketStage, TileView, VehicleFrame};
 pub use city::{BuildingVisual, ReportMode, ReportRow, SpriteLayer};
 mod building_kind;
 mod buildings;

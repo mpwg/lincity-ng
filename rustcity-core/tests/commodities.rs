@@ -2,7 +2,7 @@ use rustcity_core::Commodity;
 
 #[test]
 fn canonical_names_match_the_cpp_reference_transcript() {
-    let transcript = include_str!("../../lincity-core/parity/cases/v1/expected.txt");
+    let transcript = include_str!("fixtures/cases/v1/expected.txt");
     let mut records = transcript
         .lines()
         .skip_while(|line| *line != "names")

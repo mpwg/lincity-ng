@@ -1,8 +1,8 @@
 //! Bind the runtime reporting periods to their distinct persisted ledger entries.
-use crate::rules::economy;
 use super::{Element, integer, invalid};
 use crate::Commodity;
 use crate::rules::DAYS_PER_MONTH;
+use crate::rules::economy;
 use crate::stats::{Inventory, Stat, Stats};
 use std::{collections::VecDeque, io};
 

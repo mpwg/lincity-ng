@@ -3,8 +3,9 @@ use super::*;
 use crate::rules::{DAYS_PER_MONTH, MAX_TECH_LEVEL, rocket::*};
 use crate::{Commodity, save::Element};
 
-#[derive(Default, Debug, PartialEq, Eq)]
-enum Stage {
+/// Current construction or launch phase of a rocket pad.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub enum RocketStage {
     #[default]
     Building,
     Awaiting,
@@ -14,7 +15,7 @@ enum Stage {
 }
 #[derive(Default)]
 pub(super) struct Rocket {
-    stage: Stage,
+    pub(super) stage: RocketStage,
     pub(super) steps: i32,
     working_days: i32,
     pub(super) busy: i32,
@@ -23,16 +24,16 @@ pub(super) struct Rocket {
 }
 impl Rocket {
     pub(super) fn ready_to_launch(&self) -> bool {
-        self.stage == Stage::Awaiting
+        self.stage == RocketStage::Awaiting
     }
 
     pub(super) fn load(&mut self, n: &Element) -> io::Result<()> {
         self.steps = n.child_i32("steps", 0)?;
         if let Some(stage) = n.child("stage") {
             self.stage = match stage.text().as_ref() {
-                "building" => Stage::Building,
-                "awaiting" => Stage::Awaiting,
-                "done" => Stage::Done,
+                "building" => RocketStage::Building,
+                "awaiting" => RocketStage::Awaiting,
+                "done" => RocketStage::Done,
                 other => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -48,26 +49,26 @@ impl Rocket {
         n.set_child(
             "stage",
             match self.stage {
-                Stage::Building => "building",
-                Stage::Done => "done",
+                RocketStage::Building => "building",
+                RocketStage::Done => "done",
                 _ => "awaiting",
             },
         );
     }
     pub(super) fn animate(&mut self, time: u64) {
         match self.stage {
-            Stage::Building | Stage::Awaiting => {
+            RocketStage::Building | RocketStage::Awaiting => {
                 self.frame =
                     FRAME_STEPS.partition_point(|&threshold| self.steps >= threshold) as u8;
             }
-            Stage::Launching if time >= self.next_frame => {
+            RocketStage::Launching if time >= self.next_frame => {
                 self.next_frame = time + FRAME_INTERVAL_MS;
                 self.frame += 1;
                 if self.frame >= LAUNCH_FRAME {
-                    self.stage = Stage::Launch;
+                    self.stage = RocketStage::Launch;
                 }
             }
-            Stage::Done => self.frame = FINISHED_FRAME,
+            RocketStage::Done => self.frame = FINISHED_FRAME,
             _ => {}
         }
     }
@@ -87,7 +88,7 @@ impl City {
         if !r.ready_to_launch() {
             return false;
         }
-        r.stage = Stage::Launching;
+        r.stage = RocketStage::Launching;
         true
     }
     pub(super) fn update_rocket(&mut self, id: BuildingId, p: Point) -> io::Result<()> {
@@ -96,15 +97,15 @@ impl City {
         let Operation::Rocket(r) = &mut b.operation else {
             unreachable!()
         };
-        let paid = r.stage != Stage::Done
+        let paid = r.stage != RocketStage::Done
             && finance::expense(
                 &mut self.balance,
                 &mut self.stats.expenses.rockets,
                 &mut self.events,
                 RUNNING_COST,
             );
-        let launch = paid && r.stage == Stage::Launch;
-        if paid && r.stage == Stage::Building {
+        let launch = paid && r.stage == RocketStage::Launch;
+        if paid && r.stage == RocketStage::Building {
             let steps = (STEPS - r.steps)
                 .min(b.stock[Labor as usize] / LABOR)
                 .min(b.stock[Goods as usize] / GOODS)
@@ -127,7 +128,7 @@ impl City {
                 r.working_days += 1;
             }
             if r.steps >= STEPS {
-                r.stage = Stage::Awaiting;
+                r.stage = RocketStage::Awaiting;
                 self.events.push_back(CityEvent::RocketReady(p));
             }
         }
@@ -136,7 +137,7 @@ impl City {
             r.busy = std::mem::take(&mut r.working_days);
         }
         if launch {
-            r.stage = Stage::Done;
+            r.stage = RocketStage::Done;
             self.rockets_launched += 1;
             let chance = f64::from(b.installed_tech.min(self.tech_level).min(MAX_TECH_LEVEL))
                 / f64::from(MAX_TECH_LEVEL)

@@ -47,7 +47,8 @@ impl City {
     }
 
     pub(super) fn random_fire(&mut self) -> io::Result<()> {
-        let interval = FIRE_BASE_INTERVAL * FIRE_REFERENCE_SIDE / self.side * FIRE_REFERENCE_SIDE / self.side;
+        let interval =
+            FIRE_BASE_INTERVAL * FIRE_REFERENCE_SIDE / self.side * FIRE_REFERENCE_SIDE / self.side;
         if self.tech_level <= BuildingKind::FireStation.metadata().required_tech
             || interval <= FIRE_DAY
             || self.day % interval != FIRE_DAY
@@ -61,7 +62,8 @@ impl City {
         if let Some(id) = self.buildings.at(p) {
             let (origin, b) = self.buildings.get(id).unwrap();
             if self.decisions.c_modulo(PERCENT)? < b.kind.metadata().fire_chance
-                && self.tiles[(y * self.side + x) as usize].coverage & crate::rules::civic::FIRE == 0
+                && self.tiles[(y * self.side + x) as usize].coverage & crate::rules::civic::FIRE
+                    == 0
             {
                 self.ignite_building(id, origin)?;
                 if let Some(CityEvent::FireStarted(location, _)) = self.events.back_mut() {
@@ -101,7 +103,8 @@ impl City {
         } else {
             s.population_years += 1;
         }
-        if i64::from(s.old_tech) - i64::from(self.tech_level) > i64::from(s.old_tech) / TECH_TOLERANCE_DIVISOR
+        if i64::from(s.old_tech) - i64::from(self.tech_level)
+            > i64::from(s.old_tech) / TECH_TOLERANCE_DIVISOR
             || self.tech_level < SUSTAINABLE_TECH
         {
             s.tech_years = 0;
@@ -121,9 +124,15 @@ impl City {
                             | BuildingKind::Fire
                             | BuildingKind::PowerLine
                     )
-                    || self.tiles[(p.y * self.side + p.x) as usize].coverage & crate::rules::civic::FIRE != 0
+                    || self.tiles[(p.y * self.side + p.x) as usize].coverage
+                        & crate::rules::civic::FIRE
+                        != 0
             });
-            s.fire_years = if covered { s.fire_years + COVERAGE_CHECK_YEARS } else { 0 };
+            s.fire_years = if covered {
+                s.fire_years + COVERAGE_CHECK_YEARS
+            } else {
+                0
+            };
         }
         if s.mining_years >= MINING_YEARS
             && s.trade_years >= TRADE_YEARS

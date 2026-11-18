@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lc-game ldsv-version="2140">
+  <globals>
+    <given_scene>Frühjahr in der Altstadt &amp; am Fluss &lt;1900&gt;</given_scene>
+    <total_time>1249</total_time>
+    <total_money>-492</total_money>
+    <people_pool>12</people_pool>
+    <tech_level>96800</tech_level>
+    <rockets_launched>9</rockets_launched>
+    <rockets_launched_success>6</rockets_launched_success>
+    <coal_survey_done>1</coal_survey_done>
+    <game_end>YES</game_end>
+    <money_rates>
+      <income_tax_rate>17</income_tax_rate>
+      <transport_cost_rate>21</transport_cost_rate>
+    </money_rates>
+    <taxable>
+      <labor>312</labor>
+      <trade_ex>74</trade_ex>
+    </taxable>
+    <tradeRules>
+      <import_food_enable>0</import_food_enable>
+      <export_food_enable>1</export_food_enable>
+    </tradeRules>
+    <stats>
+      <highest_tech_level>98900</highest_tech_level>
+      <total_pollution>324</total_pollution>
+      <population>
+        <population_lm>6700</population_lm>
+        <population_mtd>3500</population_mtd>
+        <starving_lm>40</starving_lm>
+        <starving_mtd>17</starving_mtd>
+        <births_total>42</births_total>
+        <starve_deaths_total>9</starve_deaths_total>
+        <starve_deaths_history>2.625</starve_deaths_history>
+        <max_pop_ever>164</max_pop_ever>
+      </population>
+      <income>
+        <goods_tax_ly>-153</goods_tax_ly>
+        <goods_tax_ytd>-94</goods_tax_ytd>
+      </income>
+      <expenses>
+        <coalSurvey_ly>100</coalSurvey_ly>
+        <health_ytd>69</health_ytd>
+      </expenses>
+      <sustainability>
+        <mining_flag>NO</mining_flag>
+        <trade_flag>yes</trade_flag>
+        <old_money>-512</old_money>
+        <fire_years>7</fire_years>
+      </sustainability>
+      <history>
+        <births size="12">
+          <index_3>8</index_3>
+          <index_0>10</index_0>
+        </births>
+        <food size="2">
+          <index_0><amount>3100</amount><capacity>5500</capacity></index_0>
+          <index_1><amount>1200</amount><capacity>5000</capacity></index_1>
+        </food>
+      </history>
+    </stats>
+  </globals>
+  <map size="32">
+    <MapTile group="21" map-x="6" map-y="8">
+      <flags>0X21000003</flags>
+      <air_pol>61</air_pol>
+      <ore>170</ore>
+      <coal>240</coal>
+      <altitude>-12</altitude>
+      <ecotable>97</ecotable>
+      <wastes>3</wastes>
+      <grd_pol>26</grd_pol>
+      <water_alt>5</water_alt>
+      <water_pol>12</water_pol>
+      <water_wast>8</water_wast>
+    </MapTile>
+    <MapTile group="0" map-x="12" map-y="15">
+      <altitude>36</altitude>
+    </MapTile>
+    <recentPoint><y>17</y><x>5</x></recentPoint>
+  </map>
+</lc-game>
+<!-- End of the archived city snapshot. -->

@@ -2,10 +2,7 @@ use rustcity_core::{BuildingKind, City, Point, Terrain};
 
 #[test]
 fn clipped_view_preserves_row_order_and_multitile_building_origin() {
-    let city = City::load(
-        include_bytes!("../../lincity-core/tests/fixtures/blacksmith-2140.xml").as_slice(),
-    )
-    .unwrap();
+    let city = City::load(include_bytes!("fixtures/blacksmith-2140.xml").as_slice()).unwrap();
     let edge: Vec<_> = city
         .map_region(-3..2, -1..1)
         .map(|tile| tile.point)

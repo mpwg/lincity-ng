@@ -120,7 +120,7 @@ fn transactions_that_would_exceed_credit_leave_the_map_and_treasury_untouched() 
 #[test]
 fn crossing_zero_queues_a_single_event_on_the_affected_city() {
     use rustcity_core::CityEvent;
-    let input = include_bytes!("../../lincity-core/tests/fixtures/blacksmith-2140.xml");
+    let input = include_bytes!("fixtures/blacksmith-2140.xml");
     let mut city = City::load(input.as_slice()).unwrap();
     let p = Point { x: 3, y: 4 };
     city.apply(Action::Flood, p).unwrap();
