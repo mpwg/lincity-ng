@@ -31,7 +31,7 @@ Building& place(World& world, ConstructionGroup& group, MapPoint site) {
 }
 
 template<typename Operation>
-void replayChoices(const char* events, Operation operation) {
+void replayChoices(const std::string& events, Operation operation) {
   std::istringstream input(std::string("LINCITY-SIMULATION-TRACE 1\n") + events + "Z\n");
   SimulationTrace trace(input);
   operation();
@@ -107,6 +107,12 @@ void verifyMonument() {
   monument.update();
   require(world.tech_level == MONUMENT_TECH_EXPIRE * 1000 && monument.tail_off == 0,
           "monument kept researching at its expiration level");
+
+  monument.levelStuff(STUFF_LABOR, 0);
+  world.total_time = 99;
+  monument.update();
+  require(monument.busy == BUILD_MONUMENT_LABOR / MONUMENT_GET_LABOR &&
+          monument.working_days == 0, "monument lost its count of construction days");
 }
 
 void verifyTip() {
@@ -222,6 +228,51 @@ void verifyResidenceFire() {
   require(world.people_pool == 3, "fire survivors were counted again when the residence was destroyed");
 }
 
+void verifyResidenceMigration() {
+  World world(32);
+  world.people_pool = 0;
+  auto& home = place<Residence>(world, residenceHHConstructionGroup, MapPoint(12, 12));
+  constexpr int tenants = 24;
+  home.local_population = tenants;
+  home.levelStuff(STUFF_FOOD, tenants);
+  home.levelStuff(STUFF_WATER, tenants);
+
+  // Survive, have one birth, and let one resident leave for the population pool.
+  replayChoices("C 1\nC 0\nC 0\n", [&] { home.update(); });
+  require(home.local_population == tenants && world.people_pool == 1 &&
+          world.stats.population.births_t == 1 && world.stats.population.births_m.acc == 1,
+          "residence did not account for a birth and an emigrant");
+
+  home.levelStuff(STUFF_FOOD, tenants);
+  home.levelStuff(STUFF_WATER, tenants);
+  // On the next day the maximum migration draw for this home is 4299.
+  replayChoices("C 1\nC 1\nC 4299\n", [&] { home.update(); });
+  require(home.local_population == tenants + 1 && world.people_pool == 0 &&
+          world.stats.population.births_t == 1, "desirable residence did not attract an immigrant");
+}
+
+void verifyResidencePollution() {
+  World world(32);
+  world.people_pool = 0;
+  const MapPoint site(12, 12);
+  auto& home = place<Residence>(world, residenceLLConstructionGroup, site);
+  constexpr int tenants = 12;
+  home.local_population = tenants;
+  home.levelStuff(STUFF_FOOD, tenants);
+  home.levelStuff(STUFF_WATER, tenants);
+  home.levelStuff(STUFF_GOODS, tenants / 4);
+  home.levelStuff(STUFF_LOVOLT, POWER_RES_OVERHEAD + POWER_USE_PER_PERSON * tenants);
+  world.map(site)->pollution = 1600;
+
+  replayChoices("C 0\nC 94\nC 1\nC 500\n", [&] { home.update(); });
+  const auto& population = world.stats.population;
+  require(home.local_population == tenants - 1 && population.deaths_m.acc == 1 &&
+          population.unnat_deaths_m.acc == 1 && population.pollution_deaths_t == 1 &&
+          population.starve_deaths_t == 0, "fatal pollution was not counted separately from starvation");
+  require(home.commodityCount[STUFF_LOVOLT] == 0 && home.commodityCount[STUFF_WASTE] == 1,
+          "basic power supply should permit only the first round of goods consumption");
+}
+
 void verifyShantyWaste() {
   World world(32);
   const MapPoint site(12, 12);
@@ -261,6 +312,19 @@ void verifyShantyWaste() {
           "shanty did not burn its full waste inventory on the southeast tile");
   require(world.map(site)->getConstruction() == &shanty,
           "shanty ignited during waste burning despite fire coverage");
+
+  world.map(site)->flags &= ~FLAG_FIRE_COVER;
+  shanty.levelStuff(STUFF_WASTE, MAX_WASTE_AT_SHANTY - 2 * SHANTY_PUT_WASTE);
+  std::ostringstream choices;
+  choices << "S shanty.waste-fire 1\n";
+  int id = 0;
+  for(int y = 0; y < GROUP_SHANTY_SIZE; ++y)
+    for(int x = 0; x < GROUP_SHANTY_SIZE; ++x)
+      choices << "P " << ++id << ' ' << site.x + x << ' ' << site.y + y << ' ' << GROUP_FIRE << '\n';
+  replayChoices(choices.str(), [&] { shanty.update(); });
+  require(world.stats.groupCount[GROUP_SHANTY] == 0 && id == world.stats.groupCount[GROUP_FIRE] &&
+          dynamic_cast<const FireStartedMessage*>(world.popMessage().get()),
+          "uncontrolled waste burning did not replace the shanty with fire and report it");
 }
 
 void verifyShantyPopulation() {
@@ -300,6 +364,8 @@ int main() {
     verifyMonument();
     verifyTip();
     verifyResidence();
+    verifyResidenceMigration();
+    verifyResidencePollution();
     verifyResidenceFire();
     verifyShantyWaste();
     verifyShantyPopulation();

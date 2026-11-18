@@ -70,3 +70,7 @@ add_executable(core_persistence persistence.cpp)
 target_link_libraries(core_persistence PRIVATE LinCity::Core)
 add_test(NAME core.persistence COMMAND core_persistence
   "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" "${CMAKE_CURRENT_BINARY_DIR}/persistence.sav.gz")
+
+add_executable(core_support support.cpp)
+target_link_libraries(core_support PRIVATE xmlutil randutil)
+add_test(NAME core.support COMMAND core_support)

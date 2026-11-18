@@ -55,3 +55,15 @@ Ablehnungsgrund ausschließlich bei einer abgelehnten Vorschau.
   Tagesverbrauch und wechselt nach Erreichen von 100 Prozent erst im nächsten
   Update in den abgeschlossenen Zustand. Diese Eigenschaften sind
   als Referenzverhalten in den neuen Tests erfasst.
+- Die Erzmine prüfte bei der Rücklagerung weniger Arbeitseinheiten als sie
+  anschließend abzog. Die Prüfung verwendet jetzt dieselben 209 Einheiten
+  wie die Buchung. Das verwandte Originalticket #69 beschreibt eine andere
+  Eigenschaft, die mögliche Rücklagerung über den natürlichen Erzvorrat.
+  [#69](https://github.com/lincity-ng/lincity-ng/issues/69)
+- Die Kohlemine behielt nach erfolgloser Suche eine Position außerhalb des
+  Abbaugebiets. Beide Suchpfade setzen die Position jetzt zurück. Der
+  Regressionstest prüft wiederholt erfolglose Versuche und den nächsten
+  erfolgreichen Versuch innerhalb des Gebiets.
+- Der 2140-Lader schnitt die vier erweiterbaren Bevölkerungshistorien bei
+  190 Monaten ab. Er übernimmt nun fortlaufend gespeicherte Werte darüber
+  hinaus. Die Länge fester Reihen wie des Geldverlaufs bleibt begrenzt.

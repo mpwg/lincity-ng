@@ -123,7 +123,7 @@ void Oremine::update()
     }
     // return the ore to ore_reserve if there is enough sustainable ore available
     else if ((commodityCount[STUFF_ORE] - ORE_PER_RESERVE > ORE_LEVEL_TARGET * (MAX_ORE_AT_MINE )/100)
-    && (commodityCount[STUFF_LABOR] >= LABOR_DIG_ORE))
+    && (commodityCount[STUFF_LABOR] >= OREMINE_LABOR))
     {
       for(MapPoint p(point); p.y < point.y + constructionGroup->size; p.y++)
       for(p.x = point.x; p.x < point.x + constructionGroup->size; p.x++) {

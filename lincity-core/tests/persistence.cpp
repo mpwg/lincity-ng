@@ -82,6 +82,24 @@ void migrate2130(const fs::path& fixtures, const fs::path& saved) {
   checkMigratedWorld(*World::load(saved));
 }
 
+void extendedPopulationHistory(const fs::path& saved) {
+  World world(32);
+  world.stats.ensurePopulationHistory(240);
+  auto& history = world.stats.history;
+  history.pop.at(190) = 2400;
+  history.starve.at(211) = 52;
+  history.nojobs.at(224) = 130;
+  history.ppool.at(239) = 142;
+  world.save(saved);
+
+  auto restored = World::load(saved);
+  const auto& restoredHistory = restored->stats.history;
+  CHECK(restoredHistory.pop.size() == 240 && restoredHistory.starve.size() == 240);
+  CHECK(restoredHistory.nojobs.size() == 240 && restoredHistory.ppool.size() == 240);
+  CHECK(restoredHistory.pop.at(190) == 2400 && restoredHistory.starve.at(211) == 52);
+  CHECK(restoredHistory.nojobs.at(224) == 130 && restoredHistory.ppool.at(239) == 142);
+}
+
 const MapPoint readyRocket(13, 5);
 
 void checkSpecializedBuildings(const World& world) {
@@ -189,7 +207,7 @@ void unknownFields(const fs::path& saved) {
             <money>
               <metadata>123</metadata>
               <index_latest>43</index_latest>
-              <index_99>99</index_99>
+              <index_12>99</index_12>
               <index_1>-37</index_1>
             </money>
             <food>
@@ -207,7 +225,8 @@ void unknownFields(const fs::path& saved) {
   )xml");
   auto world = World::load(saved);
   CHECK(world->total_money == 81 && world->map.recentPoint == MapPoint(6, 7));
-  CHECK(world->stats.history.money.at(0) == 0 && world->stats.history.money.at(1) == -37);
+  const auto& money = world->stats.history.money;
+  CHECK(money.size() == 12 && money.at(0) == 0 && money.at(1) == -37);
   const auto& food = world->stats.history.inventory[STUFF_FOOD].at(0);
   CHECK(food.amount == 45 && food.capacity == 100);
 }
@@ -221,6 +240,7 @@ int main(int argc, char** argv) {
   try {
     marketDirections(saved);
     migrate2130(fixtures, saved);
+    extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
 #ifdef NDEBUG

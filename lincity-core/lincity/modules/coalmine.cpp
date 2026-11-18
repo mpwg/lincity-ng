@@ -89,6 +89,7 @@ void Coalmine::update() {
         if(world.map(mine_cur)->coal_reserve > 0)
           goto do_mine;
       }
+      mine_cur = mine_nw;
       current_coal_reserve = 0;
       goto done;
     }
@@ -112,6 +113,7 @@ void Coalmine::update() {
         if(world.map(mine_cur)->coal_reserve < COAL_RESERVE_SIZE)
           goto do_unmine;
       }
+      mine_cur = mine_nw;
       goto done;
     }
 

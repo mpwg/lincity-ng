@@ -48,6 +48,7 @@
 #include <sstream>                        // for basic_ostringstream
 #include <stdexcept>                      // for runtime_error, invalid_argu...
 #include <string>                         // for basic_string, operator==
+#include <string_view>                    // for string_view
 #include <system_error>                   // for system_error, make_error_code
 #include <unordered_map>                  // for unordered_map, operator!=
 #include <utility>                        // for pair
@@ -91,7 +92,8 @@ static void writeArray(xmlTextWriterPtr xmlWriter, const A& array,
 );
 template<typename A>
 static void readArray(xmlpp::TextReader& xmlReader, A& array,
-  std::function<void(xmlpp::TextReader&, typename A::value_type&)> readElement
+  std::function<void(xmlpp::TextReader&, typename A::value_type&)> readElement,
+  bool allowGrowth = false
 );
 static void readArray_old(xmlpp::TextReader& xmlReader, std::deque<int>& array);
 static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array);
@@ -704,10 +706,14 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
               historyIt != histories.end()
             ) {
               std::deque<int>& history = historyIt->second;
+              const auto& name = historyIt->first;
+              const bool allowGrowth = name == "pop" || name == "starve" ||
+                name == "nojobs" || name == "ppool";
               readArray(xmlReader, history,
                 [](xmlpp::TextReader& xmlReader, int& el) {
                   el = p<int>(xmlReader.read_inner_xml());
-                }
+                },
+                allowGrowth
               );
             }
             else if(Commodity stuff =
@@ -1187,9 +1193,9 @@ static void writeArray(xmlTextWriterPtr xmlWriter, const A& array,
 
 template<typename A>
 static void readArray(xmlpp::TextReader& xmlReader, A& array,
-  std::function<void(xmlpp::TextReader&, typename A::value_type&)> readElement
+  std::function<void(xmlpp::TextReader&, typename A::value_type&)> readElement,
+  bool allowGrowth
 ) {
-  // array.resize(std::stoull(xmlReader.get_attribute("size")));
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   [[maybe_unused]] int depth = xmlReader.get_depth();
   if(!xmlReader.is_empty_element() && xmlReader.read())
@@ -1198,25 +1204,27 @@ static void readArray(xmlpp::TextReader& xmlReader, A& array,
       xmlReader.next();
       continue;
     }
-    if(xmlReader.get_name().substr(0, 6) != "index_") {
+    const std::string name = xmlReader.get_name();
+    constexpr std::string_view indexPrefix = "index_";
+    if(name.compare(0, indexPrefix.size(), indexPrefix) != 0) {
       unexpectedXmlElement(xmlReader);
       xmlReader.next();
       continue;
     }
-    typename A::value_type *element = nullptr;
-    try {
-      element = &array.at(std::stoull(xmlReader.get_name().substr(6)));
-    } catch(std::invalid_argument ex) {
-      unexpectedXmlElement(xmlReader);
-      xmlReader.next();
-      continue;
-    } catch(std::out_of_range ex) {
+    typename A::size_type index;
+    const auto end = name.data() + name.size();
+    const auto [parsed, error] =
+      std::from_chars(name.data() + indexPrefix.size(), end, index);
+    if(error != std::errc{} || parsed != end || index > array.size() ||
+      (index == array.size() && !allowGrowth)
+    ) {
       unexpectedXmlElement(xmlReader);
       xmlReader.next();
       continue;
     }
-    assert(element);
-    readElement(xmlReader, *element);
+    // Grow only as adjacent entries are read, independent of the declared size.
+    if(index == array.size()) array.emplace_back();
+    readElement(xmlReader, array[index]);
     xmlReader.next();
   }
   assert(xmlReader.get_depth() == depth);

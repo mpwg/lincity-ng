@@ -93,25 +93,49 @@ void coalMineThresholds() {
   CHECK(world.map(site)->coal_reserve == 20 && world.map(site)->pollution == 3);
 }
 
-void coalMineFullDeposit() {
-  for(int lastReserve : {9999, 10000}) {
-    World world(32);
-    for(int y = 6; y < 18; ++y)
-      for(int x = 6; x < 18; ++x)
-        world.map(MapPoint(x, y))->coal_reserve = 10000;
-    auto& lastDeposit = *world.map(site.e(5).s(5));
-    lastDeposit.coal_reserve = lastReserve;
-    auto& mine = place(world, coalmineConstructionGroup);
-    stock(mine, {{STUFF_COAL, 17000}, {STUFF_LABOR, 918}});
+void coalMineReturnRetry() {
+  World world(32);
+  for(int y = 6; y < 18; ++y)
+    for(int x = 6; x < 18; ++x)
+      world.map(MapPoint(x, y))->coal_reserve = 10000;
+  auto& lastDeposit = *world.map(site.e(5).s(5));
+  auto& outside = *world.map(site.e(6).s(6));
+  auto& mine = place(world, coalmineConstructionGroup);
+  stock(mine, {{STUFF_COAL, 17000}, {STUFF_LABOR, 918}});
+  for(int day = 1; day <= 2; ++day) {
+    world.total_time = day;
     mine.update();
-    if(lastReserve == 9999) {
-      CHECK(mine.commodityCount[STUFF_COAL] == 16000 && mine.commodityCount[STUFF_LABOR] == 0);
-    } else {
-      CHECK(mine.commodityCount[STUFF_COAL] == 17000 && mine.commodityCount[STUFF_LABOR] == 918);
-    }
-    CHECK(lastDeposit.coal_reserve == 10000);
-    CHECK(world.map(site.n(6).w(6))->coal_reserve == 10000);
+    CHECK(outside.coal_reserve == 0);
+    CHECK(mine.commodityCount[STUFF_COAL] == 17000 && mine.commodityCount[STUFF_LABOR] == 918);
   }
+  lastDeposit.coal_reserve = 9999;
+  world.total_time = 3;
+  mine.update();
+  CHECK(lastDeposit.coal_reserve == 10000 && outside.coal_reserve == 0);
+  CHECK(mine.commodityCount[STUFF_COAL] == 16000 && mine.commodityCount[STUFF_LABOR] == 0);
+}
+
+void coalMineExtractionRetry() {
+  World world(32);
+  auto& mine = place(world, coalmineConstructionGroup);
+  // Other mines may change the reserves while this mine is operating.
+  world.map(site)->coal_reserve = 0;
+  auto& outside = *world.map(site.e(6).s(6));
+  outside.coal_reserve = 2;
+  stock(mine, {{STUFF_LABOR, 918}});
+  for(int day = 1; day <= 2; ++day) {
+    world.total_time = day;
+    mine.update();
+    CHECK(outside.coal_reserve == 2 && outside.pollution == 0);
+    CHECK(mine.commodityCount[STUFF_COAL] == 0 && mine.commodityCount[STUFF_LABOR] == 918);
+  }
+  auto& deposit = *world.map(site.e(5).s(5));
+  deposit.coal_reserve = 2;
+  world.total_time = 3;
+  mine.update();
+  CHECK(deposit.coal_reserve == 1 && deposit.pollution == 3);
+  CHECK(outside.coal_reserve == 2 && outside.pollution == 0);
+  CHECK(mine.commodityCount[STUFF_COAL] == 1000 && mine.commodityCount[STUFF_LABOR] == 0);
 }
 
 void coalMineExhaustion() {
@@ -488,7 +512,8 @@ int main() {
   try {
     coalPower();
     coalMineThresholds();
-    coalMineFullDeposit();
+    coalMineReturnRetry();
+    coalMineExtractionRetry();
     coalMineExhaustion();
     oreMineConstruction();
     oreMineThresholds();
