@@ -67,3 +67,14 @@ Ablehnungsgrund ausschließlich bei einer abgelehnten Vorschau.
 - Der 2140-Lader schnitt die vier erweiterbaren Bevölkerungshistorien bei
   190 Monaten ab. Er übernimmt nun fortlaufend gespeicherte Werte darüber
   hinaus. Die Länge fester Reihen wie des Geldverlaufs bleibt begrenzt.
+- In einer vollständig bebauten Stadt kann die Standortsuche für ein
+  Elendsviertel ohne Ergebnis enden. Beide Suchzweige erkennen diesen
+  Zustand jetzt. Der Tageswechsel und die vorhandene Bebauung bleiben
+  erhalten.
+- Die Verbindung eines Sees am Kartenrand mit einem Fluss bezog beim
+  Weiterlaufen auch Nachbarn außerhalb der Karte ein. Der Test prüft
+  jetzt, dass das Wasser am Rand angeschlossen wird und die Suche dort endet.
+- Die Zinsberechnung zum Jahresende negierte den Kontostand vor der
+  Division. Für den kleinsten darstellbaren Kontostand konnte das
+  überlaufen. Der Test prüft die Begrenzung extremer Kontostände und
+  daneben die normale Zinsbuchung sowie die jährlichen Handelsfreigaben.

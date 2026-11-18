@@ -82,7 +82,7 @@ void add_a_shanty(World& world) {
         }
         p = *r;
         r = world.map.find_bare_area(p, 2);
-        if (r == -1)
+        if (!r)
         {
 #ifdef DEBUG
             fprintf(stderr,"Adding a shanty (s), no space for it?!\n");
@@ -99,7 +99,7 @@ void add_a_shanty(World& world) {
 
         p = *r;
         r = world.map.find_bare_area(p, 2);
-        if (r == -1)
+        if (!r)
         {
 #ifdef DEBUG
             fprintf(stderr,"Adding a shanty (r), no space for it?!\n");

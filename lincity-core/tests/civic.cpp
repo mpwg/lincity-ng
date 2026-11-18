@@ -1,5 +1,7 @@
+#include "lincity/ConstructionReport.hpp"
 #include "lincity/messages.hpp"
 #include "lincity/modules/fire.hpp"
+#include "lincity/modules/health_centre.hpp"
 #include "lincity/modules/market.hpp"
 #include "lincity/modules/modules_interfaces.hpp"
 #include "lincity/modules/monument.hpp"
@@ -228,6 +230,103 @@ void verifyResidenceFire() {
   require(world.people_pool == 3, "fire survivors were counted again when the residence was destroyed");
 }
 
+class FireProgressReport : public ConstructionReport {
+public:
+  std::pair<int, int> progress;
+
+  void addBlank() override {}
+  void addLabel(const std::string&) override {}
+  void addLabeledText(const std::string&, const std::string&) override {}
+  void addInteger(const std::string&, int) override {}
+  void addDecimal(const std::string&, double) override {}
+  void addPercentage(const std::string&, double) override {}
+  void addQuantity(const std::string&, int value, int capacity) override {
+    progress = {value, capacity};
+  }
+  void addPrefixedQuantity(const std::string&, const std::string&, int, int) override {}
+};
+
+void verifyFireLifetime(bool covered) {
+  World world(32);
+  const MapPoint site(12, 12);
+  auto& fire = place<Fire>(world, fireConstructionGroup, site);
+  if(covered)
+    world.map(site)->flags |= FLAG_FIRE_COVER;
+  fire.burning_days = FIRE_LENGTH - 1;
+  fire.days_before_spread = 2;
+  const int dailyProgress = covered ? 5 : 1;
+  const int initialMoney = world.total_money;
+
+  FireProgressReport report;
+  fire.report(report, false);
+  require(report.progress == std::pair{FIRE_LENGTH - 1, FIRE_LENGTH},
+          "active fire report did not show progress through its burning phase");
+  try {
+    world.bulldozeArea(site);
+    throw std::runtime_error("demolition removed an active fire");
+  } catch(const CannotBulldozeThisEverMessage::Exception&) {
+    require(world.map(site)->getConstruction() == &fire && world.total_money == initialMoney,
+            "rejected fire demolition altered the site or charged the city");
+  }
+
+  fire.burning_days = FIRE_LENGTH;
+  fire.torch();
+  fire.update();
+  require(fire.burning_days == FIRE_LENGTH + dailyProgress &&
+          fire.smoking_days == 0 && world.map(site)->pollution == 1,
+          "fire did not finish its last burning day at the expected rate");
+
+  fire.getFrame().frame = fire.getFrame().resourceGroup->frameCount - 1;
+  replayChoices("C 175\n", [&] { fire.animate(1000); });
+  require(fire.getFrame().frame == 0, "burning fire did not loop its animation");
+  replayChoices("C 7\n", [&] { fire.update(); });
+  require(fire.smoking_days == 7 + dailyProgress && world.map(site)->pollution == 1,
+          "smoldering fire did not advance without producing new pollution");
+  fire.report(report, false);
+  require(report.progress == std::pair{7 + dailyProgress, AFTER_FIRE_LENGTH},
+          "smoldering report did not show progress through its smoke phase");
+  fire.animate(1000);
+  require(fire.getFrame().resourceGroup == ResourceGroup::resMap.at("FireWasteLand") &&
+          fire.getFrame().frame == 0, "smoldering fire did not start its wasteland animation");
+
+  fire.smoking_days = AFTER_FIRE_LENGTH - dailyProgress;
+  fire.update();
+  fire.animate(1000);
+  require(world.map(site)->getConstruction() == &fire &&
+          fire.smoking_days == AFTER_FIRE_LENGTH && fire.getFrame().frame == 4,
+          "burnt site disappeared before reaching its final smoke stage");
+  fire.update();
+  require(world.map(site)->is_bare() && world.stats.groupCount[GROUP_FIRE] == 0,
+          "finished smoke did not clear the building site");
+
+  world.buildConstruction(residenceLLConstructionGroup, site);
+  world.do_time_step();
+  require(world.map(site)->getGroup() == GROUP_RESIDENCE_LL && world.map.constructionCount() == 1,
+          "removing an old fire disturbed the building that replaced it");
+}
+
+void verifyFireSpreadBarriers() {
+  World world(32);
+  const MapPoint site(1, 12);
+  auto& fire = place<Fire>(world, fireConstructionGroup, site);
+  parklandConstructionGroup.placeItem(world, site.n());
+  parklandConstructionGroup.placeItem(world, site.s());
+  world.map(site.n())->flags |= FLAG_FIRE_COVER;
+  fire.burning_days = 1;
+
+  // West is beyond the city, east is empty, north is protected, and south
+  // rolls a value exactly at the target's fire chance.
+  const char* draws[] = {"C 3\n", "C 2\n", "C 0\nC 0\n",
+                         "C 1\nC 1\n", "C 4\n"};
+  for(const char* choices : draws) {
+    fire.days_before_spread = 1;
+    replayChoices(choices, [&] { fire.update(); });
+    require(fire.days_before_spread == FIRE_DAYS_PER_SPREAD &&
+            world.stats.groupCount[GROUP_FIRE] == 1 && world.stats.groupCount[GROUP_PARKLAND] == 2,
+            "failed fire spread damaged a neighbor or did not reset the spread clock");
+  }
+}
+
 void verifyResidenceMigration() {
   World world(32);
   world.people_pool = 0;
@@ -273,6 +372,34 @@ void verifyResidencePollution() {
           "basic power supply should permit only the first round of goods consumption");
 }
 
+void verifyResidenceDensity() {
+  struct Housing {
+    ConstructionGroup& group;
+    int capacity;
+    int deathInterval;
+    int desirability;
+  };
+  const Housing cases[] = {
+    {residenceHLConstructionGroup, 200, 759, 45},
+    {residenceLHConstructionGroup, 100, 639, 5},
+    {residenceMHConstructionGroup, 200, 791, 5},
+  };
+  constexpr int tenants = 24;
+  for(const auto& housing : cases) {
+    World world(32);
+    world.people_pool = 0;
+    auto& home = place<Residence>(world, housing.group, MapPoint(12, 12));
+    home.local_population = tenants;
+    home.levelStuff(STUFF_FOOD, tenants);
+    home.levelStuff(STUFF_WATER, tenants);
+    replayChoices("C 1\nC 1\nC 500\n", [&] { home.update(); });
+    require(home.local_population == tenants && home.deaths == housing.deathInterval &&
+            home.desireability == housing.desirability &&
+            world.stats.population.housing_m.acc == housing.capacity,
+            "residence type reported the wrong health, desirability or capacity");
+  }
+}
+
 void verifyShantyWaste() {
   World world(32);
   const MapPoint site(12, 12);
@@ -302,6 +429,12 @@ void verifyShantyWaste() {
           "shanty applied the wrong reductions or produced negative taxable income");
   require(shanty.commodityCount[STUFF_WASTE] == 4 * SHANTY_PUT_WASTE + SHANTY_GET_GOODS / 3,
           "shanty produced the wrong waste from goods");
+  shanty.levelStuff(STUFF_LABOR, SHANTY_GET_LABOR);
+  shanty.levelStuff(STUFF_COAL, SHANTY_GET_COAL);
+  world.taxable.coal = 2 * SHANTY_GET_COAL + 1;
+  shanty.update();
+  require(world.taxable.labor == 0 && world.taxable.coal == 1,
+          "shanty made taxable labor negative or discarded extra taxable coal");
 
   shanty.levelStuff(STUFF_WASTE, MAX_WASTE_AT_SHANTY - 2 * SHANTY_PUT_WASTE);
   world.map(site)->flags |= FLAG_FIRE_COVER;
@@ -312,6 +445,16 @@ void verifyShantyWaste() {
           "shanty did not burn its full waste inventory on the southeast tile");
   require(world.map(site)->getConstruction() == &shanty,
           "shanty ignited during waste burning despite fire coverage");
+  const auto& burnFrame = world.map(site)->getFrames()->back();
+  replayChoices("C 175\n", [&] { shanty.animate(1000); });
+  require(burnFrame.frame == 0, "waste burning did not make its fire visible");
+  const auto frameCount = burnFrame.resourceGroup->frameCount;
+  for(int step = 1; step <= frameCount; ++step) {
+    replayChoices("C 175\n", [&] { shanty.animate(1000 + step * ANIM_THRESHOLD(200)); });
+    require(burnFrame.frame == step % frameCount, "waste burning animation did not advance in a loop");
+  }
+  world.do_animate(1000 + ANIM_THRESHOLD(3 * WASTE_BURN_TIME));
+  require(burnFrame.frame == -1, "waste fire stayed visible after its animation ended");
 
   world.map(site)->flags &= ~FLAG_FIRE_COVER;
   shanty.levelStuff(STUFF_WASTE, MAX_WASTE_AT_SHANTY - 2 * SHANTY_PUT_WASTE);
@@ -325,6 +468,24 @@ void verifyShantyWaste() {
   require(world.stats.groupCount[GROUP_SHANTY] == 0 && id == world.stats.groupCount[GROUP_FIRE] &&
           dynamic_cast<const FireStartedMessage*>(world.popMessage().get()),
           "uncontrolled waste burning did not replace the shanty with fire and report it");
+}
+
+void verifyShantyBulldoze() {
+  World world(32);
+  const MapPoint site(12, 12);
+  world.total_money = 2 * GROUP_SHANTY_BUL_COST;
+  place<Shanty>(world, shantyConstructionGroup, site);
+
+  world.bulldozeArea(site.se());
+  require(world.stats.groupCount[GROUP_SHANTY] == 0 &&
+          world.total_money == GROUP_SHANTY_BUL_COST &&
+          world.stats.expenses.construction.acc == GROUP_SHANTY_BUL_COST,
+          "shanty demolition did not remove the building and charge exactly once");
+  for(const MapPoint tile : {site, site.s(), site.e(), site.se()}) {
+    const auto* fire = dynamic_cast<const Fire*>(world.map(tile)->getConstruction());
+    require(fire && fire->burning_days == FIRE_LENGTH - 25,
+            "bulldozed shanty did not leave a short-lived fire on each tile");
+  }
 }
 
 void verifyShantyPopulation() {
@@ -353,6 +514,63 @@ void verifyShantyPopulation() {
   require(world.stats.groupCount[GROUP_SHANTY] == 1,
           "the last shanty should survive a low population pool");
 }
+
+void verifyShantyClusterGrowth() {
+  World world(32);
+  const MapPoint existing(12, 12);
+  place<Shanty>(world, shantyConstructionGroup, existing);
+  world.people_pool = SHANTY_MIN_PP + 2 * SHANTY_POP + 5;
+
+  const MapPoint vacant(10, 13);
+  std::ostringstream choices;
+  choices << "C 12\nC 12\nC 1\nP 1 " << vacant.x << ' ' << vacant.y << ' ' << GROUP_SHANTY << '\n';
+  replayChoices(choices.str(), [&] { update_shanty(world); });
+  require(world.stats.groupCount[GROUP_SHANTY] == 2 && world.map(existing)->getGroup() == GROUP_SHANTY &&
+          world.map(vacant.se())->getGroup() == GROUP_SHANTY &&
+          world.people_pool == SHANTY_MIN_PP + 2 * SHANTY_POP,
+          "a growing shanty cluster did not occupy the nearby vacant plot");
+}
+
+void verifyShantyOnFullMap(bool hasShanty) {
+  World world(8);
+  const MapPoint market(2, 2);
+  const MapPoint shanty(4, 4);
+  marketConstructionGroup.placeItem(world, market);
+  if(hasShanty)
+    shantyConstructionGroup.placeItem(world, shanty);
+  for(int y = 1; y < world.map.len() - 1; ++y) {
+    for(int x = 1; x < world.map.len() - 1; ++x) {
+      const MapPoint site(x, y);
+      if(world.map(site)->is_bare())
+        parklandConstructionGroup.placeItem(world, site);
+    }
+  }
+
+  world.tech_level = GROUP_HEALTH_TECH + 1;
+  world.people_pool = SHANTY_MIN_PP + 2 * SHANTY_POP + (hasShanty ? 5 : 0);
+  world.total_time = 14;
+  const auto count = world.map.constructionCount();
+
+  // With an existing shanty the third draw chooses its cluster over the market.
+  unsigned seed = 0;
+  if(hasShanty) {
+    for(; seed < 100; ++seed) {
+      std::srand(seed);
+      std::rand();
+      std::rand();
+      if(std::rand() % 8 != 0) break;
+    }
+    require(seed < 100, "could not select the existing shanty as the anchor");
+  }
+  std::srand(seed);
+  world.do_time_step();
+  require(world.total_time == 15 && world.map.constructionCount() == count &&
+          world.stats.groupCount[GROUP_SHANTY] == hasShanty &&
+          world.map(market)->getGroup() == GROUP_MARKET,
+          "a full city did not advance one day with its existing buildings");
+  require(world.people_pool == SHANTY_MIN_PP + 2 * SHANTY_POP,
+          "unsuccessful shanty expansion altered the expected population loss");
+}
 }
 
 int main() {
@@ -366,9 +584,17 @@ int main() {
     verifyResidence();
     verifyResidenceMigration();
     verifyResidencePollution();
+    verifyResidenceDensity();
     verifyResidenceFire();
+    verifyFireLifetime(false);
+    verifyFireLifetime(true);
+    verifyFireSpreadBarriers();
     verifyShantyWaste();
+    verifyShantyBulldoze();
     verifyShantyPopulation();
+    verifyShantyClusterGrowth();
+    verifyShantyOnFullMap(false);
+    verifyShantyOnFullMap(true);
   } catch(const Message::Exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
