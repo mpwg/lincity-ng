@@ -2,9 +2,11 @@
 #include "lincity/UserOperation.hpp"
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/world.hpp"
+#include "util/simulation_trace.hpp"
 
 #include <deque>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -182,6 +184,51 @@ void marketCommands() {
   world.do_time_step(); // remove the detached construction
 }
 
+void marketSupplyAndWaste() {
+  World world(32);
+  const auto supplier = site.e(5);
+  marketConstructionGroup.placeItem(world, site);
+  organic_farmConstructionGroup.placeItem(world, supplier);
+  auto& market = *world.map(site)->getConstruction();
+  auto& farm = *world.map(supplier)->getConstruction();
+  farm.bootstrap_commodities(50);
+  CHECK(farm.commodityCount[STUFF_FOOD] == 5500);
+  CHECK(farm.commodityCount[STUFF_WASTE] == 0);
+  CHECK(farm.tellstuff(STUFF_FOOD, -2) == 500);
+  CHECK(farm.tellstuff(STUFF_FOOD, 499) == 500 && farm.tellstuff(STUFF_FOOD, 501) == -1);
+
+  CHECK(world.setMarketTrade(site, STUFF_FOOD, true, false));
+  market.update();
+  CHECK(market.commodityCount[STUFF_FOOD] == 0 && farm.commodityCount[STUFF_FOOD] == 5500);
+
+  CHECK(world.setMarketTrade(site, STUFF_FOOD, false, true));
+  market.levelStuff(STUFF_LABOR, 1);
+  market.update();
+  CHECK(market.commodityCount[STUFF_FOOD] == 0 && farm.commodityCount[STUFF_FOOD] == 5500);
+  CHECK(world.taxable.labor == 1);
+
+  CHECK(world.setMarketTrade(site, STUFF_FOOD, true, false));
+  market.levelStuff(STUFF_LABOR, 1);
+  market.update();
+  CHECK(market.commodityCount[STUFF_FOOD] == 5280 && farm.commodityCount[STUFF_FOOD] == 220);
+  CHECK(world.taxable.labor == 2);
+
+  world.total_time = 1;
+  const int threshold = 85 * MAX_WASTE_IN_MARKET / 100;
+  market.levelStuff(STUFF_WASTE, threshold - 1);
+  market.update();
+  CHECK(market.commodityCount[STUFF_WASTE] == threshold - 1);
+  CHECK(world.map(site.se())->pollution == 0);
+  market.levelStuff(STUFF_WASTE, threshold);
+  std::istringstream choices("LINCITY-SIMULATION-TRACE 1\nS market.waste-fire 0\nZ\n");
+  SimulationTrace trace(choices);
+  market.update();
+  trace.finish();
+  CHECK(market.commodityCount[STUFF_WASTE] == threshold - 7 * MAX_WASTE_IN_MARKET / 10);
+  CHECK(world.map(site.se())->pollution == MAX_WASTE_IN_MARKET / 20);
+  CHECK(!world.popMessage() && world.map(site)->getGroup() == GROUP_MARKET);
+}
+
 void portCommands() {
   World world(32);
   world.total_money = 1000000;
@@ -298,6 +345,7 @@ int main() {
     floodAndTransport();
     floodRejectedAtCreditLimit();
     marketCommands();
+    marketSupplyAndWaste();
     portCommands();
     rocketCommands();
     protectedMonument();

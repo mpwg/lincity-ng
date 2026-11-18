@@ -1,6 +1,7 @@
 #include "lincity/Vehicles.hpp"
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/sustainable.hpp"
+#include "lincity/transport.hpp"
 #include "lincity/world.hpp"
 #include "util/simulation_trace.hpp"
 
@@ -284,6 +285,61 @@ void eventDiagnostics() {
   CHECK(world.map(site)->getGroup() == GROUP_FIRE);
 }
 
+void transportMaintenance() {
+  World world(32);
+  const auto rail = site.e(3);
+  roadConstructionGroup.placeItem(world, site);
+  railConstructionGroup.placeItem(world, rail);
+  auto& road = dynamic_cast<Transport&>(*world.map(site)->getConstruction());
+  auto& tracks = *world.map(rail)->getConstruction();
+  world.total_money = 100;
+  world.total_time = 0;
+  world.money_rates.transport_cost = 5;
+  road.levelStuff(STUFF_GOODS, 3);
+  road.levelStuff(STUFF_LOVOLT, 1);
+  tracks.levelStuff(STUFF_GOODS, 3);
+  tracks.levelStuff(STUFF_STEEL, 4);
+  tracks.levelStuff(STUFF_LOVOLT, LOVOLT_LOSS_ON_TRANSPORT + 2);
+  road.update();
+  tracks.update();
+  CHECK(world.total_money == 80 && world.stats.expenses.transport.acc == 20);
+  CHECK(road.commodityCount[STUFF_GOODS] == 2 && road.commodityCount[STUFF_WASTE] == 1);
+  CHECK(road.commodityCount[STUFF_LOVOLT] == 0 && world.map(site)->pollution == ROAD_POLLUTION);
+  CHECK(tracks.commodityCount[STUFF_GOODS] == 2 && tracks.commodityCount[STUFF_STEEL] == 3);
+  CHECK(tracks.commodityCount[STUFF_WASTE] == 2 && tracks.commodityCount[STUFF_LOVOLT] == 2);
+  CHECK(world.map(rail)->pollution == RAIL_POLLUTION);
+
+  world.total_money = -2000000000;
+  world.total_time = 100;
+  road.update();
+  tracks.update();
+  CHECK(world.total_money == -2000000000 && world.stats.expenses.transport.acc == 20);
+  CHECK(road.canPlaceVehicle());
+  {
+    Vehicle parked(world, site, VEHICLE_BLUECAR);
+    CHECK(!road.canPlaceVehicle());
+  }
+  CHECK(road.canPlaceVehicle());
+
+  world.total_time = 1;
+  const int threshold = roadConstructionGroup.commodityRuleCount[STUFF_WASTE].maxload * 9 / 10;
+  const int pollution = world.map(site)->pollution;
+  road.levelStuff(STUFF_WASTE, threshold);
+  road.update();
+  CHECK(road.commodityCount[STUFF_WASTE] == threshold);
+  CHECK(world.map(site)->pollution == pollution);
+  road.levelStuff(STUFF_WASTE, threshold + 1);
+  std::istringstream input("LINCITY-SIMULATION-TRACE 1\nS transport.waste-fire 1\nP 1 12 12 " +
+    std::to_string(GROUP_FIRE) + "\nZ\n");
+  SimulationTrace trace(input);
+  road.update();
+  trace.finish();
+  CHECK(world.map(site)->getGroup() == GROUP_FIRE);
+  CHECK(world.map(site)->pollution == pollution + WASTE_BURN_ON_TRANSPORT_POLLUTE);
+  const auto fire = dynamic_message_cast<FireStartedMessage>(world.popMessage());
+  CHECK(fire && fire->getPoint() == site && fire->getGroup().group == GROUP_ROAD);
+}
+
 void inventionThreshold() {
   World world(32);
   const auto before = inventionsAfter(rocketPadConstructionGroup.tech - 1);
@@ -367,6 +423,7 @@ int main() {
     sustainability();
     transportFrames();
     vehicleCrossings();
+    transportMaintenance();
     inventionThreshold();
     eventDiagnostics();
   } catch(const std::exception& error) {

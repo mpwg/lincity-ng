@@ -57,6 +57,32 @@ void port() {
   CHECK(world.total_money == 425 && world.taxable.trade_ex == 22 && building.pence == 47);
 }
 
+void portTradeLimits() {
+  World world(32);
+  portConstructionGroup.placeItem(world, site);
+  auto& building = dynamic_cast<Port&>(*world.map(site)->getConstruction());
+  CHECK(world.setPortTrade(site, STUFF_FOOD, true, false));
+  CHECK(world.setPortTrade(site, STUFF_GOODS, false, true));
+  building.levelStuff(STUFF_LABOR, 100);
+  building.levelStuff(STUFF_GOODS, 2000);
+  building.levelStuff(STUFF_FOOD, 9999);
+  world.tradeRule[STUFF_GOODS].give = false;
+  building.update();
+  CHECK(building.commodityCount[STUFF_FOOD] == 9999);
+  CHECK(building.commodityCount[STUFF_GOODS] == 2000);
+  CHECK(building.commodityCount[STUFF_LABOR] == 100);
+  CHECK(world.taxable.trade_ex == 0 && world.stats.expenses.import.acc == 0);
+
+  world.total_money = -2000000000;
+  building.levelStuff(STUFF_FOOD, 0);
+  building.update();
+  CHECK(building.commodityCount[STUFF_FOOD] == 0);
+  CHECK(building.commodityCount[STUFF_LABOR] == 100);
+  CHECK(world.total_money == -2000000000 && world.stats.expenses.import.acc == 0);
+  CHECK(world.map(site)->pollution == 0 && world.tech_level == 0);
+  CHECK(world.stats.sustainability.trade_flag);
+}
+
 void checkAccountingLimits() {
   World world(32);
   auto& expenses = world.stats.expenses.construction;
@@ -316,7 +342,10 @@ int main(int argc, char** argv) {
   BasicUrbg::get().seed(615);
   const std::string name = argv[1];
   try {
-    if(name == "port") port();
+    if(name == "port") {
+      port();
+      portTradeLimits();
+    }
     else if(name == "calendar") calendar();
     else if(name == "windmill") windmill(argv[3]);
     else if(name == "vehicles") vehicles();

@@ -105,6 +105,35 @@ void checkEvacuation(int pool, int residents, bool ended,
   require(!world.popMessage(), "duplicate evacuation result");
 }
 
+void checkRocketConstructionLimits() {
+  World world(32);
+  const MapPoint site(8, 8);
+  rocketPadConstructionGroup.placeItem(world, site);
+  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->getConstruction());
+  for(const auto progress : {0, 25, 60, 90}) {
+    rocket.steps = ROCKET_PAD_STEPS * progress / 100;
+    rocket.animate(0);
+    const int frame = progress == 0 ? 0 : progress == 25 ? 1 : progress == 60 ? 2 : 3;
+    require(rocket.getFrame().frame == frame, "incorrect rocket construction frame");
+  }
+
+  rocket.steps = ROCKET_PAD_STEPS - 3;
+  rocket.levelStuff(STUFF_LABOR, 3 * ROCKET_PAD_LABOR);
+  rocket.levelStuff(STUFF_GOODS, 3 * ROCKET_PAD_GOODS);
+  rocket.levelStuff(STUFF_STEEL, ROCKET_PAD_STEEL - 1);
+  rocket.update();
+  require(rocket.steps == ROCKET_PAD_STEPS - 3, "construction advanced without steel");
+  rocket.levelStuff(STUFF_STEEL, 3 * ROCKET_PAD_STEEL);
+  rocket.levelStuff(STUFF_WASTE, MAX_WASTE_AT_ROCKET_PAD - ROCKET_PAD_WASTE);
+  rocket.update();
+  require(rocket.steps == ROCKET_PAD_STEPS - 2, "construction exceeded waste capacity");
+  require(rocket.commodityCount[STUFF_LABOR] == 2 * ROCKET_PAD_LABOR,
+          "too much labor consumed by the waste-limited step");
+  require(rocket.commodityCount[STUFF_WASTE] == MAX_WASTE_AT_ROCKET_PAD,
+          "wrong amount of construction waste");
+  require(!world.popMessage(), "construction reported a premature launch");
+}
+
 void checkCrash() {
   World world(32);
   const MapPoint site(8, 8), target(18, 18);
@@ -146,6 +175,7 @@ int main() {
     checkEvacuation(2, 1, false, Result::EVAC_WIN);
     checkEvacuation(0, 0, true, Result::EVAC);
     checkCrash();
+    checkRocketConstructionLimits();
   } catch(const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
