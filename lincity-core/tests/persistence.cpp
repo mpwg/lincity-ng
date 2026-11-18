@@ -290,6 +290,17 @@ void parserErrors(const fs::path& saved) {
   }
 }
 
+#ifdef __linux__
+void rejectFailedWrite() {
+  const fs::path fullDevice("/dev/full");
+  std::error_code statusError;
+  if(!fs::is_character_file(fs::symlink_status(fullDevice, statusError))) return;
+
+  const World world(32);
+  expectFailure([&] { world.save(fullDevice); }, "failed to write save file");
+}
+#endif
+
 #ifdef NDEBUG
 void unknownFields(const fs::path& saved) {
   writeXml(saved, "<settings/>");
@@ -298,10 +309,40 @@ void unknownFields(const fs::path& saved) {
   // Release builds skip unknown fields and keep reading the known siblings.
   writeXml(saved, R"xml(
     <lc-game ldsv-version="2140">
-      <extension/>
+      <preview><total_money>375</total_money></preview>
       <globals>
+        <money_rates>
+          <regional_tax_rate>13</regional_tax_rate>
+          <income_tax_rate>7</income_tax_rate>
+        </money_rates>
+        <taxable>
+          <regional_trade>4</regional_trade>
+          <labor>81</labor>
+        </taxable>
+        <tradeRules>
+          <import_fish_enable>1</import_fish_enable>
+          <import_food_enable>0</import_food_enable>
+        </tradeRules>
         <stats>
+          <population>
+            <commuters_lm>17</commuters_lm>
+            <housed_lm>74</housed_lm>
+          </population>
+          <income>
+            <regional_tax_ly>-85</regional_tax_ly>
+            <goods_tax_ly>-22</goods_tax_ly>
+          </income>
+          <expenses>
+            <transit_ytd>18</transit_ytd>
+            <transport_ytd>9</transport_ytd>
+          </expenses>
+          <sustainability>
+            <water_years>2</water_years>
+            <fire_years>3</fire_years>
+          </sustainability>
+          <regional/>
           <history>
+            <commuters/>
             <money>
               <metadata>123</metadata>
               <index_latest>43</index_latest>
@@ -313,20 +354,60 @@ void unknownFields(const fs::path& saved) {
             </food>
           </history>
         </stats>
+        <camera/>
         <total_money>81</total_money>
       </globals>
       <map size="32">
         <extension/>
+        <MapTile group="0" map-x="4" map-y="4">
+          <soil_type>clay</soil_type>
+          <altitude>19</altitude>
+        </MapTile>
         <recentPoint><x>6</x><zoom>2</zoom><y>7</y></recentPoint>
       </map>
     </lc-game>
   )xml");
   auto world = World::load(saved);
   CHECK(world->total_money == 81 && world->map.recentPoint == MapPoint(6, 7));
+  CHECK(world->money_rates.income_tax == 7 && world->taxable.labor == 81);
+  CHECK(!world->tradeRule[STUFF_FOOD].take);
+  CHECK(world->stats.population.housed_m.stat == 74 && world->stats.income.goods_tax.stat == -22);
+  CHECK(world->stats.expenses.transport.acc == 9 && world->stats.sustainability.fire_years == 3);
+  CHECK(world->map(MapPoint(4, 4))->ground.altitude == 19);
   const auto& money = world->stats.history.money;
   CHECK(money.size() == 12 && money.at(0) == 0 && money.at(1) == -37);
   const auto& food = world->stats.history.inventory[STUFF_FOOD].at(0);
   CHECK(food.amount == 45 && food.capacity == 100);
+}
+
+void unknownLegacyFields(const fs::path& saved) {
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2130">
+      <globals>
+        <world_side_len>32</world_side_len>
+        <pbar id="2">
+          <label>Money</label>
+          <diff>30</diff>
+          <data>650</data>
+        </pbar>
+        <pbar id="3">
+          <label>Food</label>
+          <diff>20</diff>
+          <data>320</data>
+        </pbar>
+        <editor_note>From the old campaign</editor_note>
+        <total_money>650</total_money>
+      </globals>
+      <map/>
+    </lc-game>
+  )xml");
+  const auto world = World::load(saved);
+  CHECK(world->total_money == 650 && world->map.len() == 32);
+  const auto& history = world->stats.history;
+  CHECK(history.money.at(0) == 650 && history.money.at(1) == 620);
+  const auto& food = history.inventory[STUFF_FOOD];
+  CHECK(food.at(0).amount == 320 && food.at(0).capacity == 1000);
+  CHECK(food.at(1).amount == 300 && food.at(1).capacity == 1000);
 }
 #endif
 }
@@ -342,8 +423,12 @@ int main(int argc, char** argv) {
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
+#ifdef __linux__
+    rejectFailedWrite();
+#endif
 #ifdef NDEBUG
     unknownFields(saved);
+    unknownLegacyFields(saved);
 #endif
     fs::remove(saved);
   } catch(const std::exception& ex) {

@@ -57,6 +57,8 @@ void checkRocketTiming() {
   require(rocket.stage == RocketPad::LAUNCH && rocket.getFrame().frame == 6,
     "takeoff did not finish at its animation deadline");
   require(world.rockets_launched == 10, "animation calculated a launch result");
+  world.do_animate(deadline + ANIM_THRESHOLD(ROCKET_ANIMATION_SPEED));
+  require(rocket.getFrame().frame == 6, "animation advanced before the simulation resolved the launch");
 
   world.do_time_step();
   require(rocket.stage == RocketPad::DONE && world.rockets_launched == 11,
@@ -73,7 +75,7 @@ void checkRocketTiming() {
   world.do_time_step();
   require(world.rockets_launched == 11, "launch result applied twice");
 }
-void checkEvacuation(int pool, int residents, bool ended,
+void resolveEvacuation(int pool, int residents, bool ended,
                      RocketResultMessage::LaunchResult expected) {
   World world(32);
   const MapPoint site(8, 8), home(18, 18);
@@ -105,6 +107,22 @@ void checkEvacuation(int pool, int residents, bool ended,
   require(!world.popMessage(), "duplicate evacuation result");
 }
 
+void checkEvacuation(int pool, int residents, bool ended,
+                     RocketResultMessage::LaunchResult expected) {
+  std::ostringstream output;
+  {
+    SimulationTrace recording(output);
+    resolveEvacuation(pool, residents, ended, expected);
+    recording.finish();
+  }
+  const auto tape = output.str();
+  require(tape.find("\nE 0 2 ") != std::string::npos, "missing recorded evacuation order");
+  std::istringstream input(tape);
+  SimulationTrace replay(input);
+  resolveEvacuation(pool, residents, ended, expected);
+  replay.finish();
+}
+
 void checkRocketConstructionLimits() {
   World world(32);
   const MapPoint site(8, 8);
@@ -124,6 +142,11 @@ void checkRocketConstructionLimits() {
   rocket.update();
   require(rocket.steps == ROCKET_PAD_STEPS - 3, "construction advanced without steel");
   rocket.levelStuff(STUFF_STEEL, 3 * ROCKET_PAD_STEEL);
+  world.total_money = -2000000000;
+  rocket.update();
+  require(rocket.steps == ROCKET_PAD_STEPS - 3, "construction advanced after rejected upkeep");
+  require(world.total_money == -2000000000, "rejected launchpad upkeep changed balance");
+  world.total_money = 0;
   rocket.levelStuff(STUFF_WASTE, MAX_WASTE_AT_ROCKET_PAD - ROCKET_PAD_WASTE);
   rocket.update();
   require(rocket.steps == ROCKET_PAD_STEPS - 2, "construction exceeded waste capacity");

@@ -108,13 +108,29 @@ World::save(const std::filesystem::path& filename) const {
     throw std::runtime_error(
       std::string("failed to open file: ") + filename.string());
 
+  struct GzipOutput {
+    gzFile file;
+    int status = Z_OK;
+  } output{gz_file};
+
   int xmlStatus = XML_ERR_OK;
   {
   xmlOutputBufferPtr xmlWriterBuffer = xmlOutputBufferCreateIO(
-    [](void *ctx, const char *buf, int len){
-      return gzwrite((gzFile)ctx, buf, len);},
-    [](void *ctx){return gzclose((gzFile)ctx);},
-    gz_file, NULL);
+    [](void* ctx, const char* buf, int len) {
+      auto& sink = *static_cast<GzipOutput*>(ctx);
+      const int written = gzwrite(sink.file, buf, len);
+      if(written == len) return written;
+      gzerror(sink.file, &sink.status);
+      if(sink.status == Z_OK) sink.status = Z_BUF_ERROR;
+      return -1;
+    },
+    [](void* ctx) {
+      auto& sink = *static_cast<GzipOutput*>(ctx);
+      const int status = gzclose(sink.file);
+      if(sink.status == Z_OK) sink.status = status;
+      return status;
+    },
+    &output, NULL);
   if(!xmlWriterBuffer) {
     gzclose(gz_file);
     throw std::runtime_error("failed to create XML output buffer");
@@ -154,7 +170,10 @@ World::save(const std::filesystem::path& filename) const {
     xmlTextWriterEndElement(xmlWriter);
   xmlTextWriterEndElement(xmlWriter);
   xmlTextWriterEndDocument(xmlWriter);
-  } // end scope closed xmlWriter and sets xmlStatus
+  } // end scope closes the writer and compressed file
+  if(output.status != Z_OK) {
+    throw std::runtime_error("failed to write save file: " + filename.string());
+  }
   if(xmlStatus) {
     throw std::runtime_error(
       std::string("XML parser error: ") + std::to_string(xmlStatus));

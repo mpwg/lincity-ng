@@ -44,3 +44,8 @@ count. Lines and functions are aggregated by source location. Untaken
 branches are listed per translation unit so a hit in one inlined copy cannot
 conceal an untested edge in another. The historical desktop parity comparison
 is a separate test run.
+
+For the release-only XML compatibility checks, repeat the instrumented run
+in a separate build directory with `-DCMAKE_BUILD_TYPE=Release` and
+`-DCMAKE_CXX_FLAGS_RELEASE="-O0 -DNDEBUG"`. Compare the profiles separately
+because assertions and diagnostic code change the denominator.

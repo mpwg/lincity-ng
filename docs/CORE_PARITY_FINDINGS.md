@@ -78,3 +78,7 @@ Ablehnungsgrund ausschließlich bei einer abgelehnten Vorschau.
   Division. Für den kleinsten darstellbaren Kontostand konnte das
   überlaufen. Der Test prüft die Begrenzung extremer Kontostände und
   daneben die normale Zinsbuchung sowie die jährlichen Handelsfreigaben.
+- Speicherfehler nach erfolgreichem Öffnen werden jetzt auch über die
+  Gzip-Rückrufe gemeldet. Der Linux-Test verwendet dafür das vorhandene
+  Zeichengerät `/dev/full`. Die Fehlererkennung beim abschließenden Schreiben
+  hängt damit nicht von `xmlTextWriterClose` ab.
