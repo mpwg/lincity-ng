@@ -15,6 +15,12 @@ cmake --build build/core
 ctest --test-dir build/core --output-on-failure
 ```
 
+To compare the six bundled scenarios with the original simulation on the
+same compiler and standard library, run `python3
+tests/parity/compare_scenarios.py build/core`. The comparison builds the
+pinned desktop reference in a temporary directory under `build/` and
+requires its desktop build dependencies.
+
 ## CMAKE_BUILD_TYPE
 
 ```

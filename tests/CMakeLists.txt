@@ -26,3 +26,6 @@ add_test(NAME core.modules COMMAND core_modules)
 add_executable(core_world_generation world_generation.cpp)
 target_link_libraries(core_world_generation PRIVATE LinCity::Core randutil)
 add_test(NAME core.world_generation COMMAND core_world_generation)
+
+add_executable(core_scenario_trace EXCLUDE_FROM_ALL parity/scenario_trace.cpp)
+target_link_libraries(core_scenario_trace PRIVATE LinCity::Core randutil)
