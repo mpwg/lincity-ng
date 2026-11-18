@@ -26,6 +26,12 @@ void checkFrameCounts() {
   require(groups.at("GraySmoke")->frameCount == 10, "factory smoke animation length");
   World second(32);
   require(rocket == groups.at("Rocket"), "second world replaced resource metadata");
+  const auto size = groups.size();
+  require(&ResourceGroup::registerGroup("Rocket") == rocket && groups.size() == size,
+          "registering the same tag replaced its resource");
+  const auto& extension = ResourceGroup::registerGroup("Test animation without frame metadata");
+  require(extension.frameCount == 0, "resource without metadata reported an animation");
+  require(groups.at(extension.resourceID) == &extension, "registered resource is not discoverable");
 }
 
 void checkRocketTiming() {

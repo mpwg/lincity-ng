@@ -1,16 +1,20 @@
 #include "lincity/ConstructionReport.hpp"
+#include "lincity/Vehicles.hpp"
 #include "lincity/lintypes.hpp"
 #include "lincity/modules/blacksmith.hpp"
 #include "lincity/modules/mill.hpp"
+#include "lincity/modules/organic_farm.hpp"
 #include "lincity/modules/residence.hpp"
 #include "lincity/modules/solar_power.hpp"
 #include "lincity/modules/power_line.hpp"
 #include "lincity/modules/substation.hpp"
+#include "lincity/modules/track_road_rail.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
 
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -38,6 +42,121 @@ public:
 
 void require(bool condition, const char* description) {
   if(!condition) throw std::runtime_error(description);
+}
+
+template<class Exception, class Operation>
+void requireRejection(Operation operation, const char* description) {
+  try {
+    operation();
+  } catch(const Exception&) {
+    return;
+  }
+  throw std::runtime_error(description);
+}
+
+void verifyMissingAnimationResource() {
+  World world(32);
+  const MapPoint site(12, 12);
+  roadConstructionGroup.placeItem(world, site);
+  Vehicle car(world, site, VEHICLE_BLUECAR);
+  world.bulldozeArea(site);
+  const auto* tile = world.map(site);
+  const auto* frames = tile->getFrames();
+  require(tile->is_bare() && frames && frames->size() == 1,
+          "road removal should leave its vehicle overlay on the tile");
+
+  auto group = blacksmithConstructionGroup;
+  group.resourceID = "UnknownSmithyAnimation";
+  std::unique_ptr<Construction> rejected(group.createConstruction(world));
+  requireRejection<std::out_of_range>([&] { rejected->place(site); },
+                                      "unknown animation resource accepted");
+  require(tile->is_bare() && !tile->getConstruction(),
+          "missing animation resource left a construction in the map");
+  require(tile->getFrames() == frames && frames->size() == 1 && &frames->front() == &*car.frameIt,
+          "missing animation resource changed the existing vehicle overlays");
+}
+
+void verifyPlacementPreflight() {
+  World world(32);
+  const MapPoint site(12, 12);
+  roadConstructionGroup.placeItem(world, site.se());
+  const auto* road = world.map(site.se())->getConstruction();
+  const auto initialCount = world.map.constructionCount();
+  requireRejection<std::logic_error>([&] { blacksmithConstructionGroup.placeItem(world, site); },
+                                    "occupied southeast footprint tile accepted");
+  require(world.map(site)->is_bare() && world.map(site.se())->getConstruction() == road,
+          "overlapping construction changed an occupied footprint");
+
+  const MapPoint lakeshore(20, 20);
+  world.map(lakeshore.se())->setTerrain(GROUP_WATER);
+  requireRejection<std::logic_error>([&] { blacksmithConstructionGroup.placeItem(world, lakeshore); },
+                                    "water inside an ordinary footprint accepted");
+  require(world.map(lakeshore)->is_bare() && world.map(lakeshore.se())->is_lake(),
+          "failed placement changed shore terrain");
+
+  std::unique_ptr<Construction> tooCloseToEdge(blacksmithConstructionGroup.createConstruction(world));
+  requireRejection<std::runtime_error>([&] { tooCloseToEdge->place(MapPoint(30, 30)); },
+                                       "footprint crossed the map boundary");
+  require(world.map(MapPoint(30, 30))->is_bare() && world.map(MapPoint(31, 31))->is_bare(),
+          "failed boundary placement occupied tiles");
+  require(world.map.constructionCount() == initialCount, "failed placement registered a building");
+}
+
+void verifyPlacementFactoryFailures() {
+  struct UnavailableBlacksmith : BlacksmithConstructionGroup {
+    UnavailableBlacksmith() : BlacksmithConstructionGroup(blacksmithConstructionGroup) {}
+
+    Construction* createConstruction(World&) override {
+      ++requests;
+      return nullptr;
+    }
+
+    int requests = 0;
+  } group;
+  World world(32);
+  const auto verifyEmpty = [&](MapPoint origin) {
+    for(const auto p : {origin, origin.e(), origin.s(), origin.se()})
+      require(world.map(p)->is_bare() && !world.map(p)->getFrames(),
+              "failed placement left a construction or frame in its footprint");
+    require(world.map.constructionCount() == 0 && world.stats.groupCount[GROUP_BLACKSMITH] == 0,
+            "failed placement registered a construction");
+  };
+
+  const MapPoint edge(30, 30);
+  requireRejection<std::runtime_error>([&] { group.placeItem(world, edge); },
+                                       "direct placement on map boundary accepted");
+  require(group.requests == 0, "boundary rejected only after calling the construction factory");
+  verifyEmpty(edge);
+
+  const MapPoint site(12, 12);
+  requireRejection<std::runtime_error>([&] { group.placeItem(world, site); },
+                                       "placement accepted a null construction factory result");
+  require(group.requests == 1, "valid site did not reach the construction factory");
+  verifyEmpty(site);
+}
+
+void verifyEvacuationFit() {
+  for(bool farmTrades : {true, false}) {
+    World world(32);
+    const MapPoint site(12, 12);
+    organic_farmConstructionGroup.placeItem(world, site);
+    trackConstructionGroup.placeItem(world, site.w());
+    auto& farm = *world.map(site)->getConstruction();
+    auto& track = *world.map(site.w())->getConstruction();
+    farm.commodityCount[STUFF_FOOD] = 200;
+    track.commodityCount[STUFF_FOOD] = MAX_FOOD_ON_TRACK - 75;
+    world.evacuateArea(site);
+    (farmTrades ? farm : track).trade();
+    if(track.commodityCount[STUFF_FOOD] != MAX_FOOD_ON_TRACK || farm.commodityCount[STUFF_FOOD] != 125)
+      throw std::runtime_error(std::string(farmTrades ? "farm" : "track") + " evacuation trade left food " +
+        std::to_string(farm.commodityCount[STUFF_FOOD]) + " at farm and " +
+        std::to_string(track.commodityCount[STUFF_FOOD]) + " at track");
+    (farmTrades ? track : farm).trade();
+    require(track.commodityCount[STUFF_FOOD] == MAX_FOOD_ON_TRACK && farm.commodityCount[STUFF_FOOD] == 125,
+            "a full track accepted additional food during evacuation");
+    require(farm.commodityProd[STUFF_FOOD] == 0 && track.commodityProd[STUFF_FOOD] == 0,
+            "evacuation changed food production counters");
+  }
 }
 
 void verifyBlacksmith() {
@@ -255,6 +374,10 @@ int main() {
   }
   try {
     verifyBlacksmith();
+    verifyMissingAnimationResource();
+    verifyPlacementPreflight();
+    verifyPlacementFactoryFailures();
+    verifyEvacuationFit();
     verifyInventoryAndProductionReport();
     verifyResidenceFootprints();
     verifyDetachedConstructionLifetime();

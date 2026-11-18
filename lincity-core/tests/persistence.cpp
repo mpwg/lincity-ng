@@ -8,6 +8,7 @@
 #include "lincity/modules/rocket_pad.hpp"
 #include "lincity/modules/tip.hpp"
 #include "lincity/world.hpp"
+#include "util/simulation_trace.hpp"
 
 #include <libxml++/exceptions/parse_error.h>
 
@@ -21,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -315,15 +317,71 @@ void writeXml(const fs::path& path, std::string_view xml) {
   output.close();
 }
 
-template<typename Operation>
+template<typename Error = std::runtime_error, typename Operation>
 void expectFailure(Operation operation, std::string_view diagnostic) {
   try {
     operation();
-  } catch(const std::runtime_error& error) {
+  } catch(const Error& error) {
     if(std::string_view(error.what()).find(diagnostic) != std::string_view::npos) return;
     throw;
   }
   throw std::runtime_error("Expected rejection: " + std::string(diagnostic));
+}
+
+void rejectedConstructions(const fs::path& saved) {
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2140">
+      <map size="32">
+        <Construction group="6" map-x="5" map-y="5"/>
+        <Construction group="33" map-x="20" map-y="20"/>
+        <Construction group="26" map-x="13" map-y="13">
+          <total_tech_made>unknown</total_tech_made>
+        </Construction>
+      </map>
+    </lc-game>
+  )xml");
+  expectFailure([&] { World::load(saved); }, "failed to parse XML value");
+
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2140">
+      <map size="32">
+        <Construction group="6" map-x="5" map-y="5"/>
+        <Construction group="26" map-x="31" map-y="13"/>
+        <Construction group="33" map-x="20" map-y="20"/>
+      </map>
+    </lc-game>
+  )xml");
+  expectFailure([&] { World::load(saved); }, "cannot place a Construction outside the map");
+
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2140">
+      <map size="32">
+        <Construction group="6" map-x="5" map-y="5"/>
+        <Construction group="26" map-x="13" map-y="13"/>
+        <Construction group="33" map-x="20" map-y="20"/>
+      </map>
+    </lc-game>
+  )xml");
+  {
+    const fs::path overlapping = saved.string() + ".overlap";
+    writeXml(overlapping, R"xml(
+      <lc-game ldsv-version="2140">
+        <map size="32">
+          <Construction group="6" map-x="5" map-y="5"/>
+          <Construction group="26" map-x="6" map-y="6"/>
+        </map>
+      </lc-game>
+    )xml");
+    expectFailure<std::logic_error>([&] { World::load(overlapping); }, "space occupied");
+    fs::remove(overlapping);
+  }
+  {
+    // The second placement has reached the map by the time replay checks it.
+    std::istringstream events("LINCITY-SIMULATION-TRACE 1\nP 1 5 5 6\nP 2 14 13 26\nZ\n");
+    SimulationTrace replay(events);
+    expectFailure([&] { World::load(saved); }, "construction placement differs");
+  }
+  CHECK(World::load(saved)->map.constructionCount() == 3);
 }
 
 #ifdef LINCITY_TEST_XML_FAULTS
@@ -537,6 +595,7 @@ int main(int argc, char** argv) {
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
+    rejectedConstructions(saved);
 #ifdef LINCITY_TEST_XML_FAULTS
     factoryErrors(fixtures, saved);
 #endif

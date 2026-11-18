@@ -165,8 +165,9 @@ void Construction::initialize_commodities(void)
 
 void Construction::init_resources()
 {
+    const auto* resource = ResourceGroup::resMap.at(constructionGroup->resourceID);
     frameIt = world.map(point)->createframe();
-    frameIt->resourceGroup = ResourceGroup::resMap.at(constructionGroup->resourceID);
+    frameIt->resourceGroup = resource;
 }
 
 void Construction::bootstrap_commodities(int percent)
@@ -249,10 +250,32 @@ Construction::loadMember(xmlpp::TextReader& xmlReader, unsigned int ldsv_version
   return true;
 }
 
+static void requirePlacementSite(const Map& map, MapPoint point, unsigned short size) {
+  const int limit = map.len() - size;
+  if(point.x < 1 || point.y < 1 || point.x >= limit || point.y >= limit)
+    throw std::runtime_error("cannot place a Construction outside the map");
+}
+
+void Construction::placeOwned(std::unique_ptr<Construction> construction, MapPoint point) {
+  auto& map = construction->world.map;
+  requirePlacementSite(map, point, construction->constructionGroup->size);
+  try {
+    construction->place(point);
+  } catch(...) {
+    if(map(point)->getConstruction() == construction.get())
+      construction.release();
+    throw;
+  }
+  construction.release();
+}
+
 void Construction::place(MapPoint point) {
   unsigned short size = constructionGroup->size;
-  if(!world.map.is_inside(point) || !world.map.is_inside(point.s(size).e(size)))
-    throw std::runtime_error("cannot place a Construction outside the map");
+  requirePlacementSite(world.map, point, size);
+  for(MapPoint tile = point; tile.y < point.y + size; ++tile.y)
+    for(tile.x = point.x; tile.x < point.x + size; ++tile.x)
+      if(world.map(tile)->getReportingConstruction())
+        throw std::logic_error("space occupied");
 
   this->point = point;
 
@@ -271,7 +294,6 @@ void Construction::place(MapPoint point) {
         tile.setTerrain(GROUP_DESERT);
       }
     }
-    assert(!tile.getReportingConstruction());
     tile.reportingConstruction = this;
   }
   world.map(point)->construction = this;
@@ -784,6 +806,9 @@ int Construction::equilibrate_stuff(int *rem_lvl, CommodityRule rem_rule, int ra
             {   flow = rem_cap / TRANSPORT_RATE;}
             if (flow > *rem_lvl)
             {   flow = *rem_lvl;}
+            // An evacuating sender contributes stock without capacity to
+            // the average, so that target can exceed the receiver's limit.
+            flow = std::min(flow, std::max(0, loc_cap - *loc_lvl));
         }
         else if (flow < 0)
         {
@@ -873,6 +898,7 @@ int ConstructionGroup::getCosts(const World& world) const {
 
 void
 ConstructionGroup::placeItem(World& world, MapPoint point) {
+  requirePlacementSite(world.map, point, size);
   for(unsigned short i = 0; i < size; i++)
   for(unsigned short j = 0; j < size; j++) {
     MapTile& tile = *world.map(point.s(i).e(j));
@@ -885,15 +911,10 @@ ConstructionGroup::placeItem(World& world, MapPoint point) {
     }
   }
 
-  Construction *tmpConstr = createConstruction(world);
-#ifdef DEBUG
-  if(tmpConstr == NULL) {
-    std::cout << "failed to create " << name
-      << " at " << point
-      << std::endl;
-  }
-#endif
-  tmpConstr->place(point);
+  auto building = std::unique_ptr<Construction>(createConstruction(world));
+  if(!building)
+    throw std::runtime_error("failed to create " + name);
+  Construction::placeOwned(std::move(building), point);
 }
 
 std::string

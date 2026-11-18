@@ -103,6 +103,7 @@ public:
 
 private:
     std::list<ExtraFrame>::iterator frit;
+    bool hasSwingFrame = false;
 public:
     int anim;
     int anim2;

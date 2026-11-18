@@ -21,9 +21,20 @@
 
 #include "resources.hpp"
 
+#include <memory>
+
 std::map<std::string, ResourceGroup *> ResourceGroup::resMap;
 
 namespace {
+struct ResourceRegistryCleanup {
+    ~ResourceRegistryCleanup() {
+        for(const auto& entry : ResourceGroup::resMap)
+            delete entry.second;
+    }
+};
+
+ResourceRegistryCleanup resourceRegistryCleanup;
+
 int frameCountFor(const std::string& tag) {
     static const std::map<std::string, int> counts = {
 #include "frame_counts.inc"
@@ -34,6 +45,12 @@ int frameCountFor(const std::string& tag) {
 }
 
 ResourceGroup::ResourceGroup(const std::string& tag) :
-    resourceID(tag), frameCount(frameCountFor(tag)) {
-    resMap.emplace(tag, this);
+    resourceID(tag), frameCount(frameCountFor(tag)) {}
+
+ResourceGroup& ResourceGroup::registerGroup(const std::string& tag) {
+    std::unique_ptr<ResourceGroup> group(new ResourceGroup(tag));
+    auto entry = resMap.try_emplace(tag, nullptr).first;
+    auto& registered = entry->second;
+    if(!registered) registered = group.release();
+    return *registered;
 }

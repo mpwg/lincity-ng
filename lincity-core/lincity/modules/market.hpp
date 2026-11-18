@@ -124,6 +124,7 @@ public:
     bool start_burning_waste;
 private:
     std::list<ExtraFrame>::iterator waste_fire_frit;
+    bool hasWasteFireFrame = false;
 public:
     int waste_fire_anim;
 };

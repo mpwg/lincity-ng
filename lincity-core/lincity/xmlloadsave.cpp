@@ -1024,7 +1024,7 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
 ) {
   Map& map = world.map;
   std::optional<MapPoint> savedRecentPoint;
-  std::list<std::pair<Construction *, MapPoint>> constructions;
+  std::list<std::pair<std::unique_ptr<Construction>, MapPoint>> constructions;
 
   if(ldsv_version > 2130) {
     int mapSize = p<int>(xmlReader.get_attribute("size"));
@@ -1064,9 +1064,11 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
         ConstructionGroup::getConstructionGroup(group);
       if(!cstgrp)
         throw std::runtime_error("invalid group");
-      Construction *cst = cstgrp->createConstruction(world);
+      std::unique_ptr<Construction> cst(cstgrp->createConstruction(world));
+      if(!cst)
+        throw std::runtime_error("failed to create construction");
       cst->load(xmlReader, ldsv_version);
-      constructions.emplace_back(cst, point);
+      constructions.emplace_back(std::move(cst), point);
     }
     else if(xmlReader.get_name() == "recentPoint" && ldsv_version > 2130) {
       savedRecentPoint = map.recentPoint;
@@ -1100,9 +1102,8 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   assert(xmlReader.get_name() == "map");
   assert(xmlReader.get_depth() == depth);
 
-  for(auto& cst : constructions) {
-    cst.first->place(cst.second);
-  }
+  for(auto& [construction, point] : constructions)
+    Construction::placeOwned(std::move(construction), point);
   if(savedRecentPoint) map.recentPoint = *savedRecentPoint;
 
   map.alt_min = map.alt_max = map(MapPoint(0,0))->ground.altitude;

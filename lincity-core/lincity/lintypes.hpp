@@ -30,6 +30,7 @@
 #include <cstring>             // for NULL
 #include <iostream>            // for basic_ostream, operator<<, cout, endl
 #include <list>                // for _List_iterator, list
+#include <memory>
 #include <map>                 // for map
 #include <string>              // for basic_string, char_traits, string, ope...
 #include <vector>              // for vector
@@ -133,6 +134,9 @@ public:
   virtual void torch();
 
 
+
+  // Transfers ownership to the map tile when placement installs the anchor.
+  static void placeOwned(std::unique_ptr<Construction> construction, MapPoint point);
 
   const ConstructionGroup* getConstructionGroup() const { return constructionGroup; }
   const ExtraFrame& getFrame() const { return *frameIt; }
@@ -256,7 +260,7 @@ public:
         {
             constructionGroup->resourceID = resID;
             resourceMap[constructionGroup->resourceID] = constructionGroup;
-            new ResourceGroup(resID); //adds itself to ResourceGroup::resmap
+            ResourceGroup::registerGroup(resID);
         }
     }
 

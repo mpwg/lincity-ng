@@ -78,7 +78,7 @@ School::School(World& world, ConstructionGroup *cstgrp) :
 }
 
 School::~School() {
-  if(world.map(point)->getFrames())
+  if(hasSwingFrame)
     world.map(point)->killframe(frit);
 }
 
@@ -145,6 +145,7 @@ void School::init_resources() {
   Construction::init_resources();
 
   frit = world.map(point)->createframe();
+  hasSwingFrame = true;
   frit->resourceGroup = ResourceGroup::resMap["ChildOnSwing"]; //host of the swing
   frit->frame = -1; //hide the swing
 }

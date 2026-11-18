@@ -91,27 +91,27 @@ static void registerModules() {
     ConstructionGroup::addResourceID("Pottery", &potteryConstructionGroup);
     //ConstructionGroup::addResourceID("Monument", &monumentFinishedConstructionGroup);
     ConstructionGroup::addResourceID("MonumentConstruction", &monumentConstructionGroup);
-    new ResourceGroup("Monument");
+    ResourceGroup::registerGroup("Monument");
     ConstructionGroup::addResourceID("Waterwell", &waterwellConstructionGroup);
     ConstructionGroup::addResourceID("Commune", &communeConstructionGroup);
     ConstructionGroup::addResourceID("WindMill", &windmillConstructionGroup);
     ConstructionGroup::addResourceID("WindMillHTech", &windpowerConstructionGroup);
-    new ResourceGroup("WindMillHTechRG");
-    new ResourceGroup("WindMillHTechG");
+    ResourceGroup::registerGroup("WindMillHTechRG");
+    ResourceGroup::registerGroup("WindMillHTechG");
 //  ConstructionGroup::addResourceID("WindMillHTechRG", &windpower_RG_ConstructionGroup);
 //  ConstructionGroup::addResourceID("WindMillHTechG", &windpower_G_ConstructionGroup);
     ConstructionGroup::addResourceID("PowerCoalEmpty", &coal_powerConstructionGroup);
-    new ResourceGroup("PowerCoalLow");
-    new ResourceGroup("PowerCoalMed");
-    new ResourceGroup("PowerCoalFull");
+    ResourceGroup::registerGroup("PowerCoalLow");
+    ResourceGroup::registerGroup("PowerCoalMed");
+    ResourceGroup::registerGroup("PowerCoalFull");
     //ConstructionGroup::addResourceID("PowerCoalLow", &coal_power_low_ConstructionGroup);
     //ConstructionGroup::addResourceID("PowerCoalMed", &coal_power_med_ConstructionGroup);
     //ConstructionGroup::addResourceID("PowerCoalFull", &coal_power_full_ConstructionGroup);
     ConstructionGroup::addResourceID("PowerSolar", &solarPowerConstructionGroup);
-    new ResourceGroup("Substation");
+    ResourceGroup::registerGroup("Substation");
     ConstructionGroup::addResourceID("SubstationOff", &substationConstructionGroup);
     //ConstructionGroup::addResourceID("Substation", &substation_RG_ConstructionGroup);
-    new ResourceGroup("SubstationOn");
+    ResourceGroup::registerGroup("SubstationOn");
     //ConstructionGroup::addResourceID("SubstationOn", &substation_G_ConstructionGroup);
     ConstructionGroup::addResourceID("Mill", &millConstructionGroup);
     ConstructionGroup::addResourceID("Farm", &organic_farmConstructionGroup);
@@ -134,9 +134,9 @@ static void registerModules() {
     ConstructionGroup::addResourceID("ParklandLake", &parkpondConstructionGroup);
     ConstructionGroup::addResourceID("OreMine", &oremineConstructionGroup);
     ConstructionGroup::addResourceID("CoalMine", &coalmineConstructionGroup);
-    new ResourceGroup("CoalMineLow");
-    new ResourceGroup("CoalMineMed");
-    new ResourceGroup("CoalMineFull");
+    ResourceGroup::registerGroup("CoalMineLow");
+    ResourceGroup::registerGroup("CoalMineMed");
+    ResourceGroup::registerGroup("CoalMineFull");
     //ConstructionGroup::addResourceID("CoalMineLow", &coalmine_L_ConstructionGroup);
     //ConstructionGroup::addResourceID("CoalMineMed", &coalmine_M_ConstructionGroup);
     //ConstructionGroup::addResourceID("CoalMineFull", &coalmine_H_ConstructionGroup);
@@ -144,28 +144,28 @@ static void registerModules() {
     ConstructionGroup::addResourceID("Recycle", &recycleConstructionGroup);
     ConstructionGroup::addResourceID("Harbor", &portConstructionGroup);
     ConstructionGroup::addResourceID("Fire", &fireConstructionGroup);
-    new ResourceGroup("FireWasteLand");
+    ResourceGroup::registerGroup("FireWasteLand");
     //ConstructionGroup::addResourceID("FireWasteLand", &fireWasteLandConstructionGroup);
     ConstructionGroup::addResourceID("IndustryLight", &industryLightConstructionGroup);
-    new ResourceGroup("IndustryLightQ");
-    new ResourceGroup("IndustryLightL");
-    new ResourceGroup("IndustryLightM");
-    new ResourceGroup("IndustryLightH");
+    ResourceGroup::registerGroup("IndustryLightQ");
+    ResourceGroup::registerGroup("IndustryLightL");
+    ResourceGroup::registerGroup("IndustryLightM");
+    ResourceGroup::registerGroup("IndustryLightH");
     //ConstructionGroup::addResourceID("IndustryLightQ", &industryLight_Q_ConstructionGroup);
     //ConstructionGroup::addResourceID("IndustryLightL", &industryLight_L_ConstructionGroup);
     //ConstructionGroup::addResourceID("IndustryLightM", &industryLight_M_ConstructionGroup);
     //ConstructionGroup::addResourceID("IndustryLightH", &industryLight_H_ConstructionGroup);
     ConstructionGroup::addResourceID("IndustryHigh", &industryHeavyConstructionGroup);
-    new ResourceGroup("IndustryHighL");
-    new ResourceGroup("IndustryHighM");
-    new ResourceGroup("IndustryHighH");
+    ResourceGroup::registerGroup("IndustryHighL");
+    ResourceGroup::registerGroup("IndustryHighM");
+    ResourceGroup::registerGroup("IndustryHighH");
     //ConstructionGroup::addResourceID("IndustryHighL", &industryHeavy_L_ConstructionGroup);
     //ConstructionGroup::addResourceID("IndustryHighM", &industryHeavy_M_ConstructionGroup);
     //ConstructionGroup::addResourceID("IndustryHighH", &industryHeavy_H_ConstructionGroup);
     ConstructionGroup::addResourceID("MarketEmpty", &marketConstructionGroup);
-    new ResourceGroup("MarketLow");
-    new ResourceGroup("MarketMed");
-    new ResourceGroup("MarketFull");
+    ResourceGroup::registerGroup("MarketLow");
+    ResourceGroup::registerGroup("MarketMed");
+    ResourceGroup::registerGroup("MarketFull");
     //ConstructionGroup::addResourceID("MarketLow", &market_low_ConstructionGroup);
     //ConstructionGroup::addResourceID("MarketMed", &market_med_ConstructionGroup);
     //ConstructionGroup::addResourceID("MarketFull", &market_full_ConstructionGroup);
@@ -173,12 +173,12 @@ static void registerModules() {
     ConstructionGroup::addResourceID("Shanty", &shantyConstructionGroup);
 
     //resources for extra sprites
-    new ResourceGroup("ChildOnSwing"); //used at School
-    new ResourceGroup("BlackSmoke");   //used at Coalpower Station
-    new ResourceGroup("GraySmoke");    //used at light Industry
+    ResourceGroup::registerGroup("ChildOnSwing"); //used at School
+    ResourceGroup::registerGroup("BlackSmoke");   //used at Coalpower Station
+    ResourceGroup::registerGroup("GraySmoke");    //used at light Industry
 
     //resources for vehicles
-    new ResourceGroup("Bluecar");
+    ResourceGroup::registerGroup("Bluecar");
     ResourceGroup::resMap["Bluecar"]->is_vehicle = true;
 
 

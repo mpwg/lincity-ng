@@ -28,11 +28,15 @@
 // Logical animation resources shared by the simulation and its frontends.
 class ResourceGroup {
 public:
-    explicit ResourceGroup(const std::string& tag);
+    static ResourceGroup& registerGroup(const std::string& tag);
     const std::string resourceID;
     const int frameCount;
     bool is_vehicle = false;
+    // The registry owns these groups. Tiles and frontends borrow pointers.
     static std::map<std::string, ResourceGroup*> resMap;
+
+private:
+    explicit ResourceGroup(const std::string& tag);
 };
 
 struct ExtraFrame{

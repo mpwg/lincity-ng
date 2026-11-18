@@ -122,3 +122,25 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   in die gepinnte Referenz ein. `--original` zeigt Unterschiede zur
   unveränderten Fahrregel. Diese treten bei `Rocket_98` mit Verkehr bis
   zum ersten abweichenden Prüfpunkt an Tag 100 auf.
+
+## Besitz und Lagergrenzen
+
+- Abgelehnte Spielstände konnten bereits ausgelesene oder teilweise
+  platzierte Gebäude verlieren. Jetzt hält der Loader jedes Gebäude bis
+  zur Übergabe an sein Kartenfeld. Vergleichbare Ablehnungen bei normaler
+  Platzierung geben das Objekt ebenfalls frei. Überlappende Grundrisse
+  und Bauten außerhalb des sichtbaren Rands werden vor der Platzierung
+  abgelehnt. Markt, Schule und Elendsviertel räumen nur tatsächlich
+  angelegte Zusatzframes auf. LeakSanitizer meldete für die abgelehnten
+  Spielstände vor der Korrektur sechs verlorene Gebäude.
+- Die Animationsregistrierung besitzt ihre Ressourcen bis zum
+  Prozessende. Eine erneute Registrierung desselben Namens behält die
+  vorhandene Ressource. Fehlt einem Gebäude eine Ressource, legt die
+  abgelehnte Platzierung keinen Frame auf dem Kartenfeld an.
+- Bei der Evakuierung konnte der initiierende Sender in eine bereits
+  fast volle Transportkachel mehr Waren bewegen, als sie noch aufnehmen
+  konnte. Der Test prüft beide Aufrufreihenfolgen, verbleibenden Bestand
+  und die Erhaltung der Gesamtmenge. #70 beschreibt negative Arbeitsbestände
+  nach einer Evakuierung. Ein Zusammenhang mit diesem konkreten
+  Kapazitätsfehler ist anhand des Tickets nicht bestätigt.
+  [#70](https://github.com/lincity-ng/lincity-ng/issues/70)
