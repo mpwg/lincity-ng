@@ -222,24 +222,23 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   auf die vorhandene Standardlänge ergänzt. Alle vier Reihen behalten
   damit ihre erfassten Monate beim ersten Monatswechsel nach Laden oder
   nach erneutem Speichern. Längere Altbestände bleiben vollständig.
-
-## Offene Abweichungen bei der Fortsetzung eines Spielstands
+- Die Karte führt eine geordnete Liste der beim letzten Monatsabschluss
+  erfassten verschmutzten Felder. In älteren Spielständen fehlt diese
+  Liste und die Ausbreitung setzt bis zur nächsten Erfassung aus. Neue
+  Spielstände speichern die betroffenen Kacheln als optionale Attribute
+  im Format 2140. Ein Fortsetzungstest prüft die Ausbreitungsreihenfolge
+  auch dann, wenn alte Werte unter die Erfassungsschwelle gesunken sind
+  oder neue Werte sie überschritten haben. Beim historischen XML-Vergleich
+  wird das neue Kachelattribut ausgeblendet. #338 beschreibt einen
+  zusätzlichen Ausbreitungsmechanismus für Wasser.
+  [#338](https://github.com/lincity-ng/lincity-ng/issues/338)
 
 - Der Monatsabschluss erfasst Bargeld vor einer eventuell folgenden
-  Jahresabrechnung oder einer weiteren Bauausgabe. Ein Spielstand enthält
-  den aktuellen Bargeldwert. Nach dem Laden übernimmt die Monatsstatistik
-  deshalb an Tag 100 bzw. 1200 einen anderen Betrag als im durchgehenden
-  Spiel. Der Effekt tritt auch nach dem Laden von Format 2130 auf, wenn
-  beim Import ausstehende Kosten vom Konto abgehen. Daneben fehlen die
-  beim Monatsabschluss erfassten Warenbestände und Kapazitäten im
-  Spielstand. Optionale Attribute an bestehenden XML-Elementen könnten
-  die fälligen Monatswerte erhalten, ohne ältere Leser vor unbekannte
-  Elemente zu stellen.
-- Die Karte führt eine geordnete Liste der beim letzten Monatsabschluss
-  erfassten verschmutzten Felder. Beim Laden fehlt diese Liste und die
-  Ausbreitung setzt bis zur nächsten Erfassung aus. Der aktuelle
-  Verschmutzungswert je Feld genügt mitten im Monat nicht zur exakten
-  Rekonstruktion der Liste. #338 beschreibt einen neuen
-  Ausbreitungsmechanismus für Wasser. Ein direkter Treffer für die
-  fehlende Liste fand sich im geprüften Issue-Bestand nicht.
-  [#338](https://github.com/lincity-ng/lincity-ng/issues/338)
+  Jahresabrechnung oder einer weiteren Bauausgabe. Neue Spielstände
+  erhalten den abweichenden Monatswert und die erfassten Warenbestände
+  und Kapazitäten als optionale Attribute an bestehenden XML-Elementen.
+  Die Tests verfolgen Kasse und Monatsstatistik über den Wechsel an Tag
+  100 und 1200. Auch nach der Migration aus Format 2130 bleibt der alte
+  Monatswert erhalten, wenn beim Import ausstehende Kosten vom Konto
+  abgehen. Für ältere Dateien ohne diese Attribute gilt weiterhin der
+  bisherige Ladepfad.

@@ -4,6 +4,7 @@ import argparse
 import gzip
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -96,7 +97,12 @@ def compare(reference, current, directory):
             for checkpoint in checkpoints:
                 read = gzip.open if checkpoint.endswith(".gz") else open
                 with read(before / checkpoint, "rb") as a, read(after / checkpoint, "rb") as b:
-                    if a.read() != b.read():
+                    expected, actual = a.read(), b.read()
+                    if checkpoint.endswith(".gz"):
+                        # Upstream omitted the diffusion schedule from saved tiles.
+                        # Its exact restoration is checked by core.characterization.saves.
+                        actual = re.sub(rb'(<MapTile [^>]*?) diffusion-active="1"', rb'\1', actual)
+                    if expected != actual:
                         raise SystemExit(f"{scenario.name} ({profile}): {checkpoint} differs")
             print(f"PASS {scenario.name} ({profile}, four saves and message sequence)", flush=True)
 

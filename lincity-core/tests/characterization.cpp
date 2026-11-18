@@ -311,6 +311,37 @@ void checkSmithy(World& world, int day) {
   CHECK(world.stats.population.population_m.stat == (day >= 100 ? 700 : 0));
 }
 
+void pollutionAfterReload(const fs::path& saved) {
+  World direct(32);
+  const MapPoint border(0, 1);
+  const auto tracked = site.n();
+  const auto newPollution = site.s();
+  direct.map(border)->pollution = 64;
+  direct.map(tracked)->pollution = 160;
+  direct.map(site)->pollution = 16;
+  direct.scan_pollution();
+
+  // The next diffusion still uses the last monthly scan, even after
+  // pollution has dropped at one site and appeared at another.
+  direct.map(site)->pollution = 8;
+  direct.map(newPollution)->pollution = 160;
+  direct.total_time = 16;
+  direct.save(saved);
+  auto restored = World::load(saved);
+
+  for(auto* world : {&direct, restored.get()}) {
+    std::istringstream draws("LINCITY-SIMULATION-TRACE 1\nD 17 0\nC 8\nC 10\nZ\n");
+    SimulationTrace trace(draws);
+    world->do_time_step();
+    trace.finish();
+    CHECK(world->map(border)->pollution == 1);
+    CHECK(world->map(tracked)->pollution == 150);
+    CHECK(world->map(tracked.e())->pollution == 10);
+    CHECK(world->map(site)->pollution == 6);
+    CHECK(world->map(newPollution)->pollution == 160);
+  }
+}
+
 void saves(const fs::path& fixtures, const fs::path& saved) {
   auto direct = World::load(fixtures / "blacksmith-2140.xml");
   CHECK(direct->given_scene == "Reference smithy");
@@ -335,6 +366,8 @@ void saves(const fs::path& fixtures, const fs::path& saved) {
     checkSmithy(*direct, day);
     checkSmithy(*restored, day);
   }
+
+  pollutionAfterReload(saved);
 
   std::ofstream(saved)
     << "<lc-game ldsv-version='2140'><map size='32'>"

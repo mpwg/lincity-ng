@@ -27,6 +27,15 @@ periods and a production and trade chain using the C++ core.
 
 ## Coverage audit
 
+Use coverage to locate gaps in the behavioral tests. A passing line count
+cannot establish that simulation outcomes agree. The standalone suite covers
+generated terrain and starting villages, successful and rejected player
+commands, construction and transport lifecycles, stock transfers and taxes,
+the monthly and yearly calendar, and continuation from 2130 and 2140 saves.
+The historical scenario comparison and fixed replay inputs supplement the
+focused assertions. Preserve both when changing a simulation rule or the
+save format.
+
 Use a fresh standalone GCC debug build so old test runs cannot contribute to
 the counts. Run gcov from the same GCC release used for compilation.
 

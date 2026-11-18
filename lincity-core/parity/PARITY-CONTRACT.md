@@ -63,8 +63,11 @@ does not require either random generator.
   comparison. Preserve ordered histories and message order. The original
   six-scenario regression separately checks decompressed XML bytes and the
   legacy message stream against the pinned desktop implementation with the
-  documented rail-crossing correction. The build options describe comparison
-  with the original crossing rule.
+  documented rail-crossing correction. Its XML comparison omits the new
+  `diffusion-active` tile attribute, which the pinned writer did not emit.
+  The save continuation case checks this attribute by comparing the next
+  pollution tick. The build options describe comparison with the original
+  crossing rule.
 - The small smithy case has a versioned save, timed actions, a decision tape
   and a reviewed daily transcript. Its comparison test also changes a single
   goods value and checks for the first differing day, coordinate and field.

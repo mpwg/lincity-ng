@@ -50,6 +50,7 @@
 #include <string>                         // for basic_string, operator==
 #include <string_view>                    // for string_view
 #include <system_error>                   // for system_error, make_error_code
+#include <tuple>                          // for tie
 #include <type_traits>                    // for remove_pointer_t
 #include <unordered_map>                  // for unordered_map, operator!=
 #include <utility>                        // for pair
@@ -291,7 +292,8 @@ World::load(const std::filesystem::path& filename) {
 }
 
 static void saveGlobals(xmlTextWriterPtr xmlWriter, const World& world) {
-
+  // Totals collected on the last day are consumed by the next month's first tick.
+  const bool pendingMonthEnd = world.total_time % NUMOF_DAYS_IN_MONTH == NUMOF_DAYS_IN_MONTH - 1;
   xmlTextWriterWriteElement(xmlWriter, (xmlStr)"given_scene",                 f(world.given_scene));
   xmlTextWriterWriteElement(xmlWriter, (xmlStr)"total_time",                  f(world.total_time));
   xmlTextWriterWriteElement(xmlWriter, (xmlStr)"people_pool",                 f(world.people_pool));
@@ -333,6 +335,8 @@ static void saveGlobals(xmlTextWriterPtr xmlWriter, const World& world) {
   xmlTextWriterEndElement(xmlWriter);
 
   xmlTextWriterStartElement(xmlWriter, (xmlStr)"stats");
+    if(pendingMonthEnd && world.stats.total_money != world.total_money)
+      xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"month_end_money", f(world.stats.total_money));
     xmlTextWriterWriteElement(xmlWriter, (xmlStr)"highest_tech_level",        f(world.stats.highest_tech_level));
     xmlTextWriterWriteElement(xmlWriter, (xmlStr)"total_pollution",           f(world.stats.total_pollution));
 
@@ -449,29 +453,26 @@ static void saveGlobals(xmlTextWriterPtr xmlWriter, const World& world) {
         xmlTextWriterEndElement(xmlWriter);
       }
 
-      std::vector<std::pair<
-        std::deque<Stats::Inventory<int>>,
-        xmlStr
-      >> histories_inv({
-        {world.stats.history.tenants, (xmlStr)"tenants"}
-      });
-      for(Commodity s = STUFF_INIT; s < STUFF_COUNT; s++) {
-        histories_inv.push_back({
-          world.stats.history.inventory[s],
-          (xmlStr)commodityStandardName(s)
-        });
-      }
-      for(auto& history : histories_inv) {
-        xmlTextWriterStartElement(xmlWriter, history.second);
-          writeArray(xmlWriter, history.first,
+      const auto saveInventoryHistory = [&](xmlStr name,
+        const std::deque<Stats::Inventory<>>& history, const Stats::Inventory<Stat<>>* pending
+      ) {
+        xmlTextWriterStartElement(xmlWriter, name);
+          if(pending && pending->amount.acc)
+            xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"amount_mtd", f(pending->amount.acc));
+          if(pending && pending->capacity.acc)
+            xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"capacity_mtd", f(pending->capacity.acc));
+          writeArray(xmlWriter, history,
             [](xmlTextWriterPtr xmlWriter, const Stats::Inventory<>& el) {
-              xmlTextWriterWriteElement(xmlWriter, (xmlStr)"amount",
-                f(el.amount));
-              xmlTextWriterWriteElement(xmlWriter, (xmlStr)"capacity",
-                f(el.capacity));
+              xmlTextWriterWriteElement(xmlWriter, (xmlStr)"amount", f(el.amount));
+              xmlTextWriterWriteElement(xmlWriter, (xmlStr)"capacity", f(el.capacity));
             }
           );
         xmlTextWriterEndElement(xmlWriter);
+      };
+      saveInventoryHistory((xmlStr)"tenants", world.stats.history.tenants, nullptr);
+      for(Commodity s = STUFF_INIT; s < STUFF_COUNT; s++) {
+        const auto* pending = pendingMonthEnd ? &world.stats.inventory[s] : nullptr;
+        saveInventoryHistory((xmlStr)commodityStandardName(s), world.stats.history.inventory[s], pending);
       }
     xmlTextWriterEndElement(xmlWriter);
   xmlTextWriterEndElement(xmlWriter);
@@ -485,6 +486,7 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
     return;
   }
 
+  std::optional<int> monthEndMoney;
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
   assert(xmlReader.get_name() == "globals");
   [[maybe_unused]] int depth = xmlReader.get_depth();
@@ -573,6 +575,8 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
     }
 
     else if(xml_tag == "stats") {
+      if(const auto value = xmlReader.get_attribute("month_end_money"); !value.empty())
+        monthEndMoney = p<int>(value);
       if(!xmlReader.is_empty_element() && xmlReader.read())
       while(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::EndElement) {
         if(xmlReader.get_node_type() != xmlpp::TextReader::NodeType::Element) {
@@ -756,6 +760,13 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
                 commodityFromStandardName(xmlReader.get_name().c_str());
               stuff != STUFF_COUNT || xmlReader.get_name() == "tenants"
             ) {
+              if(stuff != STUFF_COUNT) {
+                auto& pending = world.stats.inventory[stuff];
+                if(const auto value = xmlReader.get_attribute("amount_mtd"); !value.empty())
+                  pending.amount.acc = p<int>(value);
+                if(const auto value = xmlReader.get_attribute("capacity_mtd"); !value.empty())
+                  pending.capacity.acc = p<int>(value);
+              }
               std::deque<Stats::Inventory<>>& history = stuff != STUFF_COUNT
                 ? world.stats.history.inventory[stuff]
                 : world.stats.history.tenants;
@@ -799,6 +810,8 @@ static void loadGlobals(xmlpp::TextReader& xmlReader, World& world,
   }
   assert(xmlReader.get_name() == "globals");
   assert(xmlReader.get_depth() == depth);
+  if(monthEndMoney)
+    world.stats.total_money = *monthEndMoney;
 }
 
 static void loadGlobals_v2130(xmlpp::TextReader& xmlReader, World& world,
@@ -1011,11 +1024,17 @@ static void saveMap(xmlTextWriterPtr xmlWriter, const Map& map,
   const std::set<Construction*>& constructions) {
   xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"size", f(map.len()));
 
+  auto polluted = map.polluted.begin();
   for(const MapTile& tile : map) {
     xmlTextWriterStartElement(xmlWriter, (xmlStr)"MapTile");
       xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"group", f(tile.group));
       xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"map-x", f(tile.point.x));
       xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"map-y", f(tile.point.y));
+      // Both the map and the last pollution scan are in row-major order.
+      if(polluted != map.polluted.end() && tile.point == *polluted) {
+        xmlTextWriterWriteAttribute(xmlWriter, (xmlStr)"diffusion-active", f(1));
+        ++polluted;
+      }
       saveMapTile(xmlWriter, tile);
     xmlTextWriterEndElement(xmlWriter);
   }
@@ -1069,6 +1088,8 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
         throw std::runtime_error("a MapTile seems to be outside the map");
       MapTile& tile = *map(point);
       tile.group = group;
+      if(ldsv_version > 2130 && xmlReader.get_attribute("diffusion-active") == "1")
+        map.polluted.push_back(point);
       loadMapTile(xmlReader, tile, ldsv_version);
     }
     else if(xmlReader.get_name() == "Construction") {
@@ -1118,6 +1139,12 @@ static void loadMap(xmlpp::TextReader& xmlReader, World& world,
   }
   assert(xmlReader.get_name() == "map");
   assert(xmlReader.get_depth() == depth);
+
+  // The order of MapTile elements in a save need not match simulation order.
+  std::sort(map.polluted.begin(), map.polluted.end(), [](MapPoint a, MapPoint b) {
+    return std::tie(a.y, a.x) < std::tie(b.y, b.x);
+  });
+  map.polluted.erase(std::unique(map.polluted.begin(), map.polluted.end()), map.polluted.end());
 
   for(auto& [construction, point] : constructions)
     Construction::placeOwned(std::move(construction), point);

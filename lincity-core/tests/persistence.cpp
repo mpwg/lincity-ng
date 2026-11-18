@@ -269,6 +269,7 @@ void migratedMonthRollover(const fs::path& fixtures, const fs::path& saved) {
   CHECK(before.nojobs.size() == 190 && before.ppool.size() == 190);
   CHECK(before.pop.at(3) == 0 && before.starve.at(3) == 0);
   CHECK(before.nojobs.at(3) == 0 && before.ppool.at(3) == 0);
+  CHECK(direct->stats.total_money == 1700 && restored->stats.total_money == 1700);
 
   direct->do_time_step();
   restored->do_time_step();
@@ -276,6 +277,7 @@ void migratedMonthRollover(const fs::path& fixtures, const fs::path& saved) {
   checkHistoriesMatch();
   CHECK(before.pop.at(3) == 701 && before.starve.at(3) == 11);
   CHECK(before.nojobs.at(3) == 27 && before.ppool.at(3) == 99);
+  CHECK(before.money == after.money && after.money.front() == 1700);
 }
 
 void checkStatistics2140(const World& world) {
@@ -322,6 +324,61 @@ void statistics2140(const fs::path& fixtures, const fs::path& saved) {
   checkStatistics2140(*world);
   world->save(saved);
   checkStatistics2140(*World::load(saved));
+}
+
+void pendingMonthEndStatistics(const fs::path& saved) {
+  World world(32);
+  world.total_time = 98;
+  world.total_money = 10000;
+  const MapPoint market(12, 12);
+  world.buildConstruction(marketConstructionGroup, market);
+  world.map(market)->getConstruction()->commodityCount[STUFF_FOOD] = 247;
+  world.do_time_step();
+  CHECK(world.total_time == 99 && world.stats.total_money == 9900);
+  CHECK(world.stats.inventory[STUFF_FOOD].amount.acc == 247);
+  CHECK(world.stats.inventory[STUFF_FOOD].capacity.acc == 262144);
+  CHECK(world.stats.inventory[STUFF_LABOR].amount.acc == 0);
+  CHECK(world.stats.inventory[STUFF_LABOR].capacity.acc == 76800);
+
+  // This changes cash and the live map after the monthly totals are collected.
+  world.bulldozeArea(market);
+  CHECK(world.total_money == 9800);
+  world.save(saved);
+  auto restored = World::load(saved);
+  CHECK(restored->total_money == 9800 && restored->map.constructionCount() == 0);
+
+  world.do_time_step();
+  restored->do_time_step();
+  for(Commodity commodity = STUFF_INIT; commodity < STUFF_COUNT; commodity++) {
+    const auto& uninterrupted = world.stats.history.inventory[commodity].front();
+    const auto& reloaded = restored->stats.history.inventory[commodity].front();
+    CHECK(reloaded.amount == uninterrupted.amount);
+    CHECK(reloaded.capacity == uninterrupted.capacity);
+  }
+  CHECK(world.stats.history.money.front() == 9900);
+  CHECK(restored->stats.history.money.front() == world.stats.history.money.front());
+  CHECK(restored->stats.history.inventory[STUFF_FOOD].front().amount == 247);
+  CHECK(restored->stats.history.inventory[STUFF_FOOD].front().capacity == 262144);
+  CHECK(restored->stats.history.inventory[STUFF_LABOR].front().capacity == 76800);
+}
+
+void pendingYearEndMoney(const fs::path& saved) {
+  World world(32);
+  world.total_time = 1198;
+  world.total_money = 1000;
+  world.taxable.labor = 5000;
+  world.do_time_step();
+  CHECK(world.total_time == 1199);
+  CHECK(world.total_money == 1400 && world.stats.total_money == 1000);
+  world.save(saved);
+  auto restored = World::load(saved);
+  CHECK(restored->total_money == 1400);
+
+  world.do_time_step();
+  restored->do_time_step();
+  CHECK(world.total_time == 1200 && restored->total_time == 1200);
+  CHECK(world.stats.history.money.front() == 1000);
+  CHECK(restored->stats.history.money.front() == world.stats.history.money.front());
 }
 
 void extendedPopulationHistory(const fs::path& saved) {
@@ -386,6 +443,32 @@ void writeXml(const fs::path& path, std::string_view xml) {
   output.exceptions(std::ios::failbit | std::ios::badbit);
   output << xml;
   output.close();
+}
+
+void old2140MonthEndStatistics(const fs::path& saved) {
+  writeXml(saved, R"xml(
+    <lc-game ldsv-version="2140">
+      <globals>
+        <total_time>99</total_time>
+        <total_money>510</total_money>
+        <stats>
+          <history>
+            <food><index_0><amount>40</amount><capacity>100</capacity></index_0></food>
+          </history>
+        </stats>
+      </globals>
+      <map size="32"/>
+    </lc-game>
+  )xml");
+  auto world = World::load(saved);
+  CHECK(world->stats.total_money == 510);
+  CHECK(world->stats.inventory[STUFF_FOOD].amount.acc == 0);
+  CHECK(world->stats.inventory[STUFF_FOOD].capacity.acc == 0);
+  world->do_time_step();
+  CHECK(world->stats.history.money.front() == 510);
+  const auto& food = world->stats.history.inventory[STUFF_FOOD];
+  CHECK(food.at(0).amount == 0 && food.at(0).capacity == 0);
+  CHECK(food.at(1).amount == 40 && food.at(1).capacity == 100);
 }
 
 void longLegacyHistory(const fs::path& saved) {
@@ -743,6 +826,9 @@ int main(int argc, char** argv) {
     migratedMonthRollover(fixtures, saved);
     longLegacyHistory(saved);
     statistics2140(fixtures, saved);
+    pendingMonthEndStatistics(saved);
+    pendingYearEndMoney(saved);
+    old2140MonthEndStatistics(saved);
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
