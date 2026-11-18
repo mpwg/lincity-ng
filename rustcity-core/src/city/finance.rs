@@ -1,9 +1,10 @@
-use crate::rules::economy::*;
 use super::{City, CityEvent};
+use crate::rules::economy::*;
 use crate::{Commodity, save::Element, stats::Stat};
 use std::io;
 
 pub(super) struct Economy {
+    pub coal_survey_done: bool,
     pub transport_cost: i32,
     pub import_rate: i32,
     income_rate: i32,
@@ -20,6 +21,7 @@ pub(super) struct Economy {
 impl Default for Economy {
     fn default() -> Self {
         Self {
+            coal_survey_done: false,
             import_rate: IMPORT_RATE,
             transport_cost: crate::rules::transport::DEFAULT_COST,
             income_rate: INCOME_RATE,
@@ -45,8 +47,10 @@ impl Economy {
         }
     }
     pub(super) fn load(&mut self, globals: &Element) -> io::Result<()> {
+        self.coal_survey_done = globals.child_i32("coal_survey_done", 0)? != 0;
         if let Some(n) = globals.child("money_rates") {
-            self.transport_cost = n.child_i32("transport_cost_rate", crate::rules::transport::DEFAULT_COST)?;
+            self.transport_cost =
+                n.child_i32("transport_cost_rate", crate::rules::transport::DEFAULT_COST)?;
             self.import_rate = n.child_i32("import_cost_rate", IMPORT_RATE)?;
             self.income_rate = n.child_i32("income_tax_rate", INCOME_RATE)?;
             self.coal_rate = n.child_i32("coal_tax_rate", COAL_RATE)?;
@@ -71,6 +75,7 @@ impl Economy {
         Ok(())
     }
     pub(super) fn store(&self, globals: &mut Element) {
+        globals.set_child("coal_survey_done", i32::from(self.coal_survey_done));
         let t = globals.section("taxable");
         for (name, n) in [
             ("labor", self.taxable_labor),
@@ -110,6 +115,29 @@ pub(super) fn expense(
 }
 
 impl City {
+    /// Whether the city has paid for its coal reserve survey.
+    pub fn coal_survey_done(&self) -> bool {
+        self.economy.coal_survey_done
+    }
+
+    /// Surveys coal reserves once, recording the expense in the current fiscal year.
+    ///
+    /// Returns an out-of-money error if the survey would exceed the credit limit.
+    pub fn survey_coal(&mut self) -> Result<(), super::ActionError> {
+        if !self.economy.coal_survey_done {
+            if !expense(
+                &mut self.balance,
+                &mut self.stats.expenses.coal_survey,
+                &mut self.events,
+                COAL_SURVEY_COST,
+            ) {
+                return Err(super::ActionError::OutOfMoney);
+            }
+            self.economy.coal_survey_done = true;
+        }
+        Ok(())
+    }
+
     pub(super) fn pay_monthly_bills(&mut self) {
         let pop = &self.stats.population;
         expense(
@@ -129,8 +157,8 @@ impl City {
     pub(super) fn settle_year(&mut self) -> io::Result<()> {
         let e = &mut self.economy;
         let goods = e.taxable_goods * e.goods_rate / PERCENT;
-        let goods =
-            goods + ((goods * e.goods_rate) as f32 * self.tech_level as f32 / GOODS_TECH_SCALE) as i32;
+        let goods = goods
+            + ((goods * e.goods_rate) as f32 * self.tech_level as f32 / GOODS_TECH_SCALE) as i32;
         let discount: i32 = EXPORT_BRACKETS
             .into_iter()
             .map(|threshold| (e.taxable_exports - threshold).max(0) / EXPORT_DISCOUNT_DIVISOR)
@@ -141,7 +169,10 @@ impl City {
                 e.taxable_labor * e.income_rate / PERCENT,
                 &mut income.income_tax,
             ),
-            (e.taxable_coal * e.coal_rate / COAL_TAX_DIVISOR, &mut income.coal_tax),
+            (
+                e.taxable_coal * e.coal_rate / COAL_TAX_DIVISOR,
+                &mut income.coal_tax,
+            ),
             (goods, &mut income.goods_tax),
             (e.taxable_exports - discount, &mut income.export_tax),
         ] {
@@ -153,7 +184,8 @@ impl City {
         e.taxable_goods = 0;
         e.taxable_exports = 0;
         if self.balance < 0 {
-            let interest = (-(self.balance / INTEREST_PRINCIPAL_UNIT) * INTEREST_PER_UNIT).min(INTEREST_CAP);
+            let interest =
+                (-(self.balance / INTEREST_PRINCIPAL_UNIT) * INTEREST_PER_UNIT).min(INTEREST_CAP);
             expense(
                 &mut self.balance,
                 &mut self.stats.expenses.interest,
@@ -167,7 +199,11 @@ impl City {
         );
         for (take, give) in &mut e.trade {
             for enabled in [take, give] {
-                *enabled ^= self.decisions.c_modulo(if *enabled { CLOSE_TRADE_ODDS } else { OPEN_TRADE_ODDS })? == 0;
+                *enabled ^= self.decisions.c_modulo(if *enabled {
+                    CLOSE_TRADE_ODDS
+                } else {
+                    OPEN_TRADE_ODDS
+                })? == 0;
             }
         }
         Ok(())

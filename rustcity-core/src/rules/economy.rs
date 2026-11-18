@@ -7,6 +7,7 @@ pub(crate) const INCOME_RATE: i32 = 8;
 pub(crate) const COAL_RATE: i32 = 15;
 pub(crate) const GOODS_RATE: i32 = 1;
 pub(crate) const DOLE_RATE: i32 = 15;
+pub(crate) const COAL_SURVEY_COST: i32 = 1_000_000;
 pub(crate) const DEATH_EXPENSE: i32 = 500;
 pub(crate) const PERCENT: i32 = 100;
 pub(crate) const COAL_TAX_DIVISOR: i32 = 10;

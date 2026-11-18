@@ -247,7 +247,7 @@ impl City {
         self.install_industry(id, point)?;
         self.connect_building(point);
         if self.buildings.get(id).unwrap().1.kind == BuildingKind::Market {
-            self.mark_coverage(point, 9, civic::MARKET_CHECK);
+            self.mark_coverage(point, BuildingKind::Market.metadata().range, civic::MARKET_CHECK);
         }
         Ok(id)
     }

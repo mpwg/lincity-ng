@@ -62,3 +62,21 @@ Z
     assert_eq!(city.stock(p, Commodity::Food), Some(5310));
     assert_eq!(city.stock(p, Commodity::Labor), Some(0));
 }
+
+#[test]
+fn coal_survey_costs_once_even_after_resuming_a_city() {
+    let mut city = City::empty(8).unwrap();
+    assert!(!city.coal_survey_done());
+    city.survey_coal().unwrap();
+    assert_eq!(city.balance(), -1_000_000);
+    assert_eq!(
+        city.statistics().expenses.coal_survey.period_to_date(),
+        1_000_000
+    );
+    let mut save = Vec::new();
+    city.save(&mut save).unwrap();
+    let mut resumed = City::load(save.as_slice()).unwrap();
+    assert!(resumed.coal_survey_done());
+    resumed.survey_coal().unwrap();
+    assert_eq!(resumed.balance(), -1_000_000);
+}
