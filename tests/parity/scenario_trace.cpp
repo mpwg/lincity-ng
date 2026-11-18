@@ -8,15 +8,21 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string_view>
 
 #ifdef LINCITY_REFERENCE_TRACE
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/resources.hpp"
+#include "Config.hpp"
 #include "MainLincity.hpp"
 
-static void initializeReferenceTrace() {
+extern Config* configPtr;
+
+static void initializeReferenceTrace(bool traffic) {
   initializeModules();
-  simDelay = SIM_DELAY_FAST;
+  static Config config;
+  configPtr = &config;
+  simDelay = traffic ? SIM_DELAY_SLOW : SIM_DELAY_FAST;
   const std::pair<const char*, int> animationLengths[] = {
 #include "frame_counts.inc"
   };
@@ -29,16 +35,20 @@ static void initializeReferenceTrace() {
 #endif
 
 int main(int argc, char** argv) {
-  if(argc != 3) return 2;
+  if(argc != 4) return 2;
+  const auto profile = std::string_view(argv[3]);
+  if(profile != "traffic" && profile != "no-traffic") return 2;
+  const bool traffic = profile == "traffic";
   try {
 #ifdef LINCITY_REFERENCE_TRACE
-    initializeReferenceTrace();
+    initializeReferenceTrace(traffic);
 #endif
     std::srand(714);
     BasicUrbg::get().seed(714);
     auto world = World::load(argv[1]);
 #ifndef LINCITY_REFERENCE_TRACE
-    world->vehicleTraffic = World::VehicleTraffic::Disabled;
+    world->vehicleTraffic = traffic ? World::VehicleTraffic::Normal
+                                    : World::VehicleTraffic::Disabled;
 #endif
     const std::filesystem::path output(argv[2]);
     std::ofstream messages(output / "messages.txt");

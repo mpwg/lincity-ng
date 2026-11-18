@@ -62,19 +62,20 @@ target_link_libraries(lincity_lib PUBLIC
 
 def compare(reference, current, directory):
     checkpoints = ("day-0.gz", "day-1.gz", "day-100.gz", "day-1201.gz", "messages.txt")
-    for scenario in sorted((ROOT / "data/opening").glob("*.scn.gz")):
-        before = directory / f"{scenario.name}.reference"
-        after = directory / f"{scenario.name}.current"
-        before.mkdir()
-        after.mkdir()
-        run(reference, scenario, before)
-        run(current, scenario, after)
-        for checkpoint in checkpoints:
-            read = gzip.open if checkpoint.endswith(".gz") else open
-            with read(before / checkpoint, "rb") as a, read(after / checkpoint, "rb") as b:
-                if a.read() != b.read():
-                    raise SystemExit(f"{scenario.name}: {checkpoint} differs")
-        print(f"PASS {scenario.name} (four saves and message sequence)", flush=True)
+    for profile in ("no-traffic", "traffic"):
+        for scenario in sorted((ROOT / "data/opening").glob("*.scn.gz")):
+            before = directory / f"{scenario.name}.{profile}.reference"
+            after = directory / f"{scenario.name}.{profile}.current"
+            before.mkdir()
+            after.mkdir()
+            run(reference, scenario, before, profile)
+            run(current, scenario, after, profile)
+            for checkpoint in checkpoints:
+                read = gzip.open if checkpoint.endswith(".gz") else open
+                with read(before / checkpoint, "rb") as a, read(after / checkpoint, "rb") as b:
+                    if a.read() != b.read():
+                        raise SystemExit(f"{scenario.name} ({profile}): {checkpoint} differs")
+            print(f"PASS {scenario.name} ({profile}, four saves and message sequence)", flush=True)
 
 
 def main():

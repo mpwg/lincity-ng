@@ -19,7 +19,8 @@ To compare the six bundled scenarios with the original simulation on the
 same compiler and standard library, run `python3
 tests/parity/compare_scenarios.py build/core`. The comparison builds the
 pinned desktop reference in a temporary directory under `build/` and
-requires its desktop build dependencies.
+requires its desktop build dependencies. It compares saved states and game
+messages with vehicle traffic enabled and disabled.
 
 ## CMAKE_BUILD_TYPE
 
