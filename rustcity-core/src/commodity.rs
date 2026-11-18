@@ -50,3 +50,10 @@ impl Commodity {
             .find(|commodity| commodity.save_name() == name)
     }
 }
+
+/// Directions enabled for one commodity in a market, a port or foreign trade.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TradePolicy {
+    pub buy: bool,
+    pub sell: bool,
+}

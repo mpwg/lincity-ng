@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod commodity;
-pub use commodity::Commodity;
+pub use commodity::{Commodity, TradePolicy};
 
 mod city;
 mod energy;

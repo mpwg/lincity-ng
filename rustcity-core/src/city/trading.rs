@@ -4,6 +4,28 @@ use crate::Commodity;
 use crate::buildings::BuildingId;
 
 impl City {
+    /// Returns the configured directions for a local market or port that handles the commodity.
+    pub fn building_trade_policy(&self, point: Point, c: Commodity) -> Option<crate::TradePolicy> {
+        let (_, building) = self.buildings.get(self.buildings.at(point)?)?;
+        match &building.operation {
+            Operation::Market(market) => {
+                let rule = market.rules[c as usize];
+                (rule.max_load > 0).then_some(crate::TradePolicy {
+                    buy: rule.take,
+                    sell: rule.give,
+                })
+            }
+            Operation::Port(port) => port.policy(c),
+            _ => None,
+        }
+    }
+
+    /// Returns the world import and export permissions applied to every port.
+    pub fn foreign_trade_policy(&self, c: Commodity) -> crate::TradePolicy {
+        let (buy, sell) = self.economy.trade[c as usize];
+        crate::TradePolicy { buy, sell }
+    }
+
     pub(super) fn connect_building(&mut self, point: Point) {
         let Some(center_id) = self.buildings.at(point) else {
             return;
