@@ -17,7 +17,7 @@ def run(*args, **kwargs):
     return subprocess.run(args, cwd=ROOT, check=True, **kwargs)
 
 
-def prepare_reference(directory, core_build):
+def prepare_reference(directory):
     source = directory / "reference"
     source.mkdir()
     archive = directory / "reference.tar"
@@ -29,7 +29,7 @@ def prepare_reference(directory, core_build):
 
     desktop = source / "src" / "lincity-ng"
     shutil.copyfile(Path(__file__).with_name("scenario_trace.cpp"), desktop / "main.cpp")
-    shutil.copyfile(core_build / "frame_counts.inc", desktop / "frame_counts.inc")
+    shutil.copyfile(ROOT / "lincity-core/lincity/frame_counts.inc", desktop / "frame_counts.inc")
     # The pinned source already links desktop code to the simulation. Retain
     # the application helpers while providing a separate entry point for tracing.
     original = subprocess.check_output(
@@ -63,7 +63,7 @@ target_link_libraries(lincity_lib PUBLIC
 def compare(reference, current, directory):
     checkpoints = ("day-0.gz", "day-1.gz", "day-100.gz", "day-1201.gz", "messages.txt")
     for profile in ("no-traffic", "traffic"):
-        for scenario in sorted((ROOT / "data/opening").glob("*.scn.gz")):
+        for scenario in sorted((ROOT / "lincity-core/opening").glob("*.scn.gz")):
             before = directory / f"{scenario.name}.{profile}.reference"
             after = directory / f"{scenario.name}.{profile}.current"
             before.mkdir()
@@ -88,7 +88,7 @@ def main():
         os.environ["TMPDIR"] = scratch
         directory = Path(scratch)
         run("cmake", "--build", core_build, "--target", "core_scenario_trace")
-        reference = prepare_reference(directory, core_build)
+        reference = prepare_reference(directory)
         current = core_build / "tests" / (
             "core_scenario_trace.exe" if os.name == "nt" else "core_scenario_trace"
         )

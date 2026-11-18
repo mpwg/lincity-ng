@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------------------- ##
- # lib/gettext/CMakeLists.txt
+ # lib/CMakeLists.txt
  # This file is part of Lincity-NG.
  #
  # Copyright (C) 2025      David Bears <dbear4q@gmail.com>
@@ -22,4 +22,3 @@
 if(LINCITY_BUILD_GUI)
   add_subdirectory(cfgpath)
 endif()
-add_subdirectory(gettext)

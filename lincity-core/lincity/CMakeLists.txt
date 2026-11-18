@@ -35,8 +35,8 @@ add_library(lincity_lib  STATIC
 
 add_library(LinCity::Core ALIAS lincity_lib)
 add_library(LinCity::lib ALIAS lincity_lib)
-target_include_directories(lincity_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/.."
-  PRIVATE "${CMAKE_BINARY_DIR}")
+target_compile_features(lincity_lib PUBLIC cxx_std_17)
+target_include_directories(lincity_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(lincity_lib
   PUBLIC
@@ -51,11 +51,8 @@ target_link_libraries(lincity_lib
   fmt::fmt
 )
 
-if (NOT WIN32)
-	add_compile_definitions(lincity_lib PRIVATE DEFAULT_LIBDIR="lib")    # TODO
-endif()
-
 include_directories(.)
 
-include(TranslateTarget)
-translate_target(lincity_lib lincity_lib.pot)
+if(COMMAND translate_target)
+  translate_target(lincity_lib lincity_lib.pot)
+endif()

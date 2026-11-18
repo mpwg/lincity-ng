@@ -4,6 +4,11 @@ This is a list of options which may be of interest when configuring the build.
 These options should be passed to `cmake` at the configuration step.
 
 
+## Standalone simulation
+
+See [the LinCity Core build instructions](../lincity-core/README.md) to
+configure, build, test or embed the simulation from its own source directory.
+
 ## LINCITY_BUILD_GUI
 
 The default, `ON`, builds the SDL game. Set `OFF` to build the
@@ -16,10 +21,15 @@ ctest --test-dir build/core --output-on-failure
 ```
 
 To compare the six bundled scenarios with the original simulation on the
-same compiler and standard library, run `python3
-tests/parity/compare_scenarios.py build/core`. The comparison builds the
-pinned desktop reference in a temporary directory under `build/` and
-requires its desktop build dependencies. It compares saved states and game
+same compiler and standard library, run the following command after configuring
+from the repository root.
+
+```sh
+python3 tests/parity/compare_scenarios.py build/core
+```
+
+The comparison builds the pinned desktop reference in a temporary directory
+under `build/` and requires its desktop build dependencies. It compares saved states and game
 messages with vehicle traffic enabled and disabled.
 
 ## CMAKE_BUILD_TYPE

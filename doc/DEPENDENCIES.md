@@ -55,9 +55,9 @@ Following is the list of dependencies for building and/or running LinCity-NG.
 
   https://cmake.org/
 
-* Python 3
+* Python 3 (desktop build only)
 
-  Used at configure time to extract the animation lengths for the simulation.
+  Used at configure time to check that the desktop assets match the core animation lengths.
 
 * xsltproc (desktop build only)
 

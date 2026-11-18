@@ -12,7 +12,6 @@ file(GLOB_RECURSE allDataFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DE
   images/*.png
   images/*.xml
   music/*
-  opening/*.scn.gz
   sounds/*
   lincityconfig.xml
 )
@@ -20,6 +19,12 @@ foreach(dataFile ${allDataFiles})
   copy_data_file(${dataFile} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_INSTALL_APPDATADIR} data_files_out)
 endforeach()
 
+file(GLOB openingScenarios RELATIVE "${PROJECT_SOURCE_DIR}/lincity-core" CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/lincity-core/opening/*.scn.gz"
+)
+foreach(scenario ${openingScenarios})
+  copy_data_file(${scenario} ${PROJECT_SOURCE_DIR}/lincity-core ${CMAKE_INSTALL_APPDATADIR} data_files_out)
+endforeach()
 
 copy_data_file(${APPSTREAM_ID}.desktop ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_INSTALL_DATADIR}/applications data_files_out)
 copy_data_file(${APPSTREAM_ID}.metainfo.xml ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_INSTALL_DATADIR}/metainfo data_files_out)

@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------------------- ##
- # lib/gettext/CMakeLists.txt
+ # lincity-core/gettext/CMakeLists.txt
  # This file is part of Lincity-NG.
  #
  # Copyright (C) 2025      David Bears <dbear4q@gmail.com>
@@ -23,7 +23,7 @@ add_library(gettext INTERFACE
   gettext.h
 )
 
-target_include_directories(gettext INTERFACE SYSTEM .)
+target_include_directories(gettext SYSTEM INTERFACE .)
 set_target_properties(gettext PROPERTIES
   LINKER_LANGUAGE C
   C_INCLUDE_WHAT_YOU_USE ""

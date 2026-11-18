@@ -34,8 +34,8 @@ endif()
 ### .POT generation
 set(POT_FILES
   "${CMAKE_BINARY_DIR}/src/lincity-ng/lincity-ng.pot"
-  "${CMAKE_BINARY_DIR}/src/lincity/lincity_lib.pot"
-  "${CMAKE_BINARY_DIR}/src/lincity/modules/lincity_lib_modules.pot"
+  "${CMAKE_BINARY_DIR}/lincity-core/lincity/lincity_lib.pot"
+  "${CMAKE_BINARY_DIR}/lincity-core/lincity/modules/lincity_lib_modules.pot"
   "${CMAKE_BINARY_DIR}/share/lincity-ng/gui/guiXml.pot"
 )
 foreach(pot ${POT_FILES})

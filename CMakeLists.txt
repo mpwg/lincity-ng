@@ -38,6 +38,7 @@ include(CTest)
 ### dependencies
 list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/mk/cmake/modules
+  ${CMAKE_CURRENT_SOURCE_DIR}/lincity-core/cmake
   ${CMAKE_SOURCE_DIR}/mk/cmake/modules/SDL3
 )
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
@@ -198,7 +199,11 @@ set(CMAKE_BINARY_APPDATADIR ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_APPDATADIR})
 
 
 ### configure subdirectories
-include(mk/cmake/GenerateFrameCounts.cmake)
+if(LINCITY_BUILD_GUI)
+  include(mk/cmake/CheckFrameCounts.cmake)
+  include(TranslateTarget)
+endif()
+add_subdirectory(lincity-core)
 add_subdirectory(src)
 add_subdirectory(lib)
 if(BUILD_TESTING)

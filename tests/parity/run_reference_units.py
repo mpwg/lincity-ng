@@ -22,7 +22,7 @@ def main():
         binary = build / "reference-units"
         subprocess.run(
             [os.environ.get("CXX", "c++"), "-std=c++20", "-I", tmp,
-             HERE / "reference_units.cpp", build / "commodities.cpp",
+             HERE.parent.parent / "lincity-core/tests/reference_units.cpp", build / "commodities.cpp",
              build / "stats.cpp", "-o", binary], env=dict(os.environ, TMPDIR=tmp), check=True
         )
         subprocess.run([binary], check=True)

@@ -82,5 +82,6 @@ target_link_libraries(lincity_lib_modules
 
 include_directories(.)
 
-include(TranslateTarget)
-translate_target(lincity_lib_modules lincity_lib_modules.pot)
+if(COMMAND translate_target)
+  translate_target(lincity_lib_modules lincity_lib_modules.pot)
+endif()
