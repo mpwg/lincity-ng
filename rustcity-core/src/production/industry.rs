@@ -1,10 +1,17 @@
 use super::Stock;
 use crate::Commodity::{Coal, Goods, HighVoltage, Labor, LowVoltage, Ore, Steel, Waste};
+use crate::rules::{
+    DAYS_PER_MONTH, MAX_TECH_LEVEL,
+    industry::{LOAD_COAL, heavy, light},
+};
 
 /// Pollution filters are fixed by the technology at construction time.
 fn emissions(tech: i32, gross: f64, capacity: i32, stock: &mut Stock<'_>) -> i32 {
-    let filter = ((f64::from(tech) - 1_000_000.0) / 1_000_000.0).clamp(0., 1.);
-    let secondary = ((f64::from(tech) - 2_000_000.0) / 1_000_000.0).clamp(0., 1.);
+    let filter =
+        ((f64::from(tech) - f64::from(MAX_TECH_LEVEL)) / f64::from(MAX_TECH_LEVEL)).clamp(0., 1.);
+    let secondary = ((f64::from(tech) - 2.0 * f64::from(MAX_TECH_LEVEL))
+        / f64::from(MAX_TECH_LEVEL))
+    .clamp(0., 1.);
     stock.change(Waste, (gross * filter * (1. - secondary)) as i32);
     (gross * (1. - filter)) as i32 + stock.cap(Waste, capacity)
 }
@@ -34,35 +41,50 @@ impl LightIndustry {
         }
     }
     pub fn update(&mut self, day: u32, stock: &mut Stock<'_>) -> i32 {
-        if day.is_multiple_of(100) {
+        if day.is_multiple_of(DAYS_PER_MONTH as u32) {
             stock.counts.close_month();
-            self.busy = std::mem::take(&mut self.goods_this_month) / 1800;
+            self.busy = std::mem::take(&mut self.goods_this_month) / light::MAX_OUTPUT;
         }
         self.goods_today = 0;
-        if stock[Labor] < 40 || stock[Ore] < 125 || stock[Goods] > 36_000 - 225 {
+        if stock[Labor] < light::BASE_LABOR
+            || stock[Ore] < light::ORE
+            || stock[Goods] > light::GOODS_CAPACITY - light::GOODS
+        {
             return 0;
         }
-        stock.change(Labor, -40);
-        stock.change(Ore, -125);
-        let mut made = 225;
-        let pollution = emissions(self.tech, 0.05 * f64::from(made), 1800, stock);
-        if stock[Labor] >= 19 && stock[Steel] >= 12 && stock[Goods] + 2 * made <= 36000 {
-            stock.change(Labor, -19);
-            stock.change(Steel, -12);
-            made *= 2;
+        stock.change(Labor, -light::BASE_LABOR);
+        stock.change(Ore, -light::ORE);
+        let mut made = light::GOODS;
+        let pollution = emissions(
+            self.tech,
+            light::POLLUTION_PER_GOOD * f64::from(made),
+            light::WASTE_CAPACITY,
+            stock,
+        );
+        if stock[Labor] >= light::STEEL_LABOR
+            && stock[Steel] >= light::STEEL
+            && stock[Goods] + light::STEEL_MULTIPLIER * made <= light::GOODS_CAPACITY
+        {
+            stock.change(Labor, -light::STEEL_LABOR);
+            stock.change(Steel, -light::STEEL);
+            made *= light::STEEL_MULTIPLIER;
         }
-        let power_per_good = (stock[LowVoltage] + 2 * stock[HighVoltage]) / (4 * made);
-        if power_per_good >= 10 && stock[Ore] >= 125 && stock[Goods] + 4 * made <= 36000 {
-            made *= 4;
-            stock.change(Ore, -125);
+        let power_per_good =
+            (stock[LowVoltage] + 2 * stock[HighVoltage]) / (light::POWER_MULTIPLIER * made);
+        if power_per_good >= light::POWER_PER_GOOD
+            && stock[Ore] >= light::ORE
+            && stock[Goods] + light::POWER_MULTIPLIER * made <= light::GOODS_CAPACITY
+        {
+            made *= light::POWER_MULTIPLIER;
+            stock.change(Ore, -light::ORE);
             if 2 * stock[HighVoltage] > stock[LowVoltage] {
-                let high = (10 * (made / 2)).min(stock[HighVoltage]);
+                let high = (light::POWER_PER_GOOD * (made / 2)).min(stock[HighVoltage]);
                 stock.change(HighVoltage, -high);
-                stock.change(LowVoltage, -(10 * (made / 2) - high) * 2);
+                stock.change(LowVoltage, -(light::POWER_PER_GOOD * (made / 2) - high) * 2);
             } else {
-                let low = (10 * made).min(stock[LowVoltage]);
+                let low = (light::POWER_PER_GOOD * made).min(stock[LowVoltage]);
                 stock.change(LowVoltage, -low);
-                stock.change(HighVoltage, -((10 * made - low) / 2));
+                stock.change(HighVoltage, -((light::POWER_PER_GOOD * made - low) / 2));
             }
         }
         stock.change(Goods, made);
@@ -90,7 +112,9 @@ impl LightIndustry {
         for (i, frame) in self.smoke.iter_mut().enumerate() {
             if i >= active {
                 *frame = -1;
-            } else if *frame < 0 || random()?.is_multiple_of(1600) {
+            } else if *frame < 0
+                || random()?.is_multiple_of(crate::rules::power::SMOKE_RANDOM_PERIOD)
+            {
                 *frame = (random()? % 10) as i32;
             } else if self.goods_today != 0 {
                 *frame = (*frame + 1) % 10;
@@ -123,32 +147,41 @@ impl HeavyIndustry {
     }
     pub fn update(&mut self, day: u32, stock: &mut Stock<'_>) -> i32 {
         let mut pollution = 0;
-        if stock[Labor] >= 46 && stock[Ore] >= 612 && stock[Steel] <= 684 {
-            let high = stock[HighVoltage].min(3600);
-            let remaining = 36 - high / 100;
-            let low = stock[LowVoltage].min(remaining * 200);
-            let remaining = remaining - low / 200;
-            let coal = stock[Coal].min(remaining * 2);
-            let made = if remaining == coal / 2 {
+        if stock[Labor] >= heavy::LABOR + LOAD_COAL
+            && stock[Ore] >= heavy::BATCH_ORE
+            && stock[Steel] <= heavy::STEEL_CAPACITY - heavy::OUTPUT
+        {
+            let high = stock[HighVoltage].min(heavy::OUTPUT * heavy::POWER_PER_STEEL / 2);
+            let remaining = heavy::OUTPUT - high / (heavy::POWER_PER_STEEL / 2);
+            let low = stock[LowVoltage].min(remaining * heavy::POWER_PER_STEEL);
+            let remaining = remaining - low / heavy::POWER_PER_STEEL;
+            let coal = stock[Coal].min(remaining * heavy::COAL_PER_STEEL);
+            let made = if remaining == coal / heavy::COAL_PER_STEEL {
                 stock.change(HighVoltage, -high);
                 stock.change(LowVoltage, -low);
                 stock.change(Coal, -coal);
                 if coal != 0 {
-                    stock.change(Labor, -18);
+                    stock.change(Labor, -LOAD_COAL);
                 }
-                36
+                heavy::OUTPUT
             } else {
-                7
+                heavy::OUTPUT / heavy::LOW_POWER_DIVISOR
             };
-            stock.change(Labor, -28);
-            stock.change(Ore, -612);
+            stock.change(Labor, -heavy::LABOR);
+            stock.change(Ore, -heavy::BATCH_ORE);
             stock.change(Steel, made);
             self.steel_this_month += made;
-            pollution = emissions(self.tech, f64::from(made) * 0.25, 180, stock);
+            pollution = emissions(
+                self.tech,
+                f64::from(made) * heavy::POLLUTION_PER_STEEL,
+                heavy::WASTE_CAPACITY,
+                stock,
+            );
         }
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == (DAYS_PER_MONTH - 1) as u32 {
             stock.counts.close_month();
-            self.busy = std::mem::take(&mut self.steel_this_month) * 17 / 612;
+            self.busy = std::mem::take(&mut self.steel_this_month) * heavy::ORE_PER_STEEL
+                / heavy::BATCH_ORE;
         }
         pollution
     }

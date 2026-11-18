@@ -45,7 +45,7 @@ pub struct Activity {
 
 impl Activity {
     fn close_day(&mut self, day: u32, stock: &mut Stock<'_>) {
-        if day % 100 == 99 {
+        if day % crate::rules::DAYS_PER_MONTH as u32 == (crate::rules::DAYS_PER_MONTH - 1) as u32 {
             stock.counts.close_month();
             self.busy = std::mem::take(&mut self.working_days);
         }

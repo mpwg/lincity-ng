@@ -93,7 +93,8 @@ and 48 complete saves. Each process receives the six commands from
 `tests/replay/actions.txt`. Use `--actions FILE` to supply different commands.
 The runner processes one scenario and profile at a time, streams the daily
 observations, and removes that pair's temporary outputs before starting the next.
-Set `TMPDIR` to choose temporary storage on Unix.
+Set `TMPDIR` to choose temporary storage on Unix. Pass `--keep-going` to
+finish the other cases after a mismatch and report one diagnostic per failed pair.
 
 For development, add `--quick` to compare five ticks of `good_times` under
 both profiles, including the same six commands. The CMake target

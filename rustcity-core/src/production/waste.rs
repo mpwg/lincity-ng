@@ -1,20 +1,25 @@
 use super::{Activity, Stock};
 use crate::Commodity::{Labor, LowVoltage, Ore, Steel, Waste};
+use crate::rules::{
+    MAX_TECH_LEVEL,
+    industry::{recycle, tip},
+};
 
 #[derive(Clone, Debug)]
 pub struct Recycling {
-    pub tech: i32,
     pub make_ore: i32,
     pub make_steel: i32,
     pub activity: Activity,
 }
 
 impl Recycling {
-    pub const RUNNING_COST: i32 = 3;
+    pub const RUNNING_COST: i32 = recycle::RUNNING_COST;
     pub fn new(tech: i32) -> Self {
-        let efficiency = (500 * (10 + (50 * i64::from(tech)) / 1_000_000) / 100).min(400) as i32;
+        let efficiency = (i64::from(recycle::WASTE)
+            * (10 + (50 * i64::from(tech)) / i64::from(MAX_TECH_LEVEL))
+            / 100)
+            .min(i64::from(recycle::WASTE * 8 / 10)) as i32;
         Self {
-            tech,
             make_ore: efficiency,
             make_steel: efficiency / 50,
             activity: Activity::default(),
@@ -23,19 +28,23 @@ impl Recycling {
 
     /// The city attempts the daily operating expense even when supplies are insufficient.
     pub fn update(&mut self, day: u32, stock: &mut Stock<'_>, paid: bool) {
-        if paid && stock[Waste] >= 500 && stock[LowVoltage] >= 250 && stock[Labor] >= 34 {
-            stock.change(Labor, -34);
-            stock.change(LowVoltage, -250);
-            stock.change(Waste, -500);
+        if paid
+            && stock[Waste] >= recycle::WASTE
+            && stock[LowVoltage] >= recycle::POWER
+            && stock[Labor] >= recycle::LABOR
+        {
+            stock.change(Labor, -recycle::LABOR);
+            stock.change(LowVoltage, -recycle::POWER);
+            stock.change(Waste, -recycle::WASTE);
             self.activity.working_days += 1;
             stock.change(Ore, self.make_ore);
             stock.change(Steel, self.make_steel);
-            stock.cap(Ore, 8000);
-            stock.cap(Steel, 160);
+            stock.cap(Ore, recycle::MAX_ORE);
+            stock.cap(Steel, recycle::MAX_STEEL);
         }
         self.activity.close_day(day, stock);
-        if stock[Waste] > 9000 {
-            stock.change(Waste, -50);
+        if stock[Waste] > recycle::STOCKED_WASTE * 9 / 10 {
+            stock.change(Waste, -recycle::BURN);
         }
     }
 }
@@ -51,16 +60,21 @@ impl Landfill {
     /// Returns true when burial invalidates the city's mining sustainability flag.
     pub fn update(&mut self, day: u32, stock: &mut Stock<'_>) -> bool {
         self.degradation += self.buried;
-        self.buried -= self.degradation / 240_000;
-        self.degradation %= 240_000;
-        let percent = stock[Waste] * 100 / 4000;
-        let bury = stock[Waste] >= 200 && percent > 20 && self.buried + 200 <= 10_000_000;
+        self.buried -= self.degradation / tip::DEGRADE_DAYS;
+        self.degradation %= tip::DEGRADE_DAYS;
+        let percent = stock[Waste] * 100 / tip::INBOX;
+        let bury = stock[Waste] >= tip::BATCH
+            && percent > tip::TARGET_PERCENT
+            && self.buried + tip::BATCH <= tip::CAPACITY;
         if bury {
-            stock.change(Waste, -200);
-            self.buried += 200;
+            stock.change(Waste, -tip::BATCH);
+            self.buried += tip::BATCH;
             self.activity.working_days += 1;
-        } else if stock[Waste] + 200 <= 4000 && percent < 20 && self.buried > 0 {
-            let recovered = 200.min(self.buried);
+        } else if stock[Waste] + tip::BATCH <= tip::INBOX
+            && percent < tip::TARGET_PERCENT
+            && self.buried > 0
+        {
+            let recovered = tip::BATCH.min(self.buried);
             stock.change(Waste, recovered);
             self.buried -= recovered;
             self.activity.working_days += 1;
@@ -69,7 +83,7 @@ impl Landfill {
         bury
     }
     pub fn frame(&self) -> i32 {
-        let level = (self.buried / 3 * 22) / 10_000_000;
+        let level = (self.buried / 3 * 22) / tip::CAPACITY;
         level + i32::from(self.buried > 0 && level < 8)
     }
     pub fn can_bulldoze(&self) -> bool {

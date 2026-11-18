@@ -1,4 +1,8 @@
 use super::{Activity, Stock};
+use crate::rules::{
+    DAYS_PER_MONTH,
+    industry::{ORE_RESERVE, coal_mine, ore_mine},
+};
 use crate::{
     Commodity::{Coal, Labor, Ore},
     Point,
@@ -66,12 +70,12 @@ impl CoalMine {
     pub fn place(point: Point, side: i32, tiles: &mut [impl MiningTile]) -> Self {
         let area = Area {
             lo: Point {
-                x: (point.x - 6).max(1),
-                y: (point.y - 6).max(1),
+                x: (point.x - coal_mine::RANGE).max(1),
+                y: (point.y - coal_mine::RANGE).max(1),
             },
             hi: Point {
-                x: (point.x + 6).min(side - 1),
-                y: (point.y + 6).min(side - 1),
+                x: (point.x + coal_mine::RANGE).min(side - 1),
+                y: (point.y + coal_mine::RANGE).min(side - 1),
             },
             side,
         };
@@ -79,9 +83,10 @@ impl CoalMine {
             .cells()
             .map(|i| tiles[i].reserve(Mineral::Coal))
             .sum::<i32>();
-        if reserve < 20 {
-            tiles[area.index(point)].change_reserve(Mineral::Coal, 20 - reserve);
-            reserve = 20;
+        if reserve < coal_mine::MINIMUM_DEPOSITS {
+            tiles[area.index(point)]
+                .change_reserve(Mineral::Coal, coal_mine::MINIMUM_DEPOSITS - reserve);
+            reserve = coal_mine::MINIMUM_DEPOSITS;
         }
         Self {
             area,
@@ -99,9 +104,18 @@ impl CoalMine {
         tiles: &mut [impl MiningTile],
         sustainable: &mut bool,
     ) -> MineAction {
-        if stock[Labor] >= 918 && (stock[Coal] <= 15_000 || stock[Coal] >= 17_000) {
-            let mining = stock[Coal] <= 15_000;
-            let eligible = |amount: i32| if mining { amount > 0 } else { amount < 10_000 };
+        if stock[Labor] >= coal_mine::LABOR
+            && (stock[Coal] <= coal_mine::TARGET - coal_mine::BATCH
+                || stock[Coal] >= coal_mine::TARGET + coal_mine::BATCH)
+        {
+            let mining = stock[Coal] <= coal_mine::TARGET - coal_mine::BATCH;
+            let eligible = |amount: i32| {
+                if mining {
+                    amount > 0
+                } else {
+                    amount < coal_mine::DEPOSIT_CAPACITY
+                }
+            };
             let index = if eligible(tiles[self.cursor].reserve(Mineral::Coal)) {
                 Some(self.cursor)
             } else {
@@ -114,10 +128,10 @@ impl CoalMine {
                 let extracted = if mining { 1 } else { -1 };
                 tiles[i].change_reserve(Mineral::Coal, -extracted);
                 self.current_reserve -= extracted;
-                stock.change(Coal, extracted * 1000);
-                stock.change(Labor, -918);
+                stock.change(Coal, extracted * coal_mine::BATCH);
+                stock.change(Labor, -coal_mine::LABOR);
                 if mining {
-                    tiles[i].pollute(3);
+                    tiles[i].pollute(coal_mine::POLLUTION);
                     if self.current_reserve < self.initial_reserve {
                         *sustainable = false;
                     }
@@ -131,7 +145,7 @@ impl CoalMine {
             }
         }
         self.activity.close_day(day, stock);
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == (DAYS_PER_MONTH - 1) as u32 {
             if stock.counts.previous[Coal as usize] > 0 {
                 *sustainable = false;
             }
@@ -170,8 +184,8 @@ impl OreMine {
         let area = Area {
             lo: point,
             hi: Point {
-                x: point.x + 4,
-                y: point.y + 4,
+                x: point.x + ore_mine::SIZE,
+                y: point.y + ore_mine::SIZE,
             },
             side,
         };
@@ -199,20 +213,27 @@ impl OreMine {
         sustainable: &mut bool,
     ) -> MineAction {
         self.active = false;
-        let mining = self.reserve != 0 && stock[Ore] <= 76_000;
-        let returning = stock[Ore] > 85_000;
-        if stock[Labor] >= 209 && (mining || returning) {
+        let mining = self.reserve != 0
+            && stock[Ore]
+                <= ore_mine::TARGET_PERCENT * (ore_mine::CAPACITY - ore_mine::BATCH) / 100;
+        let returning =
+            stock[Ore] > ore_mine::TARGET_PERCENT * ore_mine::CAPACITY / 100 + ore_mine::BATCH;
+        if stock[Labor] >= ore_mine::LABOR && (mining || returning) {
             let i = self.area.cells().find(|&i| {
                 let ore = tiles[i].reserve(Mineral::Ore);
-                if mining { ore > 0 } else { ore < 1500 }
+                if mining {
+                    ore > 0
+                } else {
+                    ore < ORE_RESERVE * 3 / 2
+                }
             });
             if let Some(i) = i {
                 let extracted = if mining { 1 } else { -1 };
                 tiles[i].change_reserve(Mineral::Ore, -extracted);
                 self.reserve -= extracted;
-                stock.change(Ore, extracted * 5000);
-                stock.change(Labor, -209);
-                if mining && self.reserve < 16_000 {
+                stock.change(Ore, extracted * ore_mine::BATCH);
+                stock.change(Labor, -ore_mine::LABOR);
+                if mining && self.reserve < ore_mine::SUSTAINABLE_DEPOSITS {
                     *sustainable = false;
                 }
                 self.active = true;
@@ -230,12 +251,13 @@ impl OreMine {
     ) -> impl Iterator<Item = Point> + 'a {
         let area = self.area;
         area.points()
-            .filter(move |&p| tiles[area.index(p)].reserve(Mineral::Ore) < 500)
+            .filter(move |&p| tiles[area.index(p)].reserve(Mineral::Ore) < ORE_RESERVE / 2)
     }
 
     pub fn animate(&mut self, millis: u64) {
         if self.active && millis >= self.next_animation {
-            self.next_animation = millis + ((14 - self.activity.busy / 11) * 200 - 50) as u64;
+            self.next_animation =
+                millis + ((14 - self.activity.busy / 11) * ore_mine::FRAME_SPEED - 50) as u64;
             self.frame = match self.animation_step {
                 0..8 => self.animation_step,
                 8..12 => 14 - self.animation_step,

@@ -86,11 +86,12 @@ def compare_run(reference, candidate, root, city, days, actions, profile, alloca
     return count, len(list(before.glob("day-*.gz")))
 
 
-def differential(reference, candidate, actions, quick):
+def differential(reference, candidate, actions, quick, keep_going):
     scenarios = ("good_times",) if quick else (
         "Beach", "Rocket_98", "bad_times", "extreme_arid", "extreme_wetland", "good_times",
     )
     days = 5 if quick else 1201
+    failures = []
     total_days = total_saves = 0
     for name in scenarios:
         city = HERE.parents[1] / "opening" / (name + ".scn.gz")
@@ -100,11 +101,17 @@ def differential(reference, candidate, actions, quick):
                     count, saves = compare_run(reference, candidate, Path(tmp), city, days,
                                                actions, profile)
             except (OSError, EOFError, ParseError, RuntimeError, ValueError) as error:
-                raise ValueError(f"{name} ({profile}): {error}") from error
+                message = f"{name} ({profile}): {error}"
+                if not keep_going:
+                    raise ValueError(message) from error
+                failures.append(message)
+                continue
             print(f"{name} ({profile}): {count} daily observations, {saves} saves matched",
                   flush=True)
             total_days += count
             total_saves += saves
+    if failures:
+        raise ValueError("\n".join(failures))
     print(f"Total: {total_days} daily observations, {total_saves} saves matched")
 
 
@@ -117,6 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--days", type=int)
     parser.add_argument("--candidate", type=Path, help="candidate for differential replay")
     parser.add_argument("--quick", action="store_true", help="compare good_times for five days")
+    parser.add_argument("--keep-going", action="store_true", help="report the first difference for each scenario and profile")
     parser.add_argument("--actions", type=Path, help="ordered actions for differential replay")
     args = parser.parse_args()
     reference = args.executable.resolve()
@@ -127,12 +135,12 @@ if __name__ == "__main__":
             parser.error("--allocator, --profile and --days belong to scenario replay")
         try:
             differential(reference, args.candidate.resolve(), args.actions or HERE / "actions.txt",
-                         args.quick)
+                         args.quick, args.keep_going)
         except ValueError as error:
             parser.exit(1, f"{error}\n")
     else:
-        if args.candidate or args.quick or args.actions:
-            parser.error("--candidate, --quick and --actions belong to differential replay")
+        if args.candidate or args.quick or args.keep_going or args.actions:
+            parser.error("--candidate, --quick, --keep-going and --actions belong to differential replay")
         with tempfile.TemporaryDirectory() as tmp:
             if args.case == "small":
                 small_case(reference, Path(tmp))

@@ -1,0 +1,1 @@
+Führe Spielregeln, Grenzwerte, Wahrscheinlichkeiten und Zeitintervalle als benannte Konstanten. Nutze die vorhandenen Fachmodule unter `src/rules/` und die Gebäudemetadaten. Verwende dieselbe Definition für Simulation, Standardwerte und Spielstandmigration, wenn dieselbe Regel gilt. Behalte unabhängig gegen den C++-Core ermittelte Sollwerte in den Paritätstests bei.

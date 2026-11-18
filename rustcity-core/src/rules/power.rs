@@ -1,0 +1,19 @@
+//! Electricity generation and animation values from the power modules.
+pub(crate) const COAL_OUTPUT: i32 = 11_000;
+pub(crate) const POWER_PER_COAL: i32 = 250;
+pub(crate) const COAL_LABOR: i32 = 100;
+pub(crate) const COAL_POLLUTION: i32 = 20;
+pub(crate) const OUTPUT_QUANTUM: i32 = 100;
+pub(crate) const COAL_SMOKE_SPEED: u64 = 300;
+pub(crate) const SMOKE_RANDOM_PERIOD: u32 = 1600;
+pub(crate) const BLACK_SMOKE_FRAMES: i32 = 11;
+pub(crate) const WIND_OUTPUT: i32 = 450;
+pub(crate) const WINDMILL_LABOR: i32 = 10;
+pub(crate) const WIND_POWER_LABOR: i32 = 15;
+pub(crate) const WINDMILL_COST_PERIOD: u32 = 4;
+pub(crate) const WIND_POWER_COST_PERIOD: u32 = 2;
+pub(crate) const WIND_SPEED: u64 = 120;
+pub(crate) const WIND_FRAMES: i32 = 3;
+pub(crate) const LINE_MODULUS: i32 = 18;
+pub(crate) const LINE_FLASH_OFFSET: i32 = 11;
+pub(crate) const LINE_FLASH_SPEED: u64 = 100;

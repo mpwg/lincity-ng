@@ -1,5 +1,6 @@
 //! Electricity production, power line losses and their animation state.
 
+use crate::rules::{CREDIT_LIMIT, DAYS_PER_MONTH, MAX_TECH_LEVEL, power::*, transport};
 use crate::{BuildingKind, Commodity};
 use Commodity::{Coal, HighVoltage, Labor, LowVoltage};
 
@@ -23,7 +24,7 @@ impl ProductionCounters {
 }
 
 fn installed_output(base: i32, technology: i32) -> i32 {
-    (f64::from(base) + f64::from(technology) * f64::from(base) / 1_000_000.0) as i32
+    (f64::from(base) + f64::from(technology) * f64::from(base) / f64::from(MAX_TECH_LEVEL)) as i32
 }
 
 fn headroom(kind: BuildingKind, commodity: Commodity, stock: &[i32; 10]) -> i32 {
@@ -61,7 +62,7 @@ impl CoalPlant {
     pub fn new(technology: i32) -> Self {
         Self {
             technology,
-            output: installed_output(11_000, technology),
+            output: installed_output(COAL_OUTPUT, technology),
             busy: 0,
             working_hundreds: 0,
             next_animation: 0,
@@ -80,36 +81,41 @@ impl CoalPlant {
         let made = self
             .output
             .min(headroom(BuildingKind::CoalPower, HighVoltage, stock));
-        if made >= 11_000 {
-            let hundreds = made / 100;
-            let capacity = self.output / 100;
-            let labor = 100 * hundreds / capacity;
-            let coal = 44 * hundreds / capacity;
+        if made >= COAL_OUTPUT {
+            let hundreds = made / OUTPUT_QUANTUM;
+            let capacity = self.output / OUTPUT_QUANTUM;
+            let labor = COAL_LABOR * hundreds / capacity;
+            let coal = (COAL_OUTPUT / POWER_PER_COAL) * hundreds / capacity;
             if stock[Labor as usize] >= labor && stock[Coal as usize] >= coal {
                 counters.change(stock, Labor, -labor);
                 counters.change(stock, Coal, -coal);
                 counters.change(stock, HighVoltage, made);
-                *pollution += 20 * hundreds / capacity;
+                *pollution += COAL_POLLUTION * hundreds / capacity;
                 self.working_hundreds += hundreds;
             }
         }
-        if day % 100 == 99 {
-            self.busy = std::mem::take(&mut self.working_hundreds) / (self.output / 100);
+        if day % DAYS_PER_MONTH as u32 == (DAYS_PER_MONTH - 1) as u32 {
+            self.busy = std::mem::take(&mut self.working_hundreds) / (self.output / OUTPUT_QUANTUM);
             counters.close_month();
         }
     }
 
-    pub fn animate(&mut self, millis: u64, coal: i32, mut random: impl FnMut() -> u32) {
+    pub fn animate(
+        &mut self,
+        millis: u64,
+        coal: i32,
+        mut random: impl FnMut() -> std::io::Result<u32>,
+    ) -> std::io::Result<()> {
         if millis >= self.next_animation {
-            self.next_animation = millis + animation_threshold(300);
+            self.next_animation = millis + animation_threshold(COAL_SMOKE_SPEED);
             let active = 9 * self.busy / 100;
             for (index, frame) in self.smoke.iter_mut().enumerate() {
                 if index as i32 >= active {
                     *frame = -1;
-                } else if *frame < 0 || !random().is_multiple_of(1600) {
-                    *frame = (random() % 11) as i32;
+                } else if *frame < 0 || !random()?.is_multiple_of(SMOKE_RANDOM_PERIOD) {
+                    *frame = (random()? % BLACK_SMOKE_FRAMES as u32) as i32;
                 } else {
-                    *frame = (*frame + 1) % 11;
+                    *frame = (*frame + 1) % BLACK_SMOKE_FRAMES;
                 }
             }
         }
@@ -123,6 +129,7 @@ impl CoalPlant {
         } else {
             "PowerCoalEmpty"
         };
+        Ok(())
     }
 }
 
@@ -157,7 +164,7 @@ impl WindGenerator {
         Self {
             kind,
             technology,
-            output: installed_output(450, technology),
+            output: installed_output(WIND_OUTPUT, technology),
             busy_output: 0,
             working_output: 0,
             spinning: false,
@@ -180,24 +187,24 @@ impl WindGenerator {
         let mut money_warning = false;
         let antique = self.kind == BuildingKind::Windmill;
         let (commodity, workers) = if antique {
-            if day.is_multiple_of(4) {
+            if day.is_multiple_of(WINDMILL_COST_PERIOD) {
                 expenses.paid = false;
             }
-            if !expenses.paid && *balance > -2_000_000_000 {
+            if !expenses.paid && *balance > CREDIT_LIMIT {
                 money_warning = *balance == 1;
                 *balance -= 1;
                 *windmill_expense = windmill_expense.saturating_add(1);
                 expenses.paid = true;
             }
-            (LowVoltage, 10)
+            (LowVoltage, WINDMILL_LABOR)
         } else {
-            if day % 2 == 1 {
+            if !day.is_multiple_of(WIND_POWER_COST_PERIOD) {
                 *windmill_expense += 1;
             }
-            (HighVoltage, 15)
+            (HighVoltage, WIND_POWER_LABOR)
         };
         let made = self.output.min(headroom(self.kind, commodity, stock));
-        let minimum = if antique { 450 } else { 451 };
+        let minimum = WIND_OUTPUT + i32::from(!antique);
         self.spinning = false;
         if made >= minimum && (!antique || expenses.paid) {
             let labor = workers * made / self.output;
@@ -208,7 +215,7 @@ impl WindGenerator {
                 self.spinning = true;
             }
         }
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == (DAYS_PER_MONTH - 1) as u32 {
             self.busy_output = std::mem::take(&mut self.working_output);
             counters.close_month();
         }
@@ -221,8 +228,8 @@ impl WindGenerator {
 
     pub fn animate(&mut self, millis: u64, stock: &[i32; 10]) {
         if self.spinning && millis >= self.next_animation {
-            self.next_animation = millis + animation_threshold(120);
-            self.frame = (self.frame + 1) % 3;
+            self.next_animation = millis + animation_threshold(WIND_SPEED);
+            self.frame = (self.frame + 1) % WIND_FRAMES;
         }
         if self.kind == BuildingKind::WindPower {
             let amount = stock[HighVoltage as usize];
@@ -252,7 +259,7 @@ impl PowerLine {
         if stock[HighVoltage as usize] > 0 {
             counters.change(stock, HighVoltage, -1);
         }
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == (DAYS_PER_MONTH - 1) as u32 {
             counters.close_month();
         }
     }
@@ -263,40 +270,43 @@ impl PowerLine {
             .metadata()
             .rule(HighVoltage)
             .max_load;
-        self.traffic = (9 * self.traffic + max_transfer * 1000 / capacity) / 10;
+        self.traffic = ((transport::SMOOTHING - 1) * self.traffic
+            + max_transfer * transport::QUANTA / capacity)
+            / transport::SMOOTHING;
     }
 
     pub fn usage(&self) -> f64 {
-        f64::from(self.traffic) * 107.77 * 8.0 / 1000.0
+        f64::from(self.traffic) * transport::TRAFFIC_REPORT_FACTOR * f64::from(transport::RATE)
+            / f64::from(transport::QUANTA)
     }
 
     /// Called after exchange for each adjacent non-line building in visit order.
     pub fn observe_supplier(&mut self, gives_stock: bool, random: impl FnOnce() -> u32) {
         if self.counter == 0 && gives_stock {
-            self.counter = 18 + (random() % 18) as i32;
+            self.counter = LINE_MODULUS + (random() % LINE_MODULUS as u32) as i32;
         }
     }
 
     pub fn propagate_to(&self, neighbor: &mut PowerLine) {
-        if self.flashing && neighbor.counter <= 6 {
-            neighbor.counter = 18;
+        if self.flashing && neighbor.counter <= LINE_MODULUS / 3 {
+            neighbor.counter = LINE_MODULUS;
         }
     }
 
     pub fn animate(&mut self, millis: u64) {
         match self.counter {
-            16 if self.frame >= 11 => {
+            n if n == LINE_MODULUS - 2 && self.frame >= LINE_FLASH_OFFSET => {
                 self.flashing = false;
-                self.frame -= 11;
+                self.frame -= LINE_FLASH_OFFSET;
             }
-            18 if self.frame < 11 => {
+            LINE_MODULUS if self.frame < LINE_FLASH_OFFSET => {
                 self.flashing = true;
-                self.frame += 11;
+                self.frame += LINE_FLASH_OFFSET;
             }
             _ => {}
         }
         if self.counter > 0 && millis >= self.next_animation {
-            self.next_animation = millis + animation_threshold(100);
+            self.next_animation = millis + animation_threshold(LINE_FLASH_SPEED);
             self.counter -= 1;
         }
     }
@@ -339,12 +349,13 @@ mod tests {
         let mut coal = CoalPlant::new(0);
         coal.busy = 23;
         let mut draws = [10, 3, 0, 42, 13].into_iter();
-        coal.animate(100, 704, || draws.next().unwrap());
+        coal.animate(100, 704, || Ok(draws.next().unwrap()))
+            .unwrap();
         assert_eq!(coal.smoke, [10, 3, -1, -1, -1, -1, -1, -1]);
         assert_eq!(coal.resource, "PowerCoalMed");
-        coal.animate(349, 705, || panic!("early draw"));
+        coal.animate(349, 705, || panic!("early draw")).unwrap();
         assert_eq!(coal.resource, "PowerCoalFull");
-        coal.animate(350, 88, || draws.next().unwrap());
+        coal.animate(350, 88, || Ok(draws.next().unwrap())).unwrap();
         assert_eq!(coal.smoke, [0, 2, -1, -1, -1, -1, -1, -1]);
         assert_eq!(draws.next(), None);
     }

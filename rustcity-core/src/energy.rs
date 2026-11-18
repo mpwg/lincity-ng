@@ -1,12 +1,12 @@
 //! Building production and ordered exchange of a single commodity.
 
-pub const MAX_TECH_LEVEL: i32 = 1_000_000;
+use crate::rules::{DAYS_PER_MONTH, MAX_TECH_LEVEL};
 const SOLAR_BASE_OUTPUT: i32 = 900;
 const SOLAR_LABOR: i32 = 50;
 const STATION_INTAKE: i32 = 1500;
 const STATION_LOW_CAPACITY: i32 = 20 * 2 * STATION_INTAKE;
-const TRANSPORT_QUANTA: i64 = 1000;
-const TRANSPORT_RATE: i64 = 8;
+const TRANSPORT_QUANTA: i64 = crate::rules::transport::QUANTA as i64;
+const TRANSPORT_RATE: i64 = crate::rules::transport::RATE as i64;
 
 /// A building's stock and trading rules for one commodity.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -67,30 +67,34 @@ pub fn trade(center: &mut TradeStock, neighbors: &mut [&mut TradeStock]) {
         return;
     }
     let ratio = total_amount * TRANSPORT_QUANTA / total_capacity;
-    let transfer_limit = i64::from(center.capacity) / TRANSPORT_RATE;
     for peer in neighbors.iter_mut().filter(|peer| peer.capacity > 0) {
-        let center_room = (i64::from(center.capacity) - i64::from(center.amount)).max(0);
-        let peer_amount = i64::from(peer.amount);
-        let flow = if peer.evacuating {
-            -center_room.min(peer_amount)
-        } else {
-            let target = ratio * i64::from(peer.capacity) / TRANSPORT_QUANTA;
-            let delta = target - peer_amount;
-            if delta > 0 && peer.take && center.give {
-                let peer_room = (i64::from(peer.capacity) - peer_amount).max(0);
-                delta
-                    .min(transfer_limit)
-                    .min(i64::from(center.amount))
-                    .min(peer_room)
-            } else if delta < 0 && peer.give && center.take {
-                -(-delta).min(transfer_limit).min(center_room)
-            } else {
-                0
-            }
-        };
-        peer.amount += flow as i32;
-        center.amount -= flow as i32;
+        exchange(center, peer, ratio);
     }
+}
+
+pub(crate) fn exchange(center: &mut TradeStock, peer: &mut TradeStock, ratio: i64) {
+    let transfer_limit = i64::from(center.capacity) / TRANSPORT_RATE;
+    let center_room = (i64::from(center.capacity) - i64::from(center.amount)).max(0);
+    let peer_amount = i64::from(peer.amount);
+    let flow = if peer.evacuating {
+        -center_room.min(peer_amount)
+    } else {
+        let target = ratio * i64::from(peer.capacity) / TRANSPORT_QUANTA;
+        let delta = target - peer_amount;
+        if delta > 0 && peer.take && center.give {
+            let peer_room = (i64::from(peer.capacity) - peer_amount).max(0);
+            delta
+                .min(transfer_limit)
+                .min(i64::from(center.amount))
+                .min(peer_room)
+        } else if delta < 0 && peer.give && center.take {
+            -(-delta).min(transfer_limit).min(center_room)
+        } else {
+            0
+        }
+    };
+    peer.amount += flow as i32;
+    center.amount -= flow as i32;
 }
 
 #[derive(Debug, Clone)]
@@ -128,7 +132,7 @@ impl SolarPlant {
             self.high_voltage.amount += made;
             self.working_output += made;
         }
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == DAYS_PER_MONTH as u32 - 1 {
             self.busy = self.working_output / self.output;
             self.working_output = 0;
         }
@@ -162,7 +166,7 @@ impl Substation {
             self.low_voltage += 2 * intake;
             self.working_intake += intake;
         }
-        if day % 100 == 99 {
+        if day % DAYS_PER_MONTH as u32 == DAYS_PER_MONTH as u32 - 1 {
             self.busy = self.working_intake / STATION_INTAKE;
             self.working_intake = 0;
         }

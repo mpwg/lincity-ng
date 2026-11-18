@@ -103,6 +103,14 @@ impl City {
     }
 
     pub(super) fn disconnect_building(&mut self, id: BuildingId) {
+        if let Some((p, b)) = self.buildings.get(id) {
+            if b.kind == BuildingKind::PowerLine {
+                self.clear_line_cables(p);
+            } else if b.kind.is_transport() {
+                let i = self.index(p).unwrap();
+                self.tiles[i].cables = 0;
+            }
+        }
         let Some(b) = self.buildings.get_mut(id) else {
             return;
         };
@@ -120,11 +128,11 @@ impl City {
         }
     }
 
-    pub(super) fn trade_at(&mut self, id: BuildingId) {
+    pub(super) fn trade_at(&mut self, id: BuildingId) -> io::Result<()> {
         use crate::energy::{TradeStock, trade};
         let (_, b) = self.buildings.get(id).unwrap();
-        if b.neighbors.is_empty() {
-            return;
+        if b.neighbors.is_empty() && !b.kind.is_transport() && b.kind != BuildingKind::PowerLine {
+            return Ok(());
         }
         let neighbors = b.neighbors.clone();
         let mut peers = Vec::with_capacity(neighbors.len());
@@ -157,15 +165,45 @@ impl City {
                     peers.push((peer, snapshot(building)));
                 }
             }
+            let old_amount = center.amount;
+            let mut max_transfer = 0;
             trade(
                 &mut center,
                 &mut peers.iter_mut().map(|(_, stock)| stock).collect::<Vec<_>>(),
             );
             self.buildings.get_mut(id).unwrap().stock[index] = center.amount;
             for (peer, stock) in &peers {
+                let receiver = self.buildings.get_mut(*peer).unwrap();
+                let delta = stock.amount - receiver.stock[index];
+                max_transfer = max_transfer.max(delta.abs());
+                if delta > 0
+                    && receiver.kind != BuildingKind::Market
+                    && !receiver.kind.is_transport()
+                    && !receiver.evacuating
+                {
+                    self.economy.tax_receipt(c, delta);
+                }
+                if delta < 0 && c == Commodity::Coal {
+                    let (_, center) = self.buildings.get(id).unwrap();
+                    if !center.evacuating
+                        && !center.kind.is_transport()
+                        && center.kind != BuildingKind::Market
+                    {
+                        self.economy.tax_receipt(c, -delta);
+                    }
+                }
                 self.buildings.get_mut(*peer).unwrap().stock[index] = stock.amount;
             }
+            self.record_transport_trade(
+                id,
+                c,
+                old_amount,
+                center.amount,
+                max_transfer,
+                &neighbors,
+            )?;
         }
+        Ok(())
     }
 }
 
@@ -182,11 +220,11 @@ mod tests {
         let mut city = City::load(source.as_bytes()).unwrap();
         let a = city.buildings.at(left).unwrap();
         let b = city.buildings.at(right).unwrap();
-        city.trade_at(b);
+        city.trade_at(b).unwrap();
         assert_eq!(city.stock(left, Commodity::HighVoltage), Some(666));
         assert_eq!(city.stock(right, Commodity::HighVoltage), Some(1134));
         city.apply(Action::Bulldoze, right).unwrap();
-        city.trade_at(a);
+        city.trade_at(a).unwrap();
         assert_eq!(city.stock(left, Commodity::HighVoltage), Some(666));
     }
 }

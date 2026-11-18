@@ -137,8 +137,15 @@ impl Decisions {
         self.line.clear();
         input.read_line(&mut self.line)?;
         let mut tokens = self.line.split_ascii_whitespace();
-        if tokens.next() != Some(kind) {
-            return Err(invalid(self.event, "unexpected event kind or end of input"));
+        let found = tokens.next();
+        if found != Some(kind) {
+            return Err(invalid(
+                self.event,
+                &format!(
+                    "unexpected event kind or end of input: expected {kind}, found {}",
+                    found.unwrap_or("EOF")
+                ),
+            ));
         }
         Ok(Some(Fields {
             tokens,

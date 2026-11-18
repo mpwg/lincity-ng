@@ -108,6 +108,22 @@ impl Element {
         }
     }
 
+    pub fn order_children(&mut self, names: &[&str]) {
+        self.content.sort_by_key(|c| match c {
+            Content::Element(e) => names
+                .iter()
+                .position(|name| *name == e.name)
+                .unwrap_or(names.len()),
+            Content::Text(_) => names.len() + 1,
+        });
+    }
+
+    pub fn default_child(&mut self, name: &str, value: impl ToString) {
+        if self.child(name).is_none() {
+            self.set_child(name, value);
+        }
+    }
+
     pub fn remove_attr(&mut self, name: &str) {
         self.attributes.retain(|(k, _)| k != name);
     }

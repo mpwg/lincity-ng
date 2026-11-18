@@ -32,11 +32,12 @@ class DifferentialReplay(unittest.TestCase):
             candidate.chmod(0o755)
             result = subprocess.run(
                 [sys.executable, "-B", Path(__file__).with_name("check.py"), REFERENCE,
-                 "differential", "--candidate", candidate, "--quick"],
+                 "differential", "--candidate", candidate, "--quick", "--keep-going"],
                 capture_output=True, text=True,
             )
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("good_times (no-traffic)", result.stderr)
+        self.assertIn("good_times (traffic)", result.stderr)
         self.assertIn("day 1 action[0].query(0,8) money_delta: 0 != 17", result.stderr)
 
 

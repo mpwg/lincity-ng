@@ -1,4 +1,5 @@
 //! Handicraft production and machine animation.
+use crate::rules::DAYS_PER_MONTH;
 use crate::{BuildingKind, Commodity};
 
 #[derive(Clone, Default)]
@@ -17,7 +18,7 @@ impl Workshop {
     pub(crate) fn update(&mut self, kind: BuildingKind, day: i32, stock: &mut [i32; 10]) -> i32 {
         use Commodity::*;
         if kind == BuildingKind::Pottery {
-            if day % 100 == 0 {
+            if day % DAYS_PER_MONTH == 0 {
                 self.busy = std::mem::take(&mut self.working_days);
             }
             if self.pause > 0 {
@@ -77,7 +78,7 @@ impl Workshop {
                 self.pause = 25;
             }
         }
-        if kind != BuildingKind::Pottery && day % 100 == 99 {
+        if kind != BuildingKind::Pottery && day % DAYS_PER_MONTH == DAYS_PER_MONTH - 1 {
             self.busy = std::mem::take(&mut self.working_days);
         }
         pollution

@@ -1,6 +1,8 @@
 //! Bind the runtime reporting periods to their distinct persisted ledger entries.
+use crate::rules::economy;
 use super::{Element, integer, invalid};
 use crate::Commodity;
+use crate::rules::DAYS_PER_MONTH;
 use crate::stats::{Inventory, Stat, Stats};
 use std::{collections::VecDeque, io};
 
@@ -287,7 +289,7 @@ fn write_stock(e: &mut Element, stock: &Inventory) {
 }
 
 pub(crate) fn store(s: &Stats, root: &mut Element, day: i32, cash: i32) {
-    let end = day % 100 == 99;
+    let end = day % DAYS_PER_MONTH == DAYS_PER_MONTH - 1;
     if end && s.total_money != cash {
         root.set_attr("month_end_money", s.total_money.to_string());
     } else {
@@ -339,4 +341,133 @@ pub(crate) fn store(s: &Stats, root: &mut Element, day: i32, cash: i32) {
         write_series(node, &s.history.inventory[i], write_stock);
     }
     write_series(history.section("tenants"), &s.history.tenants, write_stock);
+}
+
+pub(crate) fn complete_globals(globals: &mut Element) {
+    globals.default_child("given_scene", "");
+    for key in [
+        "rockets_launched",
+        "rockets_launched_success",
+        "coal_survey_done",
+    ] {
+        globals.default_child(key, 0);
+    }
+    globals.default_child("game_end", false);
+    let rates = globals.section("money_rates");
+    let defaults = [
+        ("income_tax_rate", economy::INCOME_RATE),
+        ("coal_tax_rate", economy::COAL_RATE),
+        ("dole_rate", economy::DOLE_RATE),
+        ("transport_cost_rate", economy::TRANSPORT_RATE),
+        ("goods_tax_rate", economy::GOODS_RATE),
+        ("export_tax_rate", 0),
+        ("import_cost_rate", economy::IMPORT_RATE),
+    ];
+    for (key, value) in defaults {
+        rates.default_child(key, value);
+    }
+    rates.order_children(&defaults.map(|(name, _)| name));
+    let taxable = globals.section("taxable");
+    let taxes = ["labor", "coal", "goods", "trade_ex"];
+    for name in taxes {
+        taxable.default_child(name, 0);
+    }
+    taxable.order_children(&taxes);
+    let rules = globals.section("tradeRules");
+    let names: Vec<_> = Commodity::ALL
+        .iter()
+        .flat_map(|c| ["import", "export"].map(|side| format!("{side}_{}_enable", c.save_name())))
+        .collect();
+    for key in &names {
+        rules.default_child(key, 1);
+    }
+    rules.order_children(&names.iter().map(String::as_str).collect::<Vec<_>>());
+    let stats = globals.section("stats");
+    stats.order_children(&[
+        "highest_tech_level",
+        "total_pollution",
+        "population",
+        "income",
+        "expenses",
+        "sustainability",
+        "history",
+    ]);
+    let mut binding = Stats::default();
+    for group in ["population", "income", "expenses"] {
+        let (last, acc) = if group == "population" {
+            ("lm", "mtd")
+        } else {
+            ("ly", "ytd")
+        };
+        let mut names = Vec::new();
+        for (g, key, _) in periods(&mut binding) {
+            if g == group {
+                names.push(format!("{key}_{last}"));
+                names.push(format!("{key}_{acc}"));
+            }
+        }
+        if group == "population" {
+            names.extend(
+                [
+                    "evacuated_total",
+                    "births_total",
+                    "pollution_deaths_total",
+                    "starve_deaths_total",
+                    "unemployed_days_total",
+                    "unemployed_history",
+                    "pollution_deaths_history",
+                    "starve_deaths_history",
+                    "max_pop_ever",
+                ]
+                .map(str::to_owned),
+            );
+        }
+        stats
+            .section(group)
+            .order_children(&names.iter().map(String::as_str).collect::<Vec<_>>());
+    }
+    stats.section("sustainability").order_children(&[
+        "mining_flag",
+        "mining_years",
+        "trade_flag",
+        "trade_years",
+        "old_money",
+        "money_years",
+        "old_population",
+        "population_years",
+        "old_tech",
+        "tech_years",
+        "fire_years",
+        "sustainable",
+    ]);
+    let mut series = vec![
+        "pop",
+        "starve",
+        "nojobs",
+        "ppool",
+        "tech",
+        "money",
+        "pollution",
+        "births",
+        "deaths",
+        "unnat_deaths",
+        "tenants",
+    ];
+    series.extend(Commodity::ALL.into_iter().map(Commodity::save_name));
+    stats.section("history").order_children(&series);
+    globals.order_children(&[
+        "given_scene",
+        "total_time",
+        "people_pool",
+        "total_money",
+        "tech_level",
+        "rockets_launched",
+        "rockets_launched_success",
+        "coal_survey_done",
+        "game_end",
+        "money_rates",
+        "taxable",
+        "tradeRules",
+        "stats",
+    ]);
 }

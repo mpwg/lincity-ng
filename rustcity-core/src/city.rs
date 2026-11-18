@@ -1,7 +1,17 @@
+mod civic;
+mod ecology;
+mod farm;
+mod finance;
+mod industry;
+mod market;
 mod persistence;
-use crate::buildings::Buildings;
+mod port;
+mod rocket;
+use crate::buildings::{BuildingId, Buildings};
+use crate::decisions::{Decisions, PlacementId, VisitPhase};
 use crate::stats::Stats;
 use crate::{BuildDenial, BuildingKind};
+use std::{collections::BTreeMap, io};
 const MIN_ORE_FOR_MINE: i64 = 1000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,8 +36,9 @@ pub enum Action {
     Bulldoze,
     Evacuate,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActionError {
+    DecisionTrace(String),
     OutsideMap(Point),
     SpaceOccupied(Point),
     NothingToEvacuate(Point),
@@ -36,12 +47,20 @@ pub enum ActionError {
     DesertHere(Point),
     RequiresRiver,
     NoOre,
+    NonemptyTip(Point),
+    IncompleteMonument(Point),
+    ProtectedFire(Point),
     OutOfMoney,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MapSizeError;
 #[derive(Clone, Copy)]
 struct Tile {
+    altitude:i32, water_alt:i32, lake:bool,
+    cables: u8,
+    diffuses: bool,
+    coverage: u32,
+    coal: i32,
     pollution: i32,
     river: bool,
     ore: i32,
@@ -51,6 +70,13 @@ struct Tile {
 }
 
 enum Operation {
+    Rocket(rocket::Rocket),
+    Transport(transport::Transport),
+    Market(market::Market),
+    Farm(farm::Farm),
+    Civic(civic::Civic),
+    Industry(industry::IndustryOperation),
+    Port(port::Port),
     Workshop(crate::workshop::Workshop),
     Solar(crate::energy::SolarPlant),
     Station(crate::energy::Substation),
@@ -61,6 +87,7 @@ enum Operation {
 }
 
 struct Building {
+    transparent: bool,
     installed_tech: i32,
     neighbors: Vec<crate::buildings::BuildingId>,
     partners: Vec<crate::buildings::BuildingId>,
@@ -79,6 +106,9 @@ impl Building {
     fn installed(kind: BuildingKind, tech: i32) -> Self {
         use BuildingKind::*;
         let operation = match kind {
+            Market => Operation::Market(Default::default()),
+            RocketPad => Operation::Rocket(Default::default()),
+            Port => Operation::Port(Default::default()),
             Blacksmith | Mill | Pottery => Operation::Workshop(Default::default()),
             SolarPower => Operation::Solar(crate::energy::SolarPlant::new(tech)),
             Substation => Operation::Station(Default::default()),
@@ -86,10 +116,12 @@ impl Building {
             Windmill => Operation::Wind(crate::power::WindGenerator::windmill(tech)),
             WindPower => Operation::Wind(crate::power::WindGenerator::wind_power(tech)),
             PowerLine => Operation::Line(Default::default()),
-            _ => Operation::Other,
+            kind if kind.is_transport() => Operation::Transport(Default::default()),
+            _ => civic::Civic::new(kind).map_or(Operation::Other, Operation::Civic),
         };
         Self {
             installed_tech: tech,
+            transparent: matches!(kind, PowerLine | TrackBridge | RailBridge | RoadBridge),
             operation,
             production: Default::default(),
             kind,
@@ -105,12 +137,27 @@ impl Building {
 /// An ordered simulation notification for the host.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CityEvent {
+    RocketFailed(Point),
+    RocketWon(Point),
+    RocketEvacuated(Point),
+    RocketReady(Point),
+    RocketSuccess(Point),
+    SustainableEconomy(i32),
+    FireStarted(Point, BuildingKind),
     OutOfMoney,
     NoPeopleLeft(i32),
 }
 
 /// An independent city, including its terrain and financial accounts.
 pub struct City {
+    rockets_launched: i32,
+    rockets_successful: i32,
+    game_end: bool,
+    decisions: Decisions,
+    participants: BTreeMap<PlacementId, BuildingId>,
+    displaced: BTreeMap<BuildingId, i32>,
+    traffic: VehicleTraffic,
+    vehicles: Vec<transport::Vehicle>,
     events: std::collections::VecDeque<CityEvent>,
     saved: Option<crate::save::SaveGame>,
     day: i32,
@@ -120,14 +167,89 @@ pub struct City {
     side: i32,
     tiles: Vec<Tile>,
     buildings: Buildings<Building>,
+    economy: finance::Economy,
     wind_expenses: crate::power::WindExpenses,
     balance: i32,
     stats: Stats,
 }
 
+/// Traffic density for simulated commuter vehicles.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VehicleTraffic {
+    Disabled,
+    Reduced,
+    Normal,
+}
+
 impl City {
+    pub fn set_vehicle_traffic(&mut self, traffic: VehicleTraffic) {
+        self.traffic = traffic;
+    }
+
+    pub fn vehicle_traffic(&self) -> VehicleTraffic {
+        self.traffic
+    }
+
+    /// Flushes a recording or verifies the end of replay.
+    pub fn finish_decisions(self) -> io::Result<()> {
+        self.decisions.finish()
+    }
+
+    fn create_building(&mut self, kind: BuildingKind, tech: i32) -> io::Result<Building> {
+        let mut building = Building::installed(kind, tech);
+        if kind == BuildingKind::OrganicFarm {
+            building.operation = Operation::Farm(farm::Farm::new(&mut self.decisions)?);
+        }
+        Ok(building)
+    }
+
+    fn place_building(
+        &mut self,
+        point: Point,
+        size: i32,
+        mut building: Building,
+    ) -> io::Result<BuildingId> {
+        if matches!(building.operation,Operation::Farm(_) | Operation::Civic(civic::Civic::Well(_))) {
+            let wet_tiles=(point.y..point.y.saturating_add(size))
+                .flat_map(|y| (point.x..point.x.saturating_add(size)).map(move |x| Point { x, y }))
+                .filter(|&p| self.has_groundwater(p)==Some(true)).count() as i32;
+            match &mut building.operation {
+                Operation::Farm(farm)=>farm.groundwater=wet_tiles,
+                Operation::Civic(civic::Civic::Well(output))=>*output=wet_tiles*crate::rules::civic::WELL_WATER_PER_WET_TILE,
+                _=>unreachable!()
+            }
+        }
+        let trace_id = self.decisions.placed(point, building.kind.id())?;
+        let id = self.buildings.place(point, size, building).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "invalid or overlapping building footprint at {},{}",
+                    point.x, point.y
+                ),
+            )
+        })?;
+        self.participants.insert(trace_id, id);
+        self.install_industry(id, point)?;
+        self.connect_building(point);
+        if self.buildings.get(id).unwrap().1.kind == BuildingKind::Market {
+            self.mark_coverage(point, 9, civic::MARKET_CHECK);
+        }
+        Ok(id)
+    }
+
+    fn visit_order(&mut self, phase: VisitPhase, time: u64) -> io::Result<Vec<BuildingId>> {
+        let mut order: Vec<_> = self.participants.keys().copied().collect();
+        self.decisions.visit(phase, time, &mut order)?;
+        Ok(order.iter().map(|id| self.participants[id]).collect())
+    }
+
     /// Creates the empty grass map used as the starting point for loading or generation.
     pub fn empty(side: i32) -> Result<Self, MapSizeError> {
+        Self::empty_with_decisions(side, Decisions::native(rand::random()))
+    }
+
+    pub fn empty_with_decisions(side: i32, decisions: Decisions) -> Result<Self, MapSizeError> {
         let area = side
             .checked_mul(side)
             .filter(|_| side >= 3)
@@ -139,15 +261,27 @@ impl City {
         tiles.resize(
             area as usize,
             Tile {
+                altitude:0, water_alt:0, lake:false, diffuses: false,
                 ground: Terrain::Grass,
                 frame: 0,
                 groundwater: false,
+                coverage: 0,
                 pollution: 0,
                 river: false,
                 ore: 0,
+                coal: 0,
+                cables: 0,
             },
         );
         Ok(Self {
+            decisions,
+            rockets_launched: 0,
+            rockets_successful: 0,
+            game_end: false,
+            participants: BTreeMap::new(),
+            displaced: BTreeMap::new(),
+            traffic: VehicleTraffic::Disabled,
+            vehicles: Vec::new(),
             saved: None,
             day: 0,
             tech_level: 0,
@@ -160,6 +294,7 @@ impl City {
             tiles,
             events: Default::default(),
             buildings: Buildings::new(side),
+            economy: Default::default(),
             wind_expenses: Default::default(),
             balance: 0,
             stats: Stats::default(),
@@ -214,7 +349,7 @@ impl City {
     }
 
     fn connect_edge(&mut self, a: usize, b: usize, mask_a: u16, mask_b: u16) {
-        if self.tiles[a].ground == self.tiles[b].ground {
+        if self.visible_group(a) == self.visible_group(b) {
             self.tiles[a].frame |= mask_a;
             self.tiles[b].frame |= mask_b;
         } else {
@@ -325,6 +460,7 @@ impl City {
             Action::Query => Ok(0),
             Action::Evacuate => match self.building_at(point) {
                 None => Err(ActionError::NothingToEvacuate(point)),
+                Some((BuildingKind::Monument,_)) if self.buildings.at(point).and_then(|id|self.buildings.get(id)).is_some_and(|(_,b)|matches!(&b.operation,Operation::Civic(civic::Civic::Monument(m)) if m.completed))=> Err(ActionError::CannotEvacuate(point)),
                 Some((kind, _))
                     if matches!(
                         kind,
@@ -348,7 +484,33 @@ impl City {
             Action::Flood if ground == Terrain::Water || self.buildings.at(point).is_some() => {
                 Err(ActionError::SpaceOccupied(point))
             }
-            Action::Flood => Ok(1_000_000),
+            Action::Flood => Ok(crate::rules::FLOOD_COST),
+            Action::Bulldoze
+                if let Some((origin, building)) = self
+                    .buildings
+                    .at(point)
+                    .and_then(|id| self.buildings.get(id))
+                    && let Operation::Industry(industry::IndustryOperation::Tip(tip)) =
+                        &building.operation
+                    && !tip.can_bulldoze() =>
+            {
+                Err(ActionError::NonemptyTip(origin))
+            }
+            Action::Bulldoze
+                if let Some((origin, b)) = self
+                    .buildings
+                    .at(point)
+                    .and_then(|id| self.buildings.get(id))
+                    && let Operation::Civic(c) = &b.operation
+                    && c.incomplete_monument() =>
+            {
+                Err(ActionError::IncompleteMonument(origin))
+            }
+            Action::Bulldoze
+                if let Some((BuildingKind::Fire, origin)) = self.building_at(point) =>
+            {
+                Err(ActionError::ProtectedFire(origin))
+            }
             Action::Bulldoze if self.buildings.at(point).is_some() => Ok(self
                 .building_at(point)
                 .unwrap()
@@ -356,9 +518,9 @@ impl City {
                 .metadata()
                 .demolition_cost),
             Action::Bulldoze => Ok(match ground {
-                Terrain::Water => 1_000_000,
+                Terrain::Water => crate::rules::DRAIN_COST,
                 Terrain::Desert => 0,
-                _ => 1,
+                _ => crate::rules::CLEAR_LAND_COST,
             }),
         }
     }
@@ -370,7 +532,7 @@ impl City {
         let balance = self
             .balance
             .checked_sub(cost)
-            .filter(|v| *v >= -2_000_000_000)
+            .filter(|v| *v >= crate::rules::CREDIT_LIMIT)
             .ok_or(ActionError::OutOfMoney)?;
         if self.balance > 0 && balance <= 0 {
             self.events.push_back(CityEvent::OutOfMoney);
@@ -388,6 +550,9 @@ impl City {
                     .get_mut(self.buildings.at(point).unwrap())
                     .unwrap();
                 building.evacuating = !building.evacuating;
+                if let Operation::Market(m) = &mut building.operation {
+                    m.evacuate(building.evacuating);
+                }
                 return Ok(());
             }
             Action::Build(kind) => {
@@ -398,10 +563,11 @@ impl City {
                     let replaced = self.buildings.remove(id).unwrap();
                     self.stats.group_count[replaced.kind.id() as usize] -= 1;
                 }
-                self.buildings
-                    .place(point, size, Building::installed(kind, self.tech_level))
-                    .expect("validated footprint");
-                self.connect_building(point);
+                let building = self
+                    .create_building(kind, self.tech_level)
+                    .map_err(|e| ActionError::DecisionTrace(e.to_string()))?;
+                self.place_building(point, size, building)
+                    .map_err(|e| ActionError::DecisionTrace(e.to_string()))?;
                 self.recent_point = point;
                 self.stats.group_count[kind.id() as usize] += 1;
                 for y in point.y..point.y + size {
@@ -428,9 +594,11 @@ impl City {
                     let (kind, corner) = self.building_at(point).unwrap();
                     origin = corner;
                     size = i32::from(kind.metadata().size);
-                    self.disconnect_building(id);
-                    self.buildings.remove(id);
-                    self.stats.group_count[kind.id() as usize] -= 1;
+                    self.remove_and_restore_site(id, origin);
+                    if kind == BuildingKind::Shanty {
+                        self.place_fires(origin, size, civic::SHANTY_DEMOLITION_FIRE_AGE)
+                            .map_err(|e| ActionError::DecisionTrace(e.to_string()))?;
+                    }
                 } else {
                     self.tiles[index].ground = match self.tiles[index].ground {
                         Terrain::Desert => return Ok(()),
@@ -439,6 +607,18 @@ impl City {
                     };
                 }
             }
+        }
+        if let Action::Build(_) | Action::Flood = action {
+            self.refresh_transport(
+                Point {
+                    x: origin.x - 2,
+                    y: origin.y - 2,
+                },
+                Point {
+                    x: origin.x + size + 1,
+                    y: origin.y + size + 1,
+                },
+            );
         }
         self.update_frontiers(
             origin,
@@ -450,5 +630,10 @@ impl City {
         Ok(())
     }
 }
+mod observations;
 mod simulation;
 mod trading;
+mod transport;
+pub use observations::CityReport;
+pub use transport::VehicleFrame;
+mod environment;

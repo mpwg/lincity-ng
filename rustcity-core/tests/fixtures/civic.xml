@@ -1,0 +1,157 @@
+<?xml version='1.0' encoding='utf-8'?>
+<lc-game ldsv-version="2140">
+  <globals>
+    <total_time>73</total_time>
+    <tech_level>90000</tech_level>
+    <people_pool>67</people_pool>
+    <total_money>90127</total_money>
+  </globals>
+  <map size="40">
+    <MapTile group="0" map-x="2" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="4" map-x="2" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="8" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="36" map-x="8" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="14" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="37" map-x="14" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="20" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="38" map-x="20" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="26" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="39" map-x="26" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="32" map-y="2">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="40" map-x="32" map-y="2">
+      <local_population>24</local_population>
+      <food>90</food>
+      <water>90</water>
+      <goods>18</goods>
+      <lovolt>400</lovolt>
+    </Construction>
+    <MapTile group="0" map-x="2" map-y="10">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="26" map-x="2" map-y="10">
+      <labor>800</labor>
+      <goods>1200</goods>
+    </Construction>
+    <MapTile group="0" map-x="10" map-y="10">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="13" map-x="10" map-y="10">
+      <labor>800</labor>
+      <goods>1200</goods>
+    </Construction>
+    <MapTile group="0" map-x="18" map-y="10">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="22" map-x="18" map-y="10">
+      <labor>800</labor>
+      <goods>1200</goods>
+    </Construction>
+    <MapTile group="0" map-x="25" map-y="10">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="30" map-x="25" map-y="10">
+      <labor>800</labor>
+      <goods>1200</goods>
+    </Construction>
+    <MapTile group="0" map-x="32" map-y="10">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="31" map-x="32" map-y="10">
+      <labor>800</labor>
+      <goods>1200</goods>
+    </Construction>
+    <MapTile group="0" map-x="2" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="41" map-x="2" map-y="20" />
+    <MapTile group="0" map-x="6" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="19" map-x="6" map-y="20" />
+    <MapTile group="0" map-x="10" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="50" map-x="10" map-y="20" />
+    <MapTile group="0" map-x="14" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="25" map-x="14" map-y="20">
+      <labor>1101</labor>
+    </Construction>
+    <MapTile group="0" map-x="22" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="33" map-x="22" map-y="20">
+      <waste>350</waste>
+    </Construction>
+    <MapTile group="0" map-x="30" map-y="20">
+      <air_pol>11</air_pol>
+      <flags>0x20000000</flags>
+    </MapTile>
+    <Construction group="34" map-x="30" map-y="20" />
+    <Construction group="14" map-x="8" map-y="30">
+      <water>80</water>
+      <waste>100</waste>
+      <ore>95</ore>
+      <steel>10</steel>
+    </Construction>
+  </map>
+</lc-game>
