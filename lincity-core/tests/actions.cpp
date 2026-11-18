@@ -37,6 +37,19 @@ typename Error::ptr checkRejected(const UserOperation& op, World& world, MapPoin
   throw std::runtime_error("command unexpectedly succeeded");
 }
 
+template<class Error>
+void checkDiagnosticException(const typename Error::ptr& message) {
+  CHECK(message);
+  try {
+    message->throwEx();
+  } catch(const typename Error::Exception& error) {
+    CHECK(error.getMessage() == message && Message::fromCurrentException() == message);
+    CHECK(std::string(error.what()) == message->str());
+    return;
+  }
+  throw std::runtime_error("diagnostic did not preserve its typed exception");
+}
+
 void queryAndBoundaries() {
   World world(32);
   UserOperation query;
@@ -94,6 +107,53 @@ void commandEntryPoints() {
   CHECK(bulldoze.cost(world, site) == 0);
   bulldoze.execute(world, site);
   CHECK(world.total_money == 100000 && world.map(site)->group == GROUP_DESERT);
+}
+
+void invalidCommands() {
+  World world(32);
+  world.total_money = 50000;
+  for(const UserOperation op : {UserOperation{UserOperation::ACTION_UNKNOWN},
+                                UserOperation{UserOperation::ACTION_BUILD}}) {
+    Message::ptr reason = OutsideMapMessage::create(MapPoint(0, 0));
+    CHECK(!op.isAllowed(world, reason) && !reason);
+    reason = OutsideMapMessage::create(MapPoint(0, 0));
+    CHECK(!op.isAllowedHere(world, site, reason) && !reason);
+    CHECK(op.cost(world, site) == 0);
+    bool rejected = false;
+    try {
+      op.execute(world, site);
+    } catch(const std::invalid_argument&) {
+      rejected = true;
+    }
+    CHECK(rejected);
+    CHECK(world.total_money == 50000 && world.stats.expenses.construction.acc == 0);
+    CHECK(world.map(site)->is_bare() && world.map.constructionCount() == 0);
+    CHECK(!world.isUpdated(World::Updatable::MAP) && !world.isUpdated(World::Updatable::MONEY));
+    CHECK(!world.popMessage());
+  }
+}
+
+void placementDiagnostic() {
+  World world(32);
+  marketConstructionGroup.placeItem(world, site);
+  const auto* original = world.map(site)->getConstruction();
+  Message::ptr diagnostic;
+  try {
+    marketConstructionGroup.placeItem(world, site.e());
+  } catch(const std::logic_error&) {
+    diagnostic = Message::fromCurrentException();
+  }
+  CHECK(dynamic_message_cast<ExceptionMessage>(diagnostic));
+  CHECK(diagnostic->str().find("space occupied") != std::string::npos);
+
+  bool recovered = false;
+  try {
+    diagnostic->throwEx();
+  } catch(const std::logic_error& error) {
+    recovered = std::string(error.what()) == "space occupied";
+  }
+  CHECK(recovered && world.map(site)->getConstruction() == original &&
+        world.map.constructionCount() == 1);
 }
 
 void moveOverlayFrame() {
@@ -204,6 +264,9 @@ void marketCommands() {
   CHECK(!market->commodityRuleCount[STUFF_FOOD].take && !market->commodityRuleCount[STUFF_FOOD].give);
   CHECK(market->commodityRuleCount[STUFF_FOOD].maxload == capacity);
   CHECK(!world.setMarketTrade(site, STUFF_HIVOLT, true, true));
+  CHECK(!world.setMarketTrade(site, static_cast<Commodity>(-1), true, true));
+  CHECK(!world.setMarketTrade(site, STUFF_COUNT, true, true));
+  CHECK(!market->commodityRuleCount[STUFF_FOOD].take && !market->commodityRuleCount[STUFF_FOOD].give);
   CHECK(!world.setPortTrade(site, STUFF_FOOD, false, true));
 
   UserOperation evacuate{UserOperation::ACTION_EVACUATE};
@@ -224,6 +287,7 @@ void marketCommands() {
   CHECK(world.total_money == 1000000 - cost - marketConstructionGroup.bul_cost);
   CHECK(!world.map(site.se())->getReportingConstruction());
   CHECK(!world.map(site)->getConstruction());
+  CHECK(!world.setMarketTrade(site.se(), STUFF_FOOD, true, true));
   world.do_time_step(); // remove the detached construction
 }
 
@@ -383,6 +447,7 @@ void portCommands() {
   CHECK(denied->getPoint() == site && &denied->getGroup() == &portConstructionGroup);
   const auto missingRiver = dynamic_message_cast<PortRequiresRiverMessage>(denied->getReason());
   CHECK(missingRiver && missingRiver->str() == "ports require connection to river along the east side");
+  checkDiagnosticException<PortRequiresRiverMessage>(missingRiver);
   CHECK(denied->str().find(missingRiver->str()) != std::string::npos);
   CHECK(world.total_money == 1000000 && world.map.constructionCount() == 0);
   for(int i = 0; i < portConstructionGroup.size; ++i) {
@@ -402,7 +467,11 @@ void portCommands() {
   CHECK(world.setPortTrade(site, STUFF_FOOD, true, true));
   CHECK(!rule.take && !rule.give);
   CHECK(!world.setPortTrade(site, STUFF_LABOR, true, false));
+  CHECK(!world.setPortTrade(site, static_cast<Commodity>(-1), true, false));
   CHECK(!world.setPortTrade(site, STUFF_COUNT, false, true));
+  CHECK(!rule.take && !rule.give);
+  world.bulldozeArea(site);
+  CHECK(!world.setPortTrade(site, STUFF_FOOD, true, false));
 }
 
 void rocketCommands() {
@@ -417,6 +486,7 @@ void rocketCommands() {
   const auto deniedTech = dynamic_message_cast<NotEnoughTechMessage>(denied->getReason());
   CHECK(&denied->getGroup() == &rocketPadConstructionGroup && deniedTech &&
         deniedTech->str() == techRequired->str());
+  checkDiagnosticException<NotEnoughTechMessage>(deniedTech);
   world.tech_level = MAX_TECH_LEVEL;
   CHECK(!build.isAllowed(world, why));
   const auto cashRequired = dynamic_message_cast<OutOfMoneyMessage>(why);
@@ -426,6 +496,8 @@ void rocketCommands() {
   auto* rocket = dynamic_cast<RocketPad*>(world.map(site)->getConstruction());
   CHECK(rocket && world.total_money == 0);
   CHECK(!world.launchRocket(site));
+  rocket->launch_rocket();
+  CHECK(rocket->stage == RocketPad::BUILDING && world.rockets_launched == 0);
   rocket->stage = RocketPad::AWAITING;
   CHECK(world.launchRocket(site));
   CHECK(rocket->stage == RocketPad::LAUNCHING);
@@ -443,6 +515,7 @@ void buildRejectionReasons() {
   CHECK(dry->getPoint() == site && &dry->getGroup() == &waterwellConstructionGroup);
   CHECK(desert && desert->getPoint() == site && desert->str() == "desert here: (8,8)");
   CHECK(dry->str().find(desert->str()) != std::string::npos);
+  checkDiagnosticException<DesertHereMessage>(desert);
 
   UserOperation mine{UserOperation::ACTION_BUILD, &oremineConstructionGroup};
   world.map(site)->ore_reserve = MIN_ORE_RESERVE_FOR_MINE - 1;
@@ -450,6 +523,7 @@ void buildRejectionReasons() {
   const auto noOre = dynamic_message_cast<NoOreMessage>(depositTooSmall->getReason());
   CHECK(depositTooSmall->getPoint() == site && &depositTooSmall->getGroup() == &oremineConstructionGroup);
   CHECK(noOre && noOre->str() == "no ore left" && depositTooSmall->str().find(noOre->str()) != std::string::npos);
+  checkDiagnosticException<NoOreMessage>(noOre);
 
   UserOperation university{UserOperation::ACTION_BUILD, &universityConstructionGroup};
   const auto noSchool = checkRejected<CannotBuildMessage>(university, world, site);
@@ -457,6 +531,7 @@ void buildRejectionReasons() {
   CHECK(&noSchool->getGroup() == &universityConstructionGroup);
   CHECK(students && students->str() == "not enough students" &&
         noSchool->str().find(students->str()) != std::string::npos);
+  checkDiagnosticException<NotEnoughStudentsMessage>(students);
 
   CHECK(world.map(site)->is_bare() && world.total_money == 1000000 &&
         world.map.constructionCount() == 0 && world.stats.expenses.construction.acc == 0);
@@ -529,6 +604,8 @@ int main() {
   try {
     queryAndBoundaries();
     commandEntryPoints();
+    invalidCommands();
+    placementDiagnostic();
     windSelection();
     moveOverlayFrame();
     floodAndTransport();

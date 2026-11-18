@@ -25,6 +25,7 @@
 #include "UserOperation.hpp"
 
 #include <assert.h>                       // for assert
+#include <stdexcept>                      // for invalid_argument
 
 #include "lincity/MapPoint.hpp"           // for MapPoint
 #include "lincity/lin-city.hpp"           // for FLAG_NEVER_EVACUATE
@@ -40,17 +41,21 @@
 bool
 UserOperation::isAllowed(const World& world, Message::ptr& message) const {
   switch(action) {
-  case ACTION_BUILD:
-    return actualConstructionGroup(world)->can_build(world, message);
+  case ACTION_BUILD: {
+    auto* group = actualConstructionGroup(world);
+    if(group) return group->can_build(world, message);
+    break;
+  }
   case ACTION_QUERY:
   case ACTION_BULLDOZE:
   case ACTION_EVACUATE:
   case ACTION_FLOOD:
     return true;
   default:
-    assert(false);
-    return false;
+    break;
   }
+  message.reset();
+  return false;
 }
 
 bool
@@ -65,8 +70,10 @@ UserOperation::isAllowedHere(const World& world, MapPoint point, Message::ptr& m
     return true;
   case ACTION_BUILD: {
     ConstructionGroup *actual = actualConstructionGroup(world, point);
-    return actual->can_build(world, message)
-      && actual->can_build_here(world, point, message);
+    if(actual)
+      return actual->can_build(world, message)
+        && actual->can_build_here(world, point, message);
+    break;
   }
   case ACTION_BULLDOZE: {
     if(const Construction *cst = world.map(point)->getReportingConstruction()) {
@@ -94,9 +101,10 @@ UserOperation::isAllowedHere(const World& world, MapPoint point, Message::ptr& m
     return bare;
   }
   default:
-    assert(false);
-    return false;
+    break;
   }
+  message.reset();
+  return false;
 }
 
 void
@@ -110,8 +118,10 @@ UserOperation::execute(World& world, MapPoint point) const {
   }
 
   case UserOperation::ACTION_BUILD: {
-    assert(constructionGroup);
-    world.buildConstruction(*actualConstructionGroup(world, point), point);
+    auto* group = actualConstructionGroup(world, point);
+    if(!group)
+      throw std::invalid_argument("build action requires a construction group");
+    world.buildConstruction(*group, point);
     break;
   }
 
@@ -131,7 +141,7 @@ UserOperation::execute(World& world, MapPoint point) const {
   }
 
   default: {
-    assert(false);
+    throw std::invalid_argument("unknown city action");
   }
   }
 }
@@ -171,8 +181,10 @@ UserOperation::actualConstructionGroup(
 int
 UserOperation::cost(const World& world, MapPoint point) const {
   switch(action) {
-  case ACTION_BUILD:
-    return actualConstructionGroup(world, point)->getCosts(world);
+  case ACTION_BUILD: {
+    auto* group = actualConstructionGroup(world, point);
+    return group ? group->getCosts(world) : 0;
+  }
   case ACTION_BULLDOZE: {
     const auto& tile = *world.map(point);
     if(const auto* building = tile.getReportingConstruction())
@@ -185,7 +197,6 @@ UserOperation::cost(const World& world, MapPoint point) const {
   case ACTION_EVACUATE:
     return 0;
   default:
-    assert(false);
     return 0;
   }
 }

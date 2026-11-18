@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -34,10 +35,11 @@ void require(bool condition, const char* description) {
   if(!condition) throw std::runtime_error(description);
 }
 
-std::unique_ptr<World> generate(Generator generator, city_settings settings) {
-  std::srand(615);
-  BasicUrbg::get().seed(615);
-  return generator(&settings, 100);
+std::unique_ptr<World> generate(Generator generator, city_settings settings,
+                                unsigned seed = 615, int size = 100) {
+  std::srand(seed);
+  BasicUrbg::get().seed(seed);
+  return generator(&settings, size);
 }
 
 // FNV-1a over row-major terrain, with each field encoded as a little-endian
@@ -123,6 +125,76 @@ void verify(const Reference& ref) {
   village->do_time_step();
   require(village->total_time == 1, "new village did not simulate");
 }
+
+void verifySmallCoastalMap() {
+  constexpr int minimumDesktopSize = 50;
+  struct Coast {
+    unsigned seed;
+    int seaLevel;
+    int shallowWaterTiles;
+    bool limited;
+  };
+  const Coast examples[] = {
+    {4, 1467, 397, false},
+    {448, 4054, 1037, true},
+  };
+  for(const auto& coast : examples) {
+    city_settings landscape{false, true};
+    std::ostringstream tape;
+    std::unique_ptr<World> world;
+    {
+      SimulationTrace recording(tape);
+      world = generate(new_temperate_city, landscape, coast.seed, minimumDesktopSize);
+      recording.finish();
+    }
+    require(world->map.len() == minimumDesktopSize && world->map.constructionCount() == 0,
+            "coastal map did not use the requested size or included a disabled village");
+    const MapPoint innerEdge(minimumDesktopSize - 2, minimumDesktopSize / 2);
+    require(world->map.is_edge(innerEdge) && world->map.is_visible(innerEdge) &&
+            !world->map.is_edge(innerEdge.w()) && world->map.is_border(innerEdge.e()) &&
+            !world->map.is_visible(innerEdge.e()), "small map misplaced its visible edge and border");
+    int lowest = std::numeric_limits<int>::max();
+    int landTiles = 0;
+    for(const auto& tile : world->map) {
+      if(!world->map.is_visible(tile.point)) continue;
+      lowest = std::min(lowest, tile.ground.altitude);
+      if(!tile.is_water()) ++landTiles;
+    }
+    require(landTiles > 0 && world->map.alt_step > 0,
+            "small coastal generator did not retain land or a usable altitude scale");
+
+#if defined(__GLIBC__) && defined(__GLIBCXX__) && defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__)
+    require(lowest == coast.seaLevel, "unexpected minimum elevation on the small coastal map");
+    int shallowWater = 0;
+    for(const auto& tile : world->map) {
+      if(!world->map.is_visible(tile.point) || tile.ground.altitude != lowest || !tile.is_water())
+        continue;
+      require(tile.is_river() && (tile.flags & FLAG_HAS_UNDERGROUND_WATER),
+              "flooded coastal land was not connected surface water with groundwater");
+      ++shallowWater;
+    }
+    require(shallowWater == coast.shallowWaterTiles, "unexpected area flooded at sea level");
+    const int seaLimit = world->map.alt_max / 3;
+    require(coast.limited ? lowest == seaLimit : lowest < seaLimit,
+            "coast did not respect the sea level limit");
+#endif
+
+    std::istringstream input(tape.str());
+    SimulationTrace replay(input);
+    const auto restored = new_temperate_city(&landscape, minimumDesktopSize);
+    replay.finish();
+    require(terrainHash(restored->map) == terrainHash(world->map),
+            "small coastal terrain changed during replay");
+  }
+
+  auto village = generate(new_temperate_city, {true, true}, 448, minimumDesktopSize);
+  require(village->map.len() == minimumDesktopSize &&
+          village->stats.groupCount[GROUP_MARKET] == 1 &&
+          village->stats.groupCount[GROUP_RESIDENCE_ML] == 2,
+          "small map did not contain a complete starter village");
+  village->do_time_step();
+  require(village->total_time == 1, "starter village on the smallest map did not simulate");
+}
 }
 
 int main() {
@@ -134,5 +206,11 @@ int main() {
       std::cerr << ref.name << ": " << error.what() << '\n';
       return 1;
     }
+  }
+  try {
+    verifySmallCoastalMap();
+  } catch(const std::exception& error) {
+    std::cerr << "small coast: " << error.what() << '\n';
+    return 1;
   }
 }

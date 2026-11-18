@@ -33,6 +33,8 @@
 
 #include "commodities.hpp"  // for Commodity
 #include "groups.hpp"       // for GROUP_ROAD_BRIDGE, GROUP_TRACK_BRIDGE
+#include <stdexcept>        // for invalid_argument
+
 #include "lintypes.hpp"     // for Construction
 #include "resources.hpp"    // for ExtraFrame, ResourceGroup
 #include "util/randutil.hpp"
@@ -43,6 +45,11 @@ Vehicle::Vehicle(World& world, MapPoint point, VehicleModel model0,
 ) :
   world(world), point(point)
 {
+  if(model0 != VEHICLE_BLUECAR)
+    throw std::invalid_argument("unsupported vehicle model");
+  if(!world.map.is_visible(point))
+    throw std::invalid_argument("vehicle must start inside the visible map");
+
   this->next = this->prev = this->old1 = this->old2 = point;
   this->anim = 0;
   this->death_counter = 100;
@@ -60,17 +67,12 @@ Vehicle::Vehicle(World& world, MapPoint point, VehicleModel model0,
     ? world.map(point)->getReportingConstruction()->tellstuff(stuff_id,-2)
     : -1;
 
+  const auto* resource = ResourceGroup::resMap.at("Bluecar");
   frameIt = world.map(point)->createframe();
   frameIt->frame = -2; //special value to indicate fresh fast forward car
   framePt = point;
-  switch(model) {
-  case VEHICLE_BLUECAR:
-    frameIt->resourceGroup =  ResourceGroup::resMap["Bluecar"];
-    speed0 = BLUE_CAR_SPEED;
-    break;
-  default:
-    assert(false);
-  }
+  frameIt->resourceGroup = resource;
+  speed0 = BLUE_CAR_SPEED;
   speed = speed0;
 }
 

@@ -305,6 +305,21 @@ void transportReplacement() {
   world.do_time_step();
 }
 
+void vehiclePlacementRejection() {
+  World world(32);
+  const MapPoint edge(0, 8);
+  for(const auto& test : {std::pair{site, VEHICLE_DEFAULT}, std::pair{edge, VEHICLE_BLUECAR}}) {
+    bool rejected = false;
+    try {
+      Vehicle unexpected(world, test.first, test.second);
+    } catch(const std::invalid_argument&) {
+      rejected = true;
+    }
+    CHECK(rejected);
+    CHECK(!world.map(test.first)->getFrames());
+  }
+}
+
 void vehicleCrossings() {
   struct Route { MapPoint step; int direction; };
   for(const auto& route : std::array<Route, 4>{{
@@ -763,6 +778,7 @@ int main() {
     bridgeLayoutFrames();
     restoreTransportAcrossTerrain();
     transportReplacement();
+    vehiclePlacementRejection();
     vehicleCrossings();
     vehicleUsesRailCrossing();
     vehicleCannotFollowRail();

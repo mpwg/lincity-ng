@@ -149,3 +149,30 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   jetzt zusätzlich den Status der Dekompression. Der Test vergleicht das
   Laden einer vollständigen Datei mit dem derselben Datei ohne den
   abschließenden Teil der Gzip-Prüfdaten.
+
+## Eingabevalidierung und historische Transportdaten
+
+- Beim Laden werden Wege, Straßen und Schienen in beiden
+  Build-Konfigurationen an das Gelände angepasst. Alle sechs Übergänge
+  zwischen Land- und Brückengruppe erhalten die jeweiligen Warenbestände.
+  Die Tests prüfen auch, dass eine abgerissene Straße kein Fahrzeug mehr
+  anlegen kann.
+- XML-Spielstände behalten Klartext in Szenariotiteln über Laden und
+  Speichern hinweg, auch mit Umlauten, kaufmännischem Und und spitzen
+  Klammern. Ein falsches Wurzelelement und fehlende Pflichtattribute
+  melden ihren Kontext. Ein Zahlwert mit zusätzlichem Text wird in
+  Debug und Release mit einer Ausnahme abgelehnt. Die vorhandene
+  Warn- und Assertion-Politik für unbekannte optionale XML-Namen wird
+  separat in einem Kindprozess geprüft.
+- Die Persistenztests unterscheiden einen fehlgeschlagenen Schreibaufruf
+  von einem Fehler beim Abschließen eines Gzip-Streams. Beide Pfade
+  melden einen Schreibfehler und schließen den Stream genau einmal.
+- Unbekannte Aktionen und Bauaufträge ohne Gebäudegruppe werden jetzt
+  ohne Änderung der Stadt abgelehnt. Die Vorschau erlaubt sie nicht.
+  Der direkte Ausführungsaufruf liefert eine Argumentausnahme.
+  Ein Fahrzeug mit unzulässigem Modell oder Startpunkt wird ebenfalls
+  vor der Anlage eines Animationsframes abgewiesen.
+- Die Kartentests prüfen auf der kleinsten Desktop-Kartengröße die
+  Überflutung bis zur Meereshöhe, deren Obergrenze und einen vollständigen
+  ersten Tag im Starterdorf. Feste Gelände-Referenzwerte gelten wie bei
+  den bestehenden Fällen für GCC auf x86-64 mit glibc und libstdc++.
