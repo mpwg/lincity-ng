@@ -93,3 +93,22 @@ fn a_corrupt_save_is_rejected_and_an_unwritable_destination_survives() {
     assert!(save(&engine, dir.path().to_str().unwrap()).is_err());
     assert_eq!(std::fs::read(corrupt).unwrap(), b"truncated city");
 }
+
+#[test]
+fn saved_handle_can_be_dropped_before_the_next_handle_is_loaded() {
+    let engine = Box::new(Engine {
+        city: core::City::empty(4).unwrap(),
+    });
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("handover.gz");
+    let path = file.to_str().unwrap();
+    save(&engine, path).unwrap();
+    drop(engine);
+
+    let mut resumed = load(path).unwrap();
+    let point = ffi::Point { x: 1, y: 2 };
+    set_focus(&mut resumed, point);
+    animate(&mut resumed, 1).unwrap();
+    assert_eq!(focus(&resumed), point);
+    assert_eq!(side(&resumed), 4);
+}
