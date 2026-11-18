@@ -24,7 +24,6 @@
 
 #include "commune.hpp"
 
-#include <cstdlib>                          // for rand
 #include <list>                             // for _List_iterator
 #include <string>                           // for basic_string
 #include <vector>                           // for vector
@@ -37,6 +36,7 @@
 #include "lincity/resources.hpp"            // for ExtraFrame, ResourceGroup
 #include "lincity/world.hpp"                // for World, Map, MapTile
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 CommuneConstructionGroup communeConstructionGroup(
     N_("Forest"),
@@ -146,7 +146,7 @@ Commune::update() {
 void Commune::animate(unsigned long real_time) {
   int& frame = frameIt->frame;
   if(animate_enable && real_time >= anim) {
-    anim = real_time + ANIM_THRESHOLD(COMMUNE_ANIM_SPEED - 25 + (rand() % 50));
+    anim = real_time + ANIM_THRESHOLD(COMMUNE_ANIM_SPEED - 25 + (simulationRand() % 50));
     animate_enable = false;
 
     frame++;

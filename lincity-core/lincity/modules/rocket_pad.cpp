@@ -47,6 +47,7 @@
 #include "util/gettextutil.hpp"           // for N_
 #include "util/randutil.hpp"              // for BasicUrbg
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStrF
+#include "util/simulation_trace.hpp"
 
 RocketPadConstructionGroup rocketPadConstructionGroup(
     N_("Rocket Pad"),
@@ -227,8 +228,8 @@ void RocketPad::remove_people(int num)
   /* reset housed population so that we can display it correctly */
   while(num > 0) {
     int housed = 0;
-    for(Construction *cst : world.map.constructions) {
-      if(cst->isDead()) continue;
+    visitConstructions(world.map.constructions, 'E', world.total_time, [&](Construction* cst) {
+      if(cst->isDead()) return true;
       unsigned short grp = cst->getConstructionGroup()->group;
       if(  grp == GROUP_RESIDENCE_LL
         || grp == GROUP_RESIDENCE_ML
@@ -242,10 +243,11 @@ void RocketPad::remove_people(int num)
           residence->local_population--;
           housed += residence->local_population;
           world.stats.population.evacuated_t++;
-          if(!--num) break;
+          if(!--num) return false;
         }
       }
-    }
+      return true;
+    });
 
     if(!housed && !world.gameEnd) {
       world.gameEnd = true;

@@ -26,7 +26,6 @@
 
 #include <libxml++/parsers/textreader.h>  // for TextReader
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
-#include <stdlib.h>                       // for rand
 #include <list>                           // for _List_iterator
 #include <string>                         // for basic_string, operator==
 
@@ -38,6 +37,7 @@
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStr
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 Organic_farmConstructionGroup organic_farmConstructionGroup(
     N_("Farm"),
@@ -63,8 +63,8 @@ Organic_farm::Organic_farm(World& world, ConstructionGroup *cstgrp) :
 {
   this->constructionGroup = cstgrp;
   this->tech = world.tech_level;
-  this->crop_rotation_key = (rand() % 4) + 1;
-  this->month_stagger = rand() % 100;
+  this->crop_rotation_key = (simulationRand() % 4) + 1;
+  this->month_stagger = simulationRand() % 100;
   this->food_this_month = 0;
   this->food_last_month = 0;
   this->max_foodprod = 0;
@@ -144,7 +144,7 @@ void Organic_farm::animate(unsigned long real_time) {
     if ( food_last_month > MIN_FOOD_SOLD_FOR_ANIM) {
       //Every year
       if (i % 4 == 0)
-        month_stagger = rand() % 100;
+        month_stagger = simulationRand() % 100;
       frameIt->frame = 1+i/4;
     }
     else {

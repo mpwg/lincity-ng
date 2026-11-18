@@ -25,7 +25,6 @@
 #include "shanty.hpp"
 
 #include <stdio.h>                 // for fprintf, stderr, printf
-#include <stdlib.h>                // for rand
 #include <cassert>                 // for assert
 #include <map>                     // for map
 #include <optional>                // for optional, operator==
@@ -73,9 +72,9 @@ void add_a_shanty(World& world) {
     std::optional<MapPoint> r;
     int numof_shanties = world.stats.groupCount[GROUP_SHANTY];
     const int len = world.map.len();
-    p.x = rand() % len;
-    p.y = rand() % len;
-    if (numof_shanties > 0 && rand() % 8 != 0)
+    p.x = simulationRand() % len;
+    p.y = simulationRand() % len;
+    if (numof_shanties > 0 && simulationRand() % 8 != 0)
     {
         r = world.map.find_group(p, GROUP_SHANTY);
         if (!r) {
@@ -134,7 +133,7 @@ void update_shanty(World& world) {
   }
   else if(numof_shanties > 0 && i < numof_shanties - 1) {
     for(int n = 0; n < 1 + (numof_shanties - i) / 10; n++) {
-      MapPoint p(rand() % len, rand() % len);
+      MapPoint p(simulationRand() % len, simulationRand() % len);
       std::optional<MapPoint> r = world.map.find_group(p, GROUP_SHANTY);
       if(!r) {
         fprintf(stderr, "Can't find a shanty to remove!\n");

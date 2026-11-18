@@ -25,12 +25,12 @@
 #ifndef __LINCITYNG_LINCITY_MODULES_FIRE_HPP__
 #define __LINCITYNG_LINCITY_MODULES_FIRE_HPP__
 
-#include <stdlib.h>                   // for rand
 #include <string>                     // for string
 
 #include "lincity/all_buildings.hpp"  // for red
 #include "lincity/lintypes.hpp"       // for NUMOF_DAYS_IN_YEAR, Constructio...
 #include "lincity/messages.hpp"       // for Message
+#include "util/randutil.hpp"
 
 class World;
 
@@ -44,7 +44,7 @@ class World;
 #define GROUP_FIRE_SIZE   1
 
 #define DAYS_BETWEEN_FIRES (NUMOF_DAYS_IN_YEAR*2)
-#define FIRE_ANIMATION_SPEED (200 + rand()%350 -175)
+#define FIRE_ANIMATION_SPEED (200 + simulationRand()%350 -175)
 #define FIRE_DAYS_PER_SPREAD (NUMOF_DAYS_IN_YEAR/8)
 #define FIRE_LENGTH (NUMOF_DAYS_IN_YEAR*5)
 #define AFTER_FIRE_LENGTH (NUMOF_DAYS_IN_YEAR*10)

@@ -39,6 +39,7 @@
 #include "lincity/world.hpp"              // for Map, MapTile, World
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStr
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 FireConstructionGroup fireConstructionGroup(
      N_("Fire"),
@@ -76,13 +77,13 @@ void Fire::update()
 {
     /* this so we don't get whole blocks changing in one go. */
     if (burning_days == 0)
-    {   burning_days = rand() % (FIRE_LENGTH / 5);}
+    {   burning_days = simulationRand() % (FIRE_LENGTH / 5);}
 
     if (burning_days > FIRE_LENGTH)
     {
         //is_burning = false;
         if (smoking_days == 0)   /* rand length here also */
-        {   smoking_days = rand() % (AFTER_FIRE_LENGTH / 6);}
+        {   smoking_days = simulationRand() % (AFTER_FIRE_LENGTH / 6);}
         smoking_days++;
         if (world.map(point)->flags & FLAG_FIRE_COVER)
         {   smoking_days += 4;}
@@ -104,7 +105,7 @@ void Fire::update()
 
 void Fire::spread() {
   MapPoint loc;
-  switch(rand() % 80) {
+  switch(simulationRand() % 80) {
   case 0:
     loc = point.n();
     break;
@@ -127,7 +128,7 @@ void Fire::spread() {
     return;
   Construction *cst = world.map(loc)->getReportingConstruction();
   if(!cst) return;
-  if(rand() % 100 >= cst->getConstructionGroup()->fire_chance)
+  if(simulationRand() % 100 >= cst->getConstructionGroup()->fire_chance)
     return;
   if(world.map(loc)->flags & FLAG_FIRE_COVER)
     return;

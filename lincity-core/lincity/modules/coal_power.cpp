@@ -26,7 +26,6 @@
 
 #include <libxml++/parsers/textreader.h>  // for TextReader
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
-#include <stdlib.h>                       // for rand
 #include <map>                            // for map
 #include <string>                         // for basic_string, operator<
 #include <vector>                         // for vector
@@ -39,6 +38,7 @@
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStr
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 Coal_powerConstructionGroup coal_powerConstructionGroup(
      N_("Coal Power Station"),
@@ -118,9 +118,9 @@ void Coal_power::animate(unsigned long real_time) {
       if(i >= active) {
         frit->frame = -1;
       }
-      else if(frit->frame < 0 || rand() % 1600 != 0) {
+      else if(frit->frame < 0 || simulationRand() % 1600 != 0) {
         // always randomize new plumes and sometimes existing ones
-        frit->frame = rand() % s;
+        frit->frame = simulationRand() % s;
       }
       else if(++frit->frame >= s) {
         frit->frame = 0;

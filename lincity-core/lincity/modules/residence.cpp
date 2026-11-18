@@ -26,7 +26,6 @@
 
 #include <libxml++/parsers/textreader.h>  // for TextReader
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
-#include <stdlib.h>                       // for rand
 #include <iostream>                       // for basic_ostream, operator<<
 #include <string>                         // for basic_string, char_traits
 
@@ -37,6 +36,7 @@
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStr
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 ResidenceConstructionGroup residenceLLConstructionGroup(
     N_("Residence"),
@@ -221,7 +221,7 @@ void Residence::update()
         flags &= ~(FLAG_FED); //disable births
         if (local_population)
         {
-            if (rand() % DAYS_PER_STARVE == 1)
+            if (simulationRand() % DAYS_PER_STARVE == 1)
             {
                 local_population--; //starving maybe deadly
                 ++world.stats.population.deaths_m;
@@ -334,14 +334,14 @@ void Residence::update()
     deaths = (RESIDENCE_BASE_DR - drm - 3*po);
     if (deaths < 1) deaths = 1;
     if (hc) deaths *= 4;
-    r = rand() % deaths;
+    r = simulationRand() % deaths;
     if (local_population > 0 ) //somebody might die
     {
         if (r == 0) //one guy had bad luck
         {
             --local_population;
             ++world.stats.population.deaths_m;
-            if(rand() % 100 < pol_deaths) // deadly pollution
+            if(simulationRand() % 100 < pol_deaths) // deadly pollution
             {
                 world.stats.population.unnat_deaths_m++;
                 world.stats.population.pollution_deaths_t++;
@@ -358,7 +358,7 @@ void Residence::update()
     if (((flags & birth_flag) == birth_flag)
         && (local_population > 0))
     {
-        if (rand() % births == 0)
+        if (simulationRand() % births == 0)
         {
             ++local_population;
             ++world.stats.population.births_t;
@@ -374,7 +374,7 @@ void Residence::update()
     bad += world.map(point)->pollution / 20;
     good += world.people_pool / 27; //27
     desireability = good-bad;
-    r = rand() % ((good + bad) * RESIDENCE_PPM);
+    r = simulationRand() % ((good + bad) * RESIDENCE_PPM);
     if (r < bad || local_population > max_population)
     {
         if (local_population > MIN_RES_POPULATION)

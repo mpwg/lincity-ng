@@ -25,7 +25,7 @@
 #include <assert.h>                      // for assert
 #include <algorithm>                     // for min, shuffle
 #include <array>                         // for array
-#include <cstdlib>                       // for rand, abs
+#include <cstdlib>                       // for abs
 #include <list>                          // for list, operator!=, _List_iter...
 #include <numeric>                       // for iota
 #include <set>                           // for set, _Rb_tree_const_iterator
@@ -46,6 +46,7 @@
 #include "stats.hpp"                       // for Stats, Stat
 #include "sustainable.hpp"                 // for SUST_FIRE_YEARS_NEEDED, SUST...
 #include "world.hpp"                       // for World, Map, MapTile
+#include "util/simulation_trace.hpp"
 
 /* ---------------------------------------------------------------------- *
  * Public Functions
@@ -71,10 +72,10 @@ World::do_time_step(void) {
 
 void
 World::do_animate(unsigned long real_time) {
-  for(Construction *cst : map.constructions) {
-    if(cst->isDead()) continue;
-    cst->animate(real_time);
-  }
+  visitConstructions(map.constructions, 'A', real_time, [&](Construction* cst) {
+    if(!cst->isDead()) cst->animate(real_time);
+    return true;
+  });
   for(std::list<Vehicle*>::iterator it = vehicleList.begin();
     it != vehicleList.end();
   ) {
@@ -122,7 +123,7 @@ World::end_of_month_update(void) {
   scan_pollution();
 
   if(people_pool > 100) {
-    if(rand() % 1000 < people_pool)
+    if(simulationRand() % 1000 < people_pool)
       people_pool -= 10;
   }
   if(people_pool < 0) {
@@ -219,9 +220,9 @@ World::end_of_year_update(void) {
 
   // change import/export ability
   for(Commodity s = STUFF_INIT; s < STUFF_COUNT; s++) {
-    tradeRule[s].take ^= !(rand() % (tradeRule[s].take
+    tradeRule[s].take ^= !(simulationRand() % (tradeRule[s].take
       ? IMPORT_EXPORT_DISABLE_PERIOD : IMPORT_EXPORT_ENABLE_PERIOD));
-    tradeRule[s].give ^= !(rand() % (tradeRule[s].give
+    tradeRule[s].give ^= !(simulationRand() % (tradeRule[s].give
       ? IMPORT_EXPORT_DISABLE_PERIOD : IMPORT_EXPORT_ENABLE_PERIOD));
   }
 }
@@ -234,7 +235,12 @@ World::simulate_mappoints(void) {
   std::vector<decltype(map.constructions)::iterator> ordering(
     map.constructions.size());
   std::iota(ordering.begin(), ordering.end(), map.constructions.begin());
-  std::shuffle(ordering.begin(), ordering.end(), BasicUrbg::get());
+  if(auto trace = SimulationTrace::current()) {
+    if(!trace->replaying()) BasicUrbg::get().shuffle(ordering.begin(), ordering.end());
+    trace->visitOrder('D', total_time, ordering);
+  } else {
+    std::shuffle(ordering.begin(), ordering.end(), BasicUrbg::get());
+  }
   for(auto cstIt : ordering) {
     Construction *cst = *cstIt;
     if(cst->isDead()) {

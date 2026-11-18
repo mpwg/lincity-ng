@@ -30,7 +30,6 @@
 #include <libxml++/parsers/textreader.h>  // for TextReader
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
 #include <cstdio>                         // for stderr
-#include <cstdlib>                        // for rand
 #include <algorithm>                      // for max, min
 #include <iostream>                       // for basic_ostream, operator<<
 #include <set>                            // for set
@@ -50,6 +49,8 @@
 #include "util/gettextutil.hpp"           // for _
 #include "util/xmlutil.hpp"               // for xmlParse, xmlStr, xmlStrF
 #include "world.hpp"                      // for World, Map, MapTile
+#include "util/randutil.hpp"
+#include "util/simulation_trace.hpp"
 
 
 
@@ -274,6 +275,8 @@ void Construction::place(MapPoint point) {
     tile.reportingConstruction = this;
   }
   world.map(point)->construction = this;
+  if(auto trace = SimulationTrace::current())
+    trace->placed(this, point.x, point.y, constructionGroup->group);
   world.map.constructions.insert(this); //register for Simulation
   world.map.recentPoint = MapPoint(point);
   world.stats.groupCount[constructionGroup->group]++;
@@ -711,7 +714,7 @@ void Construction::trade()
                 switch (stuff_ID)
                 {
                     case STUFF_LABOR :
-                        if((rand()%COMMUTER_TRAFFIC_RATE) < (yield+1)/2
+                        if((simulationRand()%COMMUTER_TRAFFIC_RATE) < (yield+1)/2
                           && transport->canPlaceVehicle()
                         ) {
                           world.vehicleList.push_back(
@@ -737,7 +740,7 @@ void Construction::trade()
                 && !(neighbors[i]->constructionGroup->group == GROUP_POWER_LINE)
                 && neighbors[i]->constructionGroup->commodityRuleCount[stuff_ID].give
                 && (neighbors[i]->commodityCount[stuff_ID] > 0))
-                {   powerline->anim_counter = POWER_MODULUS + rand()%POWER_MODULUS;}
+                {   powerline->anim_counter = POWER_MODULUS + simulationRand()%POWER_MODULUS;}
                 if(powerline->flashing &&
                   neighbors[i]->constructionGroup->group == GROUP_POWER_LINE
                 ) {

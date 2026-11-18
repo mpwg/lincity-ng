@@ -14,5 +14,5 @@ add_library(gettextutil INTERFACE gettextutil.hpp)
 target_link_libraries(gettextutil INTERFACE gettext)
 target_include_directories(gettextutil INTERFACE ..)
 
-add_library(randutil STATIC randutil.cpp randutil.hpp)
+add_library(randutil STATIC randutil.cpp randutil.hpp simulation_trace.cpp simulation_trace.hpp)
 target_include_directories(randutil INTERFACE ..)

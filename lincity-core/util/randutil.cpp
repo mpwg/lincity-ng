@@ -20,6 +20,9 @@
 ** ---------------------------------------------------------------------- */
 
 #include "randutil.hpp"
+#include "simulation_trace.hpp"
+
+#include <cstdlib>
 
 #include <algorithm>
 #include <time.h>
@@ -44,9 +47,17 @@ BasicUrbg::get() {
 
 BasicUrbg::result_type
 BasicUrbg::operator()() {
+  if(auto trace = SimulationTrace::current())
+    return trace->random('U', trace->replaying() ? 0 : base_urbg(), min(), max());
   return base_urbg();
 }
 
 void BasicUrbg::seed(result_type value) {
   base_urbg.seed(value);
+}
+
+int simulationRand() {
+  if(auto trace = SimulationTrace::current())
+    return trace->random('C', trace->replaying() ? 0 : std::rand(), 0, RAND_MAX);
+  return std::rand();
 }

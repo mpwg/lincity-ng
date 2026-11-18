@@ -26,7 +26,6 @@
 
 #include <libxml++/parsers/textreader.h>  // for TextReader
 #include <libxml/xmlwriter.h>             // for xmlTextWriterWriteElement
-#include <stdlib.h>                       // for rand
 #include <map>                            // for map
 #include <string>                         // for basic_string, operator==
 #include <vector>                         // for vector
@@ -39,6 +38,7 @@
 #include "lincity/world.hpp"              // for World, Map, MapTile
 #include "util/xmlutil.hpp"               // for xmlFormat, xmlParse, xmlStr
 #include "util/gettextutil.hpp"
+#include "util/randutil.hpp"
 
 IndustryLightConstructionGroup industryLightConstructionGroup(
      N_("Light Industry"),
@@ -210,9 +210,9 @@ void IndustryLight::animate(unsigned long real_time) {
       else if(i >= active) {
         smoke = -1;
       }
-      else if(smoke < 0 || !(rand() % 1600)) {
+      else if(smoke < 0 || !(simulationRand() % 1600)) {
         // randomize new plumes and sometimes existing ones
-        smoke = rand() % s;
+        smoke = simulationRand() % s;
       }
       else if(goods_today && ++smoke >= s) {
         smoke = 0;

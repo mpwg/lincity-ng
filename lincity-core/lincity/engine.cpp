@@ -25,7 +25,6 @@
 #include <algorithm>         // for max
 #include <cassert>           // for assert
 #include <climits>           // for INT_MAX
-#include <cstdlib>           // for rand
 #include <deque>             // for deque
 #include <initializer_list>  // for initializer_list
 #include <optional>          // for optional, nullopt, nullopt_t
@@ -39,6 +38,7 @@
 #include "messages.hpp"      // for OutOfMoneyMessage, FireStartedMessage
 #include "stats.hpp"         // for Stat, Stats
 #include "world.hpp"         // for Map, World, MapTile
+#include "util/randutil.hpp"
 
 void
 World::income(int amt, Stat<int>& account) {
@@ -80,7 +80,7 @@ World::do_pollution() {
     }
 
     MapPoint neighbor;
-    switch(rand() % 11) {
+    switch(simulationRand() % 11) {
     case 0:
     case 1:
     case 2:
@@ -154,14 +154,14 @@ World::do_fire_health_cricket_power_cover() {
 
 void
 World::do_random_fire() {
-  MapPoint loc(rand() % map.len(), rand() % map.len());\
+  MapPoint loc(simulationRand() % map.len(), simulationRand() % map.len());\
   if(!map.is_visible(loc))
     return;
 
   Construction *cst = map(loc)->getReportingConstruction();
   if(!cst) return; // no building to burn down
   const ConstructionGroup& cstGrp = *cst->getConstructionGroup();
-  if(rand() % 100 >= cstGrp.fire_chance)
+  if(simulationRand() % 100 >= cstGrp.fire_chance)
     return;
   if(map(loc)->flags & FLAG_FIRE_COVER)
     return;
@@ -176,7 +176,7 @@ World::do_daily_ecology() {
     /* approximately 3 monthes needed to turn bulldoze area into green */
     if(tile.getLowerstVisibleGroup() == GROUP_DESERT
       && (tile.flags & FLAG_HAS_UNDERGROUND_WATER)
-      && (rand() % 300 == 1)
+      && (simulationRand() % 300 == 1)
     ) {
       tile.setTerrain(GROUP_BARE);
       map.desert_water_frontiers(tile.point.x - 1, tile.point.y - 1, 1 + 2, 1 + 2);

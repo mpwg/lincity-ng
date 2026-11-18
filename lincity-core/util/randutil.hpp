@@ -22,7 +22,10 @@
 #ifndef __LINCITYNG_UTIL_RANDUTIL_HPP__
 #define __LINCITYNG_UTIL_RANDUTIL_HPP__
 
+#include <algorithm>
 #include <random>
+
+int simulationRand();
 
 class BasicUrbg {
 private:
@@ -40,6 +43,13 @@ public:
   void seed(result_type value);
   static constexpr result_type min() { return base_engine::min(); }
   static constexpr result_type max() { return base_engine::max(); }
+
+  // A construction trace stores the finished permutation. The intermediate
+  // shuffle draws only advance the native generator during recording.
+  template<class Iterator>
+  void shuffle(Iterator begin, Iterator end) {
+    std::shuffle(begin, end, base_urbg);
+  }
 
   static BasicUrbg& get();
 
