@@ -229,6 +229,37 @@ void marketSupplyAndWaste() {
   CHECK(!world.popMessage() && world.map(site)->getGroup() == GROUP_MARKET);
 }
 
+void marketStaffingAndAnimation() {
+  struct Density { int fill; int staff; const char* resource; };
+  for(const auto& spec : {Density{0, 1, "MarketEmpty"}, Density{15, 5, "MarketLow"},
+                          Density{35, 12, "MarketMed"}, Density{70, 28, "MarketFull"}}) {
+    World world(32);
+    world.total_time = 17;
+    marketConstructionGroup.placeItem(world, site);
+    auto& market = dynamic_cast<Market&>(*world.map(site)->getConstruction());
+    market.bootstrap_commodities(spec.fill);
+    market.update();
+    market.animate(0);
+    CHECK(market.labor == spec.staff);
+    CHECK(market.getFrame().resourceGroup == ResourceGroup::resMap.at(spec.resource));
+  }
+
+  World world(32);
+  marketConstructionGroup.placeItem(world, site);
+  auto& market = *world.map(site)->getConstruction();
+  world.total_time = 1;
+  market.levelStuff(STUFF_WASTE, MAX_WASTE_IN_MARKET);
+  std::istringstream choices("LINCITY-SIMULATION-TRACE 1\nS market.waste-fire 0\nC 175\nZ\n");
+  SimulationTrace trace(choices);
+  market.update();
+  market.animate(100);
+  trace.finish();
+  const auto& fire = world.map(site)->getFrames()->back();
+  CHECK(fire.resourceGroup == ResourceGroup::resMap.at("Fire") && fire.frame == 0);
+  market.animate(100 + ANIM_THRESHOLD(6 * WASTE_BURN_TIME));
+  CHECK(fire.frame == -1);
+}
+
 void portCommands() {
   World world(32);
   world.total_money = 1000000;
@@ -346,6 +377,7 @@ int main() {
     floodRejectedAtCreditLimit();
     marketCommands();
     marketSupplyAndWaste();
+    marketStaffingAndAnimation();
     portCommands();
     rocketCommands();
     protectedMonument();
