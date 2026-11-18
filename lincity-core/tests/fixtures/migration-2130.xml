@@ -44,10 +44,15 @@
     <sust_port_flag>1</sust_port_flag>
     <import_Food_enable>0</import_Food_enable>
     <export_Goods_enable>0</export_Goods_enable>
-    <monthgraph_pop>901 801 701</monthgraph_pop>
+    <monthgraph_pop>
+      901 801
+      701
+    </monthgraph_pop>
     <monthgraph_starve>31 23 11</monthgraph_starve>
     <monthgraph_nojobs>41 39 27</monthgraph_nojobs>
     <monthgraph_ppool>121 109 99</monthgraph_ppool>
+    <!-- The monthly population series supersedes the old population bar. -->
+    <pbar id="0"><diff>12</diff><data>905</data></pbar>
     <pbar id="1">
       <!-- Older progress bars stored values oldest first. -->
       <diff>50</diff>
@@ -62,10 +67,19 @@
       <diff>40</diff>
       <data>660</data>
     </pbar>
+    <pbar id="4"><diff>-14</diff><data>480</data></pbar>
+    <pbar id="5"><diff>22</diff><data>560</data></pbar>
+    <pbar id="6"><diff>30</diff><data>380</data></pbar>
+    <pbar id="7"><diff>-15</diff><data>295</data></pbar>
+    <pbar id="8"><diff>25</diff><data>765</data></pbar>
     <pbar id="9">
       <diff>19</diff>
       <data>275</data>
     </pbar>
+    <pbar id="10"><diff>-45</diff><data>812</data></pbar>
+    <pbar id="11"><diff>66</diff><data>916</data></pbar>
+    <pbar id="12"><diff>17</diff><data>371</data></pbar>
+    <pbar id="13"><diff>-8</diff><data>213</data></pbar>
     <pbar id="14">
       <diff>20</diff>
       <data>910</data>

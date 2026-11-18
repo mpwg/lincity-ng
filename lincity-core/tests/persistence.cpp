@@ -14,7 +14,9 @@
 
 #ifdef LINCITY_TEST_XML_FAULTS
 #include <libxml/xmlIO.h>
+#include <libxml/xmlerror.h>
 #include <libxml/xmlreader.h>
+#include <libxml/xmlversion.h>
 #include <libxml/xmlwriter.h>
 #include <zlib.h>
 #endif
@@ -30,7 +32,7 @@
 
 #ifdef LINCITY_TEST_XML_FAULTS
 namespace {
-enum class SaveLoadFault { OutputBuffer, Writer, Reader, GzipWrite, GzipClose };
+enum class SaveLoadFault { OutputBuffer, Writer, Reader, GzipWrite, GzipClose, XmlClose };
 
 struct SaveLoadFailure;
 thread_local SaveLoadFailure* activeFailure = nullptr;
@@ -57,6 +59,9 @@ extern "C" {
 decltype(xmlOutputBufferCreateIO) __real_xmlOutputBufferCreateIO;
 decltype(xmlNewTextWriter) __real_xmlNewTextWriter;
 decltype(xmlReaderForIO) __real_xmlReaderForIO;
+#if LIBXML_VERSION >= 21300
+decltype(xmlTextWriterClose) __real_xmlTextWriterClose;
+#endif
 decltype(gzwrite) __real_gzwrite;
 decltype(gzclose) __real_gzclose;
 
@@ -71,6 +76,14 @@ xmlTextWriterPtr __wrap_xmlNewTextWriter(xmlOutputBufferPtr buffer) {
   if(shouldFail(SaveLoadFault::Writer)) return nullptr;
   return __real_xmlNewTextWriter(buffer);
 }
+
+#if LIBXML_VERSION >= 21300
+int __wrap_xmlTextWriterClose(xmlTextWriterPtr writer) {
+  const int status = __real_xmlTextWriterClose(writer);
+  if(shouldFail(SaveLoadFault::XmlClose)) return XML_ERR_INTERNAL_ERROR;
+  return status;
+}
+#endif
 
 xmlTextReaderPtr __wrap_xmlReaderForIO(xmlInputReadCallback read,
   xmlInputCloseCallback close, void* context, const char* url, const char* encoding, int options
@@ -185,9 +198,23 @@ void checkMigratedWorld(const World& world) {
   CHECK(history.tech.at(2) == 7000 && history.tech.at(3) == 7450);
   CHECK(history.money.at(0) == -326 && history.money.at(1) == -281);
   CHECK(history.pollution.at(0) == 275 && history.pollution.at(1) == 256);
-  const auto& food = history.inventory[STUFF_FOOD];
-  CHECK(food.at(0).amount == 660 && food.at(0).capacity == 1000);
-  CHECK(food.at(1).amount == 620 && food.at(1).capacity == 1000);
+  struct InventoryHistory { Commodity commodity; int latest; int previous; };
+  for(const auto& expected : {
+    InventoryHistory{STUFF_FOOD,   660, 620},
+    InventoryHistory{STUFF_LABOR,  480, 494},
+    InventoryHistory{STUFF_GOODS,  560, 538},
+    InventoryHistory{STUFF_COAL,   380, 350},
+    InventoryHistory{STUFF_ORE,    295, 310},
+    InventoryHistory{STUFF_STEEL,  765, 740},
+    InventoryHistory{STUFF_LOVOLT, 812, 857},
+    InventoryHistory{STUFF_HIVOLT, 916, 850},
+    InventoryHistory{STUFF_WATER,  371, 354},
+    InventoryHistory{STUFF_WASTE,  213, 221}
+  }) {
+    const auto& inventory = history.inventory[expected.commodity];
+    CHECK(inventory.at(0).amount == expected.latest && inventory.at(0).capacity == 1000);
+    CHECK(inventory.at(1).amount == expected.previous && inventory.at(1).capacity == 1000);
+  }
   CHECK(history.tenants.at(0).amount == 910 && history.tenants.at(0).capacity == 1000);
   CHECK(history.tenants.at(1).amount == 890 && history.tenants.at(1).capacity == 1000);
 
@@ -419,8 +446,11 @@ void xmlIOErrors(const fs::path& fixtures, const fs::path& saved) {
     Case{SaveLoadFault::OutputBuffer, "failed to create XML output buffer"},
     Case{SaveLoadFault::Writer, "failed to create XML text writer"},
     Case{SaveLoadFault::Reader, "failed to initialize XML parser"},
-    Case{SaveLoadFault::GzipWrite, "failed to write save file"},
-    Case{SaveLoadFault::GzipClose, "failed to write save file"}
+    Case{SaveLoadFault::GzipWrite, "(gzip write:"},
+    Case{SaveLoadFault::GzipClose, "(gzip close:"},
+#if LIBXML_VERSION >= 21300
+    Case{SaveLoadFault::XmlClose, "failed to finish XML save file"},
+#endif
   }) {
     SaveLoadFailure failure(test.fault);
     expectFailure([&] {
@@ -507,20 +537,34 @@ void parserErrors(const fs::path& saved) {
                   "</globals></lc-game>");
   expectFailure([&] { World::load(saved); }, "failed to parse bool");
 
-  for(const char* legacyField : {
-    "<monthgraph_pop>90 missing 70</monthgraph_pop>",
-    "<pbar id='1'><data>7000 missing</data></pbar>",
-    "<pbar id='3'><data>660 missing</data></pbar>"
+  struct InvalidLegacyHistory { const char* xml; const char* context; };
+  for(const auto& field : {
+    InvalidLegacyHistory{"<monthgraph_pop>90 missing 70</monthgraph_pop>", "<monthgraph_pop>"},
+    InvalidLegacyHistory{"<pbar id='1'><data>7000 missing</data></pbar>", "<pbar id=\"1\"> <data>"},
+    InvalidLegacyHistory{"<pbar id='3'><data>660 missing</data></pbar>", "<pbar id=\"3\"> <data>"}
   }) {
-    writeXml(saved, std::string("<lc-game ldsv-version='2130'><globals>") + legacyField
+    writeXml(saved, std::string("<lc-game ldsv-version='2130'><globals>") + field.xml
                    + "</globals></lc-game>");
     try {
       World::load(saved);
     } catch(const std::system_error& error) {
       CHECK(error.code() == std::errc::invalid_argument);
+      CHECK(std::string_view(error.what()).find(field.context) != std::string_view::npos);
       continue;
     }
-    throw std::runtime_error(std::string("Expected rejection of legacy field: ") + legacyField);
+    throw std::runtime_error(std::string("Expected rejection of legacy field: ") + field.context);
+  }
+}
+
+void rejectInvalidMapSizes(const fs::path& saved) {
+  for(const char* xml : {
+    "<lc-game ldsv-version='2130'><globals><world_side_len>0</world_side_len></globals>"
+      "<map/></lc-game>",
+    "<lc-game ldsv-version='2140'><map size='0'/></lc-game>"
+  }) {
+    writeXml(saved, xml);
+    expectFailure<std::invalid_argument>([&] { World::load(saved); },
+      "map size must be at least 3 and its square must fit in an int");
   }
 }
 
@@ -655,6 +699,7 @@ int main(int argc, char** argv) {
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);
+    rejectInvalidMapSizes(saved);
     rejectTruncatedCompression(saved);
     rejectedConstructions(saved);
 #ifdef LINCITY_TEST_XML_FAULTS

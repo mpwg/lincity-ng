@@ -76,6 +76,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_options(core_persistence PRIVATE
       "LINKER:--wrap=xmlOutputBufferCreateIO"
       "LINKER:--wrap=xmlNewTextWriter"
+      "LINKER:--wrap=xmlTextWriterClose"
       "LINKER:--wrap=xmlReaderForIO"
       "LINKER:--wrap=gzwrite"
       "LINKER:--wrap=gzclose")

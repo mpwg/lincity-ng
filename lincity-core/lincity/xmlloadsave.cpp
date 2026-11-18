@@ -118,6 +118,7 @@ World::save(const std::filesystem::path& filename) const {
   struct GzipOutput {
     gzFile file;
     int status = Z_OK;
+    bool writeFailed = false;
   } output{gz_file};
 
   int xmlStatus = XML_ERR_OK;
@@ -129,6 +130,7 @@ World::save(const std::filesystem::path& filename) const {
       if(written == len) return written;
       gzerror(sink.file, &sink.status);
       if(sink.status == Z_OK) sink.status = Z_BUF_ERROR;
+      sink.writeFailed = true;
       return -1;
     },
     [](void* ctx) {
@@ -179,11 +181,14 @@ World::save(const std::filesystem::path& filename) const {
   xmlTextWriterEndDocument(xmlWriter);
   } // end scope closes the writer and compressed file
   if(output.status != Z_OK) {
-    throw std::runtime_error("failed to write save file: " + filename.string());
+    const char* phase = output.writeFailed ? "gzip write" : "gzip close";
+    throw std::runtime_error("failed to write save file: " + filename.string() +
+      " (" + phase + ": " + zError(output.status) + ")");
   }
   if(xmlStatus) {
     throw std::runtime_error(
-      std::string("XML parser error: ") + std::to_string(xmlStatus));
+      "failed to finish XML save file: " + filename.string() +
+      " (XML status " + std::to_string(xmlStatus) + ")");
   }
 }
 
@@ -1263,23 +1268,29 @@ static void readArray(xmlpp::TextReader& xmlReader, A& array,
   assert(xmlReader.get_depth() == depth);
 }
 
+static int readLegacyNumber(const char*& cursor, const char* end, const std::string& field) {
+  int value;
+  const auto result = std::from_chars(cursor, end, value);
+  if(result.ec != std::errc{})
+    throw std::system_error(std::make_error_code(result.ec), "invalid integer in legacy " + field);
+  cursor = result.ptr;
+  return value;
+}
+
 static void readArray_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
   const std::string str = xmlReader.read_inner_xml();
+  const std::string field = "<" + xmlReader.get_name() + ">";
   const char *s = str.data();
   const char *e = s + str.size();
   array.clear();
   while(s < e) {
     if(std::isspace(static_cast<unsigned char>(*s))) { s++; continue; }
-    int v;
-    std::from_chars_result r = std::from_chars(s, e, v);
-    if(r.ec != std::errc{})
-      throw std::system_error(std::make_error_code(r.ec));
-    s = r.ptr;
-    array.push_back(v);
+    array.push_back(readLegacyNumber(s, e, field));
   }
 }
 
 static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
+  const std::string field = "<pbar id=\"" + xmlReader.get_attribute("id") + "\"> <data>";
   size_t arraySize = array.size();
   int diff = 0;
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
@@ -1302,12 +1313,7 @@ static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
       array.clear();
       while(s < e) {
         if(std::isspace(static_cast<unsigned char>(*s))) { s++; continue; }
-        int v;
-        std::from_chars_result r = std::from_chars(s, e, v);
-        if(r.ec != std::errc{})
-          throw std::system_error(std::make_error_code(r.ec));
-        s = r.ptr;
-        array.push_front(v);
+        array.push_front(readLegacyNumber(s, e, field));
       }
     }
     else
@@ -1326,6 +1332,7 @@ static void readPbar_old(xmlpp::TextReader& xmlReader, std::deque<int>& array) {
 static void readPbar_old(xmlpp::TextReader& xmlReader,
   std::deque<Stats::Inventory<>>& array
 ) {
+  const std::string field = "<pbar id=\"" + xmlReader.get_attribute("id") + "\"> <data>";
   size_t arraySize = array.size();
   int diff = 0;
   assert(xmlReader.get_node_type() == xmlpp::TextReader::NodeType::Element);
@@ -1348,11 +1355,7 @@ static void readPbar_old(xmlpp::TextReader& xmlReader,
       array.clear();
       while(s < e) {
         if(std::isspace(static_cast<unsigned char>(*s))) { s++; continue; }
-        int v;
-        std::from_chars_result r = std::from_chars(s, e, v);
-        if(r.ec != std::errc{})
-          throw std::system_error(std::make_error_code(r.ec));
-        s = r.ptr;
+        int v = readLegacyNumber(s, e, field);
         array.push_front((Stats::Inventory<>){.amount = v, .capacity = 1000});
       }
     }
