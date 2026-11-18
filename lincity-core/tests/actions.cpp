@@ -159,8 +159,8 @@ void marketCommands() {
 
   UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
   CHECK(bulldoze.isAllowedHere(world, site.se(), why));
-  // The original preview quotes the terrain, even on an occupied tile.
-  CHECK(bulldoze.cost(world, site.se()) == world.map(site.se())->getTileConstructionGroup()->bul_cost);
+  CHECK(bulldoze.cost(world, site) == marketConstructionGroup.bul_cost);
+  CHECK(bulldoze.cost(world, site.se()) == marketConstructionGroup.bul_cost);
   bulldoze.execute(world, site.se());
   CHECK(world.total_money == 1000000 - cost - marketConstructionGroup.bul_cost);
   CHECK(!world.map(site.se())->getReportingConstruction());

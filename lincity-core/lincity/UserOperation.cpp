@@ -173,8 +173,12 @@ UserOperation::cost(const World& world, MapPoint point) const {
   switch(action) {
   case ACTION_BUILD:
     return actualConstructionGroup(world, point)->getCosts(world);
-  case ACTION_BULLDOZE:
-    return world.map(point)->getTileConstructionGroup()->bul_cost;
+  case ACTION_BULLDOZE: {
+    const auto& tile = *world.map(point);
+    if(const auto* building = tile.getReportingConstruction())
+      return building->getConstructionGroup()->bul_cost;
+    return tile.group == GROUP_DESERT ? 0 : tile.getTileConstructionGroup()->bul_cost;
+  }
   case ACTION_FLOOD:
     return GROUP_WATER_COST;
   case ACTION_QUERY:

@@ -23,6 +23,8 @@
 
 #include "GameView.hpp"
 
+#include <unordered_set>
+
 #include <SDL3/SDL.h>                     // for SDL_Scancode, SDL_BUTTON_LEFT
 #include <SDL3_image/SDL_image.h>         // for IMG_Load
 #include <assert.h>                       // for assert
@@ -1419,11 +1421,22 @@ void GameView::showToolInfo() {
     case UserOperation::ACTION_FLOOD: {
       Message::ptr dummyMsg;
       int count = 0, cost = 0;
-      for(SelIt it(*this), end(*this, false); it != end; ++it)
+      std::unordered_set<const Construction*> quotedBuildings;
+      for(RSelIt it(*this), end(*this, false); it != end; ++it)
         if(getUserOperation()->isAllowedHere(
           game->getWorld(), *it, dummyMsg)
         ) {
           count++;
+          if(getUserOperation()->action == UserOperation::ACTION_BULLDOZE) {
+            const auto& tile = *game->getWorld().map(*it);
+            const auto* building = tile.getReportingConstruction();
+            if(building && !quotedBuildings.insert(building).second) {
+              // Earlier in the selection we already quoted removal of this
+              // building. Estimate clearing the exposed terrain on this tile.
+              if(tile.group != GROUP_DESERT) cost += tile.getTileConstructionGroup()->bul_cost;
+              continue;
+            }
+          }
           cost += getUserOperation()->cost(game->getWorld(), *it);
         }
       if(!count)
