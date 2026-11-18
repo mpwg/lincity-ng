@@ -1,3 +1,4 @@
+#include "lincity/UserOperation.hpp"
 #include "lincity/Vehicles.hpp"
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/sustainable.hpp"
@@ -5,12 +6,14 @@
 #include "lincity/world.hpp"
 #include "util/simulation_trace.hpp"
 
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #define CHECK(test) do { if(!(test)) throw std::runtime_error(#test); } while(false)
 
@@ -187,6 +190,91 @@ void transportFrames() {
   }
 }
 
+void railCrossingFrames() {
+  for(auto* street : {&trackConstructionGroup, &roadConstructionGroup}) {
+    const int frameOffset = street == &trackConstructionGroup ? 0 : 2;
+    for(bool streetNorthSouth : {true, false}) {
+      World world(32);
+      world.tech_level = MAX_TECH_LEVEL;
+      const auto lane = streetNorthSouth ? std::array{site.n(), site.s()} : std::array{site.w(), site.e()};
+      const auto rails = streetNorthSouth ? std::array{site.w(), site.e()} : std::array{site.n(), site.s()};
+      world.buildConstruction(*street, site);
+      for(const auto p : lane) world.buildConstruction(*street, p);
+      for(const auto p : rails) world.buildConstruction(railConstructionGroup, p);
+      CHECK(world.map(site)->getGroup() == street->group);
+      CHECK(world.map(site)->getType() == (streetNorthSouth ? 21 : 22) + frameOffset);
+      CHECK(!(world.map(site)->getConstruction()->flags & FLAG_TRANSPARENT));
+
+      world.bulldozeArea(rails.front());
+      CHECK(world.map(site)->getType() == (streetNorthSouth ? 1 : 0));
+    }
+  }
+}
+
+void bridgeLayoutFrames() {
+  struct Kind { ConstructionGroup& land; ConstructionGroup& bridge; };
+  for(const auto& kind : std::array<Kind, 3>{{
+    {trackConstructionGroup, trackbridgeConstructionGroup},
+    {roadConstructionGroup, roadbridgeConstructionGroup},
+    {railConstructionGroup, railbridgeConstructionGroup}
+  }}) {
+    for(const auto direction : {MapPoint(0, -1), MapPoint(-1, 0), MapPoint(0, 1), MapPoint(1, 0)}) {
+      World world(32);
+      world.tech_level = MAX_TECH_LEVEL;
+      const auto at = [&](int distance) {
+        return MapPoint(site.x + distance * direction.x, site.y + distance * direction.y);
+      };
+      world.map(at(1))->setTerrain(GROUP_WATER);
+      world.buildConstruction(kind.bridge, at(1));
+      CHECK(world.map(at(1))->getType() == 1);
+      world.map(at(2))->setTerrain(GROUP_WATER);
+      world.buildConstruction(kind.bridge, at(2));
+      CHECK(world.map(at(1))->getType() == (direction.x ? 1 : 0));
+      world.buildConstruction(kind.land, at(0));
+      world.map(at(-2))->setTerrain(GROUP_WATER);
+      world.buildConstruction(kind.bridge, at(-2));
+      CHECK(world.map(site)->getType() == (direction.x ? 12 : 11));
+      CHECK(world.map(site)->getConstruction()->flags & FLAG_TRANSPARENT);
+    }
+  }
+}
+
+void transportReplacement() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.total_money = 1000000;
+  const auto* poleTile = world.map(site);
+  world.buildConstruction(powerlineConstructionGroup, site);
+  UserOperation buildRoad{UserOperation::ACTION_BUILD, &roadConstructionGroup};
+  Message::ptr message;
+  CHECK(buildRoad.isAllowedHere(world, site, message));
+  const int beforeRoad = world.total_money;
+  buildRoad.execute(world, site);
+  CHECK(poleTile->getGroup() == GROUP_ROAD);
+  CHECK(world.stats.groupCount[GROUP_POWER_LINE] == 0 && world.stats.groupCount[GROUP_ROAD] == 1);
+  CHECK(world.total_money == beforeRoad - buildRoad.cost(world, site));
+  CHECK(poleTile->getFrames() && poleTile->getFrames()->size() == 2);
+  CHECK(!buildRoad.isAllowedHere(world, site, message));
+  CHECK(dynamic_message_cast<SpaceOccupiedMessage>(message));
+  UserOperation buildTrack{UserOperation::ACTION_BUILD, &trackConstructionGroup};
+  CHECK(!buildTrack.isAllowedHere(world, site, message));
+  CHECK(dynamic_message_cast<SpaceOccupiedMessage>(message));
+
+  const auto waterSite = site.n(4);
+  const auto* waterTile = world.map(waterSite);
+  world.map(waterSite)->setTerrain(GROUP_WATER);
+  buildTrack.execute(world, waterSite);
+  CHECK(waterTile->getGroup() == GROUP_TRACK_BRIDGE);
+  CHECK(buildRoad.isAllowedHere(world, waterSite, message));
+  const int beforeBridge = world.total_money;
+  buildRoad.execute(world, waterSite);
+  CHECK(waterTile->getGroup() == GROUP_ROAD_BRIDGE && waterTile->is_water());
+  CHECK(world.stats.groupCount[GROUP_TRACK_BRIDGE] == 0 && world.stats.groupCount[GROUP_ROAD_BRIDGE] == 1);
+  CHECK(world.total_money == beforeBridge - buildRoad.cost(world, waterSite));
+  CHECK(waterTile->getFrames() && waterTile->getFrames()->size() == 2);
+  world.do_time_step();
+}
+
 void vehicleCrossings() {
   struct Route { MapPoint step; int direction; };
   for(const auto& route : std::array<Route, 4>{{
@@ -326,6 +414,109 @@ void vehicleTurns() {
   }
 }
 
+bool hasVehicle(const World& world) {
+  for(const auto& tile : world.map) {
+    const auto* frames = tile.getFrames();
+    if(frames && std::any_of(frames->begin(), frames->end(), [](const auto& frame) {
+      return frame.resourceGroup->is_vehicle;
+    })) return true;
+  }
+  return false;
+}
+
+bool vehicleCrossesFromRoad(ConstructionGroup& farSide, bool crossingDrawn) {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.buildConstruction(trackConstructionGroup, site);
+  world.buildConstruction(roadConstructionGroup, site.e());
+  world.buildConstruction(railConstructionGroup, site.e(2));
+  world.buildConstruction(farSide, site.e(3));
+  const auto railFrame = world.map(site.e(2))->getType();
+  CHECK(railFrame == (crossingDrawn ? 24 : 0));
+
+  auto* car = new Vehicle(world, site, VEHICLE_BLUECAR);
+  car->update(1);
+  CHECK(hasVehicle(world) && car->point == site.e());
+  car->update(car->anim + 1);
+  if(!hasVehicle(world)) return false;
+  CHECK(car->point == site.e(2));
+  if(crossingDrawn) {
+    car->update(car->anim + 1);
+    CHECK(hasVehicle(world) && car->point == site.e(3));
+  }
+  delete car;
+  return true;
+}
+
+void vehicleUsesRailCrossing() {
+  const bool acceptedRoad = vehicleCrossesFromRoad(roadConstructionGroup, true);
+  const bool acceptedTrack = vehicleCrossesFromRoad(trackConstructionGroup, false);
+  if(!acceptedRoad || acceptedTrack)
+    throw std::runtime_error("Road approach to rail: accepted road exit=" +
+      std::to_string(acceptedRoad) + ", accepted track exit=" + std::to_string(acceptedTrack));
+}
+
+void vehicleCannotFollowRail() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  for(const auto p : {site.w(2), site.w(), site.e()}) world.buildConstruction(roadConstructionGroup, p);
+  for(const auto p : {site, site.n(), site.n(2)}) world.buildConstruction(railConstructionGroup, p);
+  CHECK(world.map(site)->getType() == 24);
+  auto* car = new Vehicle(world, site.w(2), VEHICLE_BLUECAR);
+  car->update(1);
+  CHECK(hasVehicle(world) && car->point == site.w());
+  car->update(car->anim + 1);
+  CHECK(hasVehicle(world) && car->point == site);
+
+  world.bulldozeArea(site.e());
+  car->update(car->anim + 1);
+  CHECK(!hasVehicle(world));
+}
+
+void commuterCargoHeading(VehicleStrategy strategy, int first, int second, int steps) {
+  World world(32);
+  for(const auto& [p, ratio] : {std::pair{site, 100}, {site.e(), first}, {site.e(2), second}}) {
+    trackConstructionGroup.placeItem(world, p);
+    // Vehicle headings compare cargo as a ratio to the capacity of each tile.
+    world.map(p)->getConstruction()->commodityCount[STUFF_LABOR] =
+      (ratio * MAX_LABOR_ON_TRACK + TRANSPORT_QUANTA - 1) / TRANSPORT_QUANTA;
+  }
+  // A car removes itself when the cargo rules leave no admissible heading.
+  auto* car = new Vehicle(world, site, VEHICLE_BLUECAR, strategy);
+  car->update(1);
+  CHECK(hasVehicle(world) == (steps > 0));
+  if(steps == 0) return;
+  CHECK(car->point == site.e() && car->initial_cargo == 100);
+  car->update(car->anim + 1);
+  CHECK(hasVehicle(world) == (steps > 1));
+  if(steps == 1) return;
+  CHECK(car->point == site.e(2));
+  delete car;
+}
+
+void commuterCargoHeadings() {
+  commuterCargoHeading(VEHICLE_STRATEGY_MAXIMIZE, 90, 100, 0);
+  commuterCargoHeading(VEHICLE_STRATEGY_MAXIMIZE, 101, 99, 1);
+  commuterCargoHeading(VEHICLE_STRATEGY_MAXIMIZE, 101, 100, 2);
+  commuterCargoHeading(VEHICLE_STRATEGY_MINIMIZE, 120, 100, 0);
+  commuterCargoHeading(VEHICLE_STRATEGY_MINIMIZE, 101, 102, 1);
+  commuterCargoHeading(VEHICLE_STRATEGY_MINIMIZE, 101, 100, 2);
+}
+
+void vehicleLeavesBulldozedTrack() {
+  World world(32);
+  trackConstructionGroup.placeItem(world, site);
+  trackConstructionGroup.placeItem(world, site.e());
+  world.map(site)->getConstruction()->commodityCount[STUFF_LABOR] = 100;
+  auto* car = new Vehicle(world, site, VEHICLE_BLUECAR, VEHICLE_STRATEGY_MAXIMIZE);
+  world.bulldozeArea(site);
+  car->update(1);
+  CHECK(hasVehicle(world) && car->point == site.e());
+  car->update(car->anim + 1);
+  CHECK(!hasVehicle(world));
+  world.do_time_step();
+}
+
 void transportMaintenance() {
   World world(32);
   const auto rail = site.e(3);
@@ -379,6 +570,70 @@ void transportMaintenance() {
   CHECK(world.map(site)->pollution == pollution + WASTE_BURN_ON_TRANSPORT_POLLUTE);
   const auto fire = dynamic_message_cast<FireStartedMessage>(world.popMessage());
   CHECK(fire && fire->getPoint() == site && fire->getGroup().group == GROUP_ROAD);
+}
+
+void transportWearIntervals() {
+  World world(32);
+  const auto rail = site.e(3);
+  const auto track = site.w(3);
+  roadConstructionGroup.placeItem(world, site);
+  railConstructionGroup.placeItem(world, rail);
+  trackConstructionGroup.placeItem(world, track);
+  for(const auto p : {site, rail, track}) {
+    auto& cargo = world.map(p)->getConstruction()->commodityCount;
+    cargo[STUFF_GOODS] = cargo[STUFF_STEEL] = 4;
+  }
+  auto& roadCargo = world.map(site)->getConstruction()->commodityCount;
+  auto& railCargo = world.map(rail)->getConstruction()->commodityCount;
+  auto& trackCargo = world.map(track)->getConstruction()->commodityCount;
+  struct Case { int day, roadGoods, railGoods, railSteel; };
+  for(const auto& test : {
+    Case{15, 4, 4, 4}, Case{16, 4, 3, 4}, Case{31, 4, 3, 4},
+    Case{32, 3, 2, 4}, Case{127, 3, 2, 4}, Case{128, 2, 1, 3},
+  }) {
+    world.total_time = test.day;
+    for(const auto p : {site, rail, track}) world.map(p)->getConstruction()->update();
+    CHECK(roadCargo[STUFF_GOODS] == test.roadGoods && roadCargo[STUFF_STEEL] == 4);
+    CHECK(railCargo[STUFF_GOODS] == test.railGoods && railCargo[STUFF_STEEL] == test.railSteel);
+    CHECK(roadCargo[STUFF_WASTE] == 4 - test.roadGoods);
+    CHECK(railCargo[STUFF_WASTE] == 8 - test.railGoods - test.railSteel);
+    CHECK(trackCargo[STUFF_GOODS] == 4 && trackCargo[STUFF_STEEL] == 4 && trackCargo[STUFF_WASTE] == 0);
+  }
+}
+
+void controlledWasteBurn() {
+  for(const bool fireCover : {false, true}) {
+    World world(32);
+    roadConstructionGroup.placeItem(world, site);
+    auto& tile = *world.map(site);
+    auto& road = *tile.getConstruction();
+    const auto* frames = tile.getFrames();
+    const auto fire = std::find_if(frames->begin(), frames->end(), [](const auto& frame) {
+      return frame.resourceGroup->resourceID == "Fire";
+    });
+    CHECK(fire != frames->end() && fire->frame == -1);
+    if(fireCover) tile.flags |= FLAG_FIRE_COVER;
+    // The road survives either a controlled draw or protection by firefighters.
+    road.commodityCount[STUFF_WASTE] = 4609;
+    world.total_time = 99;
+    std::istringstream tape("LINCITY-SIMULATION-TRACE 1\nS transport.waste-fire " +
+      std::to_string(fireCover) + "\nC 75\nC 75\nC 75\nC 75\nC 75\nC 75\nZ\n");
+    SimulationTrace trace(tape);
+    road.update();
+    CHECK(road.commodityCount[STUFF_WASTE] == 4509 && road.commodityProdPrev[STUFF_WASTE] == -100);
+    CHECK(tile.getGroup() == GROUP_ROAD && tile.pollution == 50 && !world.popMessage());
+
+    const unsigned long start = 1000;
+    for(int tick = 0; tick < 6; ++tick) {
+      road.animate(start + 50 * tick);
+      CHECK(fire->frame == tick % 5);
+      road.animate(start + 50 * tick + 49);
+      CHECK(fire->frame == tick % 5);
+    }
+    road.animate(start + ANIM_THRESHOLD(WASTE_BURN_TIME));
+    CHECK(fire->frame == -1);
+    trace.finish();
+  }
 }
 
 void inventionThreshold() {
@@ -463,9 +718,18 @@ int main() {
     pollutionAndRecovery();
     sustainability();
     transportFrames();
+    railCrossingFrames();
+    bridgeLayoutFrames();
+    transportReplacement();
     vehicleCrossings();
+    vehicleUsesRailCrossing();
+    vehicleCannotFollowRail();
     vehicleTurns();
+    commuterCargoHeadings();
+    vehicleLeavesBulldozedTrack();
     transportMaintenance();
+    transportWearIntervals();
+    controlledWasteBurn();
     inventionThreshold();
     eventDiagnostics();
   } catch(const std::exception& error) {

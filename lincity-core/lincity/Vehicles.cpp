@@ -280,10 +280,11 @@ bool Vehicle::acceptable_heading(MapPoint dest) {
   if(g != GROUP_TRACK && g != GROUP_ROAD) {
     if(g != GROUP_RAIL) return false;
     if(!world.map.is_visible(dest)) return false;
-    unsigned short g2 = world.map(prev)->getTransportGroup();
-    unsigned short g3 = world.map(MapPoint(2*dest.x-point.x, 2*dest.y-point.y))
+    const auto approach = world.map(point)->getTransportGroup();
+    if(approach != GROUP_TRACK && approach != GROUP_ROAD) return false;
+    const auto exit = world.map(MapPoint(2*dest.x-point.x, 2*dest.y-point.y))
       ->getTransportGroup();
-    if(g2 != g3) return false;
+    if(approach != exit) return false;
   }
 
   //handle trivial case

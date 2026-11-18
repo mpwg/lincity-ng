@@ -90,3 +90,35 @@ diese Meldung bereits. Die beiden hier abgedeckten Randfehler bei Kohlemine
 und Fluss sind durch eigene Tests belegt. Für die übrigen Abstürze liefert das
 Ticket keine bestätigte Ursache. #159 beschreibt das Anlegen eines Flusses
 ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng/issues/369) · [#159](https://github.com/lincity-ng/lincity-ng/issues/159)
+
+## Weitere Randfälle beim Laden, Schließen und Evakuieren
+
+- Wird eine Stadt vor dem nächsten Simulationstag geschlossen, gibt sie
+  abgerissene Gebäude und aktive Fahrzeuge frei. Ein Regressionstest
+  beobachtet den Destruktor eines abgerissenen und eines noch platzierten
+  Gebäudes. Der Fahrzeugtest prüft bei vorbereitetem Arbeitsfluss auch,
+  dass die reduzierte Verkehrsrate einen Wurf ablehnt, der bei normaler
+  Rate ein Fahrzeug startet.
+- Bei fehlgeschlagener Anlage eines XML-Readers konnte der Gzip-Stream
+  doppelt geschlossen werden. Der Aufrufer hält den Stream jetzt bis nach
+  dem Reader-Abbau. Die Persistenztests simulieren auf Linux mit einem
+  Linker mit `--wrap` auch Fehler beim Anlegen des Ausgabepuffers und Writers.
+  In jedem der drei Fälle erwarten sie die jeweilige Diagnose und genau
+  einen Close.
+- Der Sieg durch Raketenstart richtet sich jetzt nach dem verbleibenden
+  Einwohnerbestand. Ein Start, der exakt 1.000 Personen evakuiert, kann
+  die Stadt leeren. Umgekehrt können nach Erreichen der Quote in später
+  besuchten Gebäuden noch Personen wohnen. Die Tests halten
+  Evakuierungsreihenfolge bei der Wiedergabe fest und prüfen die Meldung
+  anhand des tatsächlichen Restbestands. Die
+  Originaltickets beschreiben Wiederverwendung, Wiederherstellung aus
+  Spielständen und den Bereitschaftsdialog. [#241](https://github.com/lincity-ng/lincity-ng/issues/241) · [#153](https://github.com/lincity-ng/lincity-ng/issues/153) · [#363](https://github.com/lincity-ng/lincity-ng/issues/363)
+- Für die Befahrbarkeit eines Bahnübergangs verwendet die Simulation
+  jetzt den unmittelbar anliegenden Zu- und Abgang. Zuvor konnte eine
+  Straße auf beiden Seiten als unpassend gelten, weil das Fahrzeug noch
+  ein Feld weiter hinten auf einem Weg gefahren war. Die Korrektur
+  verhindert auch das Abbiegen aufs Gleis, wenn eine Ausfahrt abgerissen
+  wurde. Der historische Bytevergleich baut dieselbe konkrete Korrektur
+  in die gepinnte Referenz ein. `--original` zeigt Unterschiede zur
+  unveränderten Fahrregel. Diese treten bei `Rocket_98` mit Verkehr bis
+  zum ersten abweichenden Prüfpunkt an Tag 100 auf.

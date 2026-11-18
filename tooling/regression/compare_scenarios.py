@@ -1,11 +1,11 @@
 """Compare current and historical simulation checkpoints on this toolchain."""
 
+import argparse
 import gzip
 import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 import tarfile
 import tempfile
 
@@ -17,7 +17,28 @@ def run(*args, **kwargs):
     return subprocess.run(args, cwd=ROOT, check=True, **kwargs)
 
 
-def prepare_reference(directory):
+def apply_crossing_fix(source):
+    # Keep the byte-for-byte oracle for the current crossing rule. The unmodified
+    # upstream behavior remains available under --original.
+    path = source / "src/lincity/Vehicles.cpp"
+    original = """    unsigned short g2 = world.map(prev)->getTransportGroup();
+    unsigned short g3 = world.map(MapPoint(2*dest.x-point.x, 2*dest.y-point.y))
+      ->getTransportGroup();
+    if(g2 != g3) return false;
+"""
+    corrected = """    const auto approach = world.map(point)->getTransportGroup();
+    if(approach != GROUP_TRACK && approach != GROUP_ROAD) return false;
+    const auto exit = world.map(MapPoint(2*dest.x-point.x, 2*dest.y-point.y))
+      ->getTransportGroup();
+    if(approach != exit) return false;
+"""
+    contents = path.read_text()
+    if contents.count(original) != 1:
+        raise ValueError(f"crossing oracle does not match the pinned source: {path}")
+    path.write_text(contents.replace(original, corrected))
+
+
+def prepare_reference(directory, original_behavior=False):
     source = directory / "reference"
     source.mkdir()
     archive = directory / "reference.tar"
@@ -26,6 +47,8 @@ def prepare_reference(directory):
     with tarfile.open(archive) as tar:
         tar.extractall(source, filter="data")
     archive.unlink()
+    if not original_behavior:
+        apply_crossing_fix(source)
 
     desktop = source / "src" / "lincity-ng"
     shutil.copyfile(Path(__file__).with_name("scenario_trace.cpp"), desktop / "main.cpp")
@@ -79,16 +102,19 @@ def compare(reference, current, directory):
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: python tooling/regression/compare_scenarios.py BUILD_DIR")
-    core_build = Path(sys.argv[1]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("build_dir", type=Path)
+    parser.add_argument("--original", action="store_true",
+                        help="use the original traffic rules without the crossing correction")
+    args = parser.parse_args()
+    core_build = args.build_dir.resolve()
     storage = ROOT / "build"
     storage.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="scenario-parity-", dir=storage) as scratch:
         os.environ["TMPDIR"] = scratch
         directory = Path(scratch)
         run("cmake", "--build", core_build, "--target", "core_scenario_trace")
-        reference = prepare_reference(directory)
+        reference = prepare_reference(directory, original_behavior=args.original)
         current = core_build / "tooling/regression" / (
             "core_scenario_trace.exe" if os.name == "nt" else "core_scenario_trace"
         )

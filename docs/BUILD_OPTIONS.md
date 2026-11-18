@@ -20,7 +20,7 @@ cmake --build build/core
 ctest --test-dir build/core --output-on-failure
 ```
 
-To compare the six bundled scenarios with the original simulation on the
+To compare the six bundled scenarios with the pinned simulation on the
 same compiler and standard library, run the following command after configuring
 from the repository root.
 
@@ -30,7 +30,10 @@ python3 tooling/regression/compare_scenarios.py build/core
 
 The comparison builds the pinned desktop reference in a temporary directory
 under `build/` and requires its desktop build dependencies. It compares saved states and game
-messages with vehicle traffic enabled and disabled.
+messages with vehicle traffic enabled and disabled. The reference build
+includes the corrected road and track approaches to rail crossings. Pass
+`--original` to compare against the uncorrected crossing rule. See the
+[compatibility findings](CORE_PARITY_FINDINGS.md) for the observed difference.
 
 ## CMAKE_BUILD_TYPE
 

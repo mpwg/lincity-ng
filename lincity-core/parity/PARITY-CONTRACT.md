@@ -62,7 +62,9 @@ does not require either random generator.
   Normalize XML indentation, attribute order and map entry order for this
   comparison. Preserve ordered histories and message order. The original
   six-scenario regression separately checks decompressed XML bytes and the
-  legacy message stream against the pinned desktop implementation.
+  legacy message stream against the pinned desktop implementation with the
+  documented rail-crossing correction. The build options describe comparison
+  with the original crossing rule.
 - The small smithy case has a versioned save, timed actions, a decision tape
   and a reviewed daily transcript. Its comparison test also changes a single
   goods value and checks for the first differing day, coordinate and field.
