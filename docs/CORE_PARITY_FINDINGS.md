@@ -183,3 +183,33 @@ ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng
   Überflutung bis zur Meereshöhe, deren Obergrenze und einen vollständigen
   ersten Tag im Starterdorf. Feste Gelände-Referenzwerte gelten wie bei
   den bestehenden Fällen für GCC auf x86-64 mit glibc und libstdc++.
+- Bei großen Karten kann das Tagesintervall für Zufallsbrände auf null
+  abrunden. Die Simulation überspringt Zufallsbrände, wenn der vorgesehene
+  Rest von neun Tagen im Intervall nicht vorkommen kann. Der Test prüft
+  auch den normalen Rhythmus und die Technologieschwelle im Tagesschritt.
+  Im geprüften Issue-Bestand fand sich kein Bericht zu dieser Rechnung.
+- Geländegruppen lehnen Bauvorschau und Bauauftrag ab. In Debug konnte
+  die Gebäude-Factory zuvor mit einer Assertion abbrechen. Die Tests
+  prüfen bei der Ablehnung Karte, Kasse und Änderungsindikatoren. #339 und
+  #159 behandeln Wasser als Spielmechanik und den Anschluss neuer Flüsse.
+  [#339](https://github.com/lincity-ng/lincity-ng/issues/339) · [#159](https://github.com/lincity-ng/lincity-ng/issues/159)
+- Die Migration von Format 2130 prüft die Werte aller historischen
+  Fortschrittsbalken. Fehler in alten Zahlenlisten nennen nun das
+  XML-Feld und bei Fortschrittsbalken dessen ID. Die Gzip- und
+  XML-Diagnosen beim Speichern nennen den Zielpfad. #205 dokumentiert
+  einen früheren Speicherfehler beim Einlesen solcher Balken.
+  [#205](https://github.com/lincity-ng/lincity-ng/issues/205)
+- Die Steuer auf eine Kohlelieferung hängt vom anstoßenden Gebäude ab.
+  Liefert die Straße an die Schmiede, erhöht sich die Steuerbasis um
+  die gelieferte Menge. Holt die Schmiede selbst Kohle von der Straße,
+  wird die Lieferung steuerlich nicht erfasst. Eine einheitliche Regel
+  würde die Wirtschaftssimulation ändern. #231 bestätigt die zufällige
+  Handelsreihenfolge. Ein Ticket zu dieser Steuerdifferenz fand sich
+  im geprüften Bestand nicht. [#231](https://github.com/lincity-ng/lincity-ng/issues/231)
+- Ein überfülltes Gleis aus einem älteren Spielstand konnte beim
+  nächsten Handel Waren in ein evakuierendes Gebäude zurückschieben.
+  Der Handel begrenzt jetzt die freie Kapazität auf mindestens null.
+  Zwei weitere Tests prüfen den Abbau der Überfüllung, sobald ein
+  normaler Transportnachbar Waren aufnehmen kann. #70 betrifft
+  negative Arbeitsbestände nach einer Evakuierung.
+  [#70](https://github.com/lincity-ng/lincity-ng/issues/70)

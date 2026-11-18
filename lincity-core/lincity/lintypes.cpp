@@ -842,7 +842,7 @@ int Construction::equilibrate_stuff(int *rem_lvl, CommodityRule rem_rule, int ra
     }
     else // we are evacuating
     {
-        flow = -(rem_cap-*rem_lvl);
+        flow = -std::max(0, rem_cap - *rem_lvl);
         if (-flow > *loc_lvl)
         {   flow = -*loc_lvl;}
     }

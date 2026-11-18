@@ -2,6 +2,7 @@
 #include "lincity/Vehicles.hpp"
 #include "lincity/lintypes.hpp"
 #include "lincity/modules/blacksmith.hpp"
+#include "lincity/modules/market.hpp"
 #include "lincity/modules/mill.hpp"
 #include "lincity/modules/organic_farm.hpp"
 #include "lincity/modules/residence.hpp"
@@ -11,7 +12,9 @@
 #include "lincity/modules/track_road_rail.hpp"
 #include "lincity/world.hpp"
 #include "util/randutil.hpp"
+#include "util/simulation_trace.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -148,6 +151,8 @@ void verifyEvacuationFit() {
     farm.commodityCount[STUFF_FOOD] = 200;
     track.commodityCount[STUFF_FOOD] = MAX_FOOD_ON_TRACK - 75;
     world.evacuateArea(site);
+    require(farm.tellstuff(STUFF_FOOD, 500) == 200 && farm.tellstuff(STUFF_FOOD, -2) == 18,
+            "evacuation did not distinguish available stock from the vehicle fill ratio");
     (farmTrades ? farm : track).trade();
     if(track.commodityCount[STUFF_FOOD] != MAX_FOOD_ON_TRACK || farm.commodityCount[STUFF_FOOD] != 125)
       throw std::runtime_error(std::string(farmTrades ? "farm" : "track") + " evacuation trade left food " +
@@ -159,6 +164,129 @@ void verifyEvacuationFit() {
     require(farm.commodityProd[STUFF_FOOD] == 0 && track.commodityProd[STUFF_FOOD] == 0,
             "evacuation changed food production counters");
   }
+}
+
+void verifyTradeWithNoReceivingCapacity() {
+  World world(32);
+  const MapPoint site(12, 12);
+  const auto homeSite = site.w(3);
+  organic_farmConstructionGroup.placeItem(world, site);
+  residenceLLConstructionGroup.placeItem(world, homeSite);
+  auto& farm = *world.map(site)->getConstruction();
+  auto& home = *world.map(homeSite)->getConstruction();
+  world.evacuateArea(site);
+  world.evacuateArea(homeSite);
+  farm.commodityCount[STUFF_FOOD] = 200;
+  home.commodityCount[STUFF_FOOD] = 75;
+  farm.trade();
+  home.trade();
+  require(farm.commodityCount[STUFF_FOOD] == 200 && home.commodityCount[STUFF_FOOD] == 75,
+          "two evacuating buildings traded into a network without receiving capacity");
+}
+
+void verifyTradeTaxesAndOutgoingCommuter() {
+  World world(32);
+  const MapPoint site(12, 12);
+  const auto smithySite = site.w(2);
+  const auto homeSite = site.n(3);
+  roadConstructionGroup.placeItem(world, site);
+  blacksmithConstructionGroup.placeItem(world, smithySite);
+  residenceLLConstructionGroup.placeItem(world, homeSite);
+  auto& road = *world.map(site)->getConstruction();
+  auto& smithy = *world.map(smithySite)->getConstruction();
+  auto& home = *world.map(homeSite)->getConstruction();
+  world.vehicleTraffic = World::VehicleTraffic::Normal;
+  struct Delivery { Commodity commodity; Construction& recipient; int supply, moved; };
+  const Delivery deliveries[] = {
+    {STUFF_LABOR, smithy, 5120, 615}, {STUFF_COAL, smithy, 512, 19},
+    {STUFF_GOODS, home, 10240, 476}, {STUFF_FOOD, home, 8192, 891},
+  };
+  for(const auto& delivery : deliveries)
+    road.commodityCount[delivery.commodity] = delivery.supply;
+  {
+    std::istringstream draws("LINCITY-SIMULATION-TRACE 1\nC 0\nZ\n");
+    SimulationTrace trace(draws);
+    road.trade();
+    trace.finish();
+  }
+  for(const auto& [commodity, recipient, supply, moved] : deliveries) {
+    require(recipient.commodityCount[commodity] == moved && road.commodityCount[commodity] == supply - moved,
+            "road delivery changed stock by the wrong amount");
+    require(recipient.commodityProd[commodity] == 0 && road.commodityProd[commodity] == 0,
+            "trade was recorded as local production");
+  }
+  require(world.taxable.labor == 615 && world.taxable.coal == 19 && world.taxable.goods == 476,
+          "consumer deliveries were recorded under the wrong tax bases");
+  require(smithy.tellstuff(STUFF_COAL, 949) == -1 && smithy.tellstuff(STUFF_COAL, 950) == 950,
+          "consumer offered coal to a less full source");
+
+  // Open a lower-labor route after the delivery. An outgoing commuter can
+  // move onto it while an incoming commuter would have no permissible route.
+  trackConstructionGroup.placeItem(world, site.e());
+  world.do_animate(1);
+  const bool active = std::any_of(world.map.begin(), world.map.end(), [](const auto& tile) {
+    const auto* frames = tile.getFrames();
+    return frames && std::any_of(frames->begin(), frames->end(), [](const auto& frame) {
+      return frame.resourceGroup && frame.resourceGroup->is_vehicle;
+    });
+  });
+  require(active, "outgoing commuter did not follow the lower-labor route");
+}
+
+void verifyMarketInventoryIsUntaxed() {
+  World world(32);
+  const MapPoint site(12, 12);
+  roadConstructionGroup.placeItem(world, site);
+  marketConstructionGroup.placeItem(world, site.e());
+  auto& road = *world.map(site)->getConstruction();
+  auto& market = *world.map(site.e())->getConstruction();
+  road.commodityCount[STUFF_GOODS] = 10240;
+  road.commodityCount[STUFF_COAL] = 512;
+  road.trade();
+  require(market.commodityCount[STUFF_GOODS] == 1280 && road.commodityCount[STUFF_GOODS] == 8960,
+          "market did not receive goods at the transport rate limit");
+  require(market.commodityCount[STUFF_COAL] == 64 && road.commodityCount[STUFF_COAL] == 448,
+          "market did not receive coal at the transport rate limit");
+  require(world.taxable.goods == 0 && world.taxable.coal == 0 && world.taxable.labor == 0,
+          "warehouse delivery was taxed as consumption");
+}
+
+void verifyTransportExchangeNearCapacity() {
+  struct Case { int initialTrack, finalTrack, finalRail; };
+  // Older builds could save over-capacity inventory after evacuation trade.
+  for(const auto& test : {Case{2172, 1916, 32768}, Case{2000, 1792, 32720}}) {
+    World world(32);
+    const MapPoint site(12, 12);
+    trackConstructionGroup.placeItem(world, site);
+    railConstructionGroup.placeItem(world, site.w());
+    trackConstructionGroup.placeItem(world, site.e());
+    auto& center = *world.map(site)->getConstruction();
+    auto& trackFood = center.commodityCount[STUFF_FOOD];
+    auto& railFood = world.map(site.w())->getConstruction()->commodityCount[STUFF_FOOD];
+    auto& eastFood = world.map(site.e())->getConstruction()->commodityCount[STUFF_FOOD];
+    trackFood = test.initialTrack;
+    railFood = MAX_FOOD_ON_RAIL;
+    center.trade();
+    require(railFood == test.finalRail, "full rails delivered beyond the receiving track's capacity");
+    require(trackFood == test.finalTrack && eastFood == 256, "track did not drain into the available track");
+    require(world.taxable.labor == 0 && world.taxable.coal == 0 && world.taxable.goods == 0,
+            "stock redistribution across transport affected taxes");
+  }
+}
+
+void verifyOldOverflowCannotSupplyEvacuatingNeighbor() {
+  World world(32);
+  const MapPoint site(12, 12);
+  organic_farmConstructionGroup.placeItem(world, site);
+  trackConstructionGroup.placeItem(world, site.w());
+  auto& farm = *world.map(site)->getConstruction();
+  auto& track = *world.map(site.w())->getConstruction();
+  farm.commodityCount[STUFF_FOOD] = 200;
+  track.commodityCount[STUFF_FOOD] = 2172;
+  world.evacuateArea(site);
+  track.trade();
+  require(farm.commodityCount[STUFF_FOOD] == 200 && track.commodityCount[STUFF_FOOD] == 2172,
+          "overfull track sent food back into an evacuating farm");
 }
 
 void verifyBlacksmith() {
@@ -324,6 +452,49 @@ void verifyPowerCableLimits() {
   require(!(world.map(site.n())->flags & FLAG_POWER_CABLES_0), "removed north cable survived");
 }
 
+void verifyPowerlineRelay() {
+  World world(32);
+  const MapPoint site(12, 12);
+  const auto plantSite = site.w(4);
+  solarPowerConstructionGroup.placeItem(world, plantSite);
+  powerlineConstructionGroup.placeItem(world, site);
+  powerlineConstructionGroup.placeItem(world, site.e());
+  world.map.connect_transport(6, 10, 16, 16);
+  auto& plant = *world.map(plantSite)->getConstruction();
+  auto& feeder = dynamic_cast<Powerline&>(*world.map(site)->getConstruction());
+  auto& relay = dynamic_cast<Powerline&>(*world.map(site.e())->getConstruction());
+  {
+    std::istringstream noDraws("LINCITY-SIMULATION-TRACE 1\nZ\n");
+    SimulationTrace trace(noDraws);
+    feeder.trade();
+    trace.finish();
+  }
+  require(feeder.anim_counter == 0 && relay.anim_counter == 0,
+          "a generator without stored power started a powerline pulse");
+
+  plant.commodityCount[STUFF_HIVOLT] = 9000;
+  {
+    std::istringstream draws("LINCITY-SIMULATION-TRACE 1\nC 0\nZ\n");
+    SimulationTrace trace(draws);
+    feeder.trade();
+    trace.finish();
+  }
+  require(feeder.anim_counter == POWER_MODULUS && relay.anim_counter == 0,
+          "powered feeder did not start a pulse before its relay");
+  feeder.animate(100);
+  require(feeder.flashing, "the feeder pulse was not visible");
+  feeder.trade();
+  require(relay.anim_counter == POWER_MODULUS, "the pulse did not reach the neighboring powerline");
+  relay.animate(100);
+  feeder.trade();
+  require(relay.flashing && relay.anim_counter == POWER_MODULUS - 1,
+          "a pulse already in progress was restarted");
+  require(relay.commodityCount[STUFF_HIVOLT] > 0 &&
+          plant.commodityCount[STUFF_HIVOLT] + feeder.commodityCount[STUFF_HIVOLT] +
+            relay.commodityCount[STUFF_HIVOLT] == 9000,
+          "powerline trade created or lost electricity before the daily power loss tick");
+}
+
 void verifyRegistryDiagnostics() {
   World world(32);
   auto duplicate = blacksmithConstructionGroup;
@@ -417,10 +588,16 @@ int main() {
     verifyPlacementPreflight();
     verifyPlacementFactoryFailures();
     verifyEvacuationFit();
+    verifyTradeWithNoReceivingCapacity();
+    verifyTradeTaxesAndOutgoingCommuter();
+    verifyMarketInventoryIsUntaxed();
+    verifyTransportExchangeNearCapacity();
+    verifyOldOverflowCannotSupplyEvacuatingNeighbor();
     verifyInventoryAndProductionReport();
     verifyResidenceFootprints();
     verifyDetachedConstructionLifetime();
     verifyPowerCableLimits();
+    verifyPowerlineRelay();
     verifyMill(STUFF_COAL, COAL_USED_BY_MILL);
     verifyMill(STUFF_LOVOLT, COAL_USED_BY_MILL * MILL_POWER_PER_COAL);
     verifySolarPower(0, POWERS_SOLAR_OUTPUT);
