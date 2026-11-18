@@ -55,6 +55,46 @@ void queryAndBoundaries() {
   }
 }
 
+void commandEntryPoints() {
+  World world(32);
+  const MapPoint border(0, 8);
+  Message::ptr reason;
+  for(auto action : {UserOperation::ACTION_QUERY, UserOperation::ACTION_BULLDOZE,
+                     UserOperation::ACTION_EVACUATE, UserOperation::ACTION_FLOOD}) {
+    UserOperation command{action};
+    CHECK(command.isAllowed(world, reason) && !reason);
+  }
+  for(auto execute : {&World::bulldozeArea, &World::evacuateArea, &World::floodArea}) {
+    bool rejected = false;
+    try {
+      (world.*execute)(border);
+    } catch(const OutsideMapMessage::Exception& error) {
+      rejected = error.getMessage()->getPoint() == border;
+    }
+    CHECK(rejected);
+  }
+  CHECK(!world.setMarketTrade(border, STUFF_FOOD, true, false));
+  CHECK(!world.launchRocket(border));
+  CHECK(!world.isUpdated(World::Updatable::MAP));
+
+  world.total_money = 100000;
+  const MapPoint edge(30, 30);
+  UserOperation market{UserOperation::ACTION_BUILD, &marketConstructionGroup};
+  CHECK(market.isAllowed(world, reason));
+  CHECK(!market.isAllowedHere(world, edge, reason));
+  const auto outOfMap = dynamic_message_cast<OutsideMapMessage>(reason);
+  CHECK(outOfMap && outOfMap->getPoint() == edge);
+  checkRejected<CannotBuildHereMessage>(market, world, edge);
+  CHECK(world.total_money == 100000 && world.map.constructionCount() == 0);
+
+  world.map(site)->setTerrain(GROUP_DESERT);
+  UserOperation bulldoze{UserOperation::ACTION_BULLDOZE};
+  CHECK(bulldoze.isAllowedHere(world, site, reason));
+  CHECK(bulldoze.cost(world, site) == 0);
+  bulldoze.execute(world, site);
+  CHECK(world.total_money == 100000 && world.map(site)->group == GROUP_DESERT);
+}
+
 void moveOverlayFrame() {
   World world(32);
   auto& source = *world.map(site);
@@ -405,6 +445,7 @@ int main() {
   initializeModules();
   try {
     queryAndBoundaries();
+    commandEntryPoints();
     windSelection();
     moveOverlayFrame();
     floodAndTransport();
