@@ -7,12 +7,12 @@ use crate::rules::{DAYS_PER_MONTH, commune::*};
 pub(super) struct Commune {
     pub(super) wet_tiles: i32,
     monthly_output: i32,
-    last_output: i32,
-    idle_months: i32,
+    pub(super) last_output: i32,
+    pub(super) idle_months: i32,
     animate_enabled: bool,
     steel_made: bool,
     next_frame: u64,
-    frame: u8,
+    pub(super) frame: u8,
 }
 
 impl Commune {

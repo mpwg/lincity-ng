@@ -65,9 +65,11 @@ fn unfunded_recycling_still_burns_waste_after_month_close() {
 
 #[test]
 fn tip_degrades_reserves_before_refilling_the_inbox() {
-    let mut tip = Landfill::default();
-    tip.buried = 250;
-    tip.degradation = 239999;
+    let mut tip = Landfill {
+        buried: 250,
+        degradation: 239999,
+        ..Landfill::default()
+    };
     let mut stock = [0; 10];
     let mut counts = ProductionCounters::default();
     let mut shift = Stock::new(&mut stock, &mut counts);

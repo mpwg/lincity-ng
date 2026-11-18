@@ -1,6 +1,6 @@
 use super::*;
 use crate::Commodity::{self, Goods, HighVoltage, Labor, LowVoltage, Steel, Waste};
-use crate::rules::{DAYS_PER_MONTH, power::LINE_MODULUS, transport::*};
+use crate::rules::{DAYS_PER_MONTH, transport::*};
 
 mod topology;
 mod vehicles;
@@ -141,9 +141,8 @@ impl City {
                     if flashing
                         && let Operation::Line(neighbor) =
                             &mut self.buildings.get_mut(peer).unwrap().operation
-                        && neighbor.counter <= LINE_MODULUS / 3
                     {
-                        neighbor.counter = LINE_MODULUS;
+                        neighbor.receive_flash();
                     }
                 } else if other.kind.metadata().rule(HighVoltage).give
                     && other.stock[HighVoltage as usize] > 0

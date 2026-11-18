@@ -1,17 +1,28 @@
-//! Record or replay a LinCity scenario, emitting daily observations and checkpoint saves.
+//! Record or replay a LinCity scenario with a version-one decision tape.
+//!
+//! ```text
+//! rustcity-replay record|replay TAPE SCENARIO traffic|reduced|no-traffic DAYS ACTIONS|- OUTPUT_DIR
+//! ```
+//!
+//! Action files contain a relative day, verb, and tile coordinates on each line.
+//! Building also requires a numeric group ID. Use `-` for a run without actions.
+//! The output directory receives `state.tsv` and gzip saves on days zero, one,
+//! the first month boundary, and the final requested day. Invalid invocations
+//! exit with status 2. A failed run exits with status 1.
 use rustcity_core::decisions::Decisions;
 use rustcity_core::{
     Action, ActionError, BuildDenial, BuildingKind, City, CityEvent, Commodity, Point,
     VehicleTraffic,
 };
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::{env, fs, io};
 
 const RECORDING_SEED: u64 = 714;
 const MILLIS_PER_SIMULATED_DAY: u64 = 1000;
-const CHECKPOINT_DAYS: [u32; 3] = [0, 1, 100];
+const CHECKPOINT_DAYS: [u32; 3] = [0, 1, rustcity_core::DAYS_PER_MONTH as u32];
+const USAGE: &str = "usage: rustcity-replay record|replay TAPE SCENARIO traffic|reduced|no-traffic DAYS ACTIONS|- OUTPUT_DIR";
 
 fn invalid(msg: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, msg.into())
@@ -19,7 +30,7 @@ fn invalid(msg: impl Into<String>) -> io::Error {
 
 struct Command {
     day: u32,
-    action: Action,
+    action: Option<Action>,
     point: Point,
     verb: String,
 }
@@ -30,13 +41,18 @@ fn commands(path: &str, days: u32) -> io::Result<Vec<Command>> {
         return Ok(cmds);
     }
     let mut previous = 1;
-    for (i, line) in fs::read_to_string(path)?.lines().enumerate() {
+    let mut text = String::new();
+    fs::File::open(path)
+        .map_err(|_| invalid(format!("cannot open actions: {path}")))?
+        .read_to_string(&mut text)
+        .map_err(|_| invalid("error reading actions"))?;
+    for (i, line) in text.lines().enumerate() {
         let text = line.trim();
         if text.is_empty() || text.starts_with('#') {
             continue;
         }
         let fields: Vec<_> = text.split_ascii_whitespace().collect();
-        let err = || invalid(format!("invalid action at line {}", i + 1));
+        let err = || invalid(format!("invalid action or day at line {}", i + 1));
         let [day, verb, x, y, extra @ ..] = fields.as_slice() else {
             return Err(err());
         };
@@ -44,20 +60,29 @@ fn commands(path: &str, days: u32) -> io::Result<Vec<Command>> {
         if day < previous || day > days {
             return Err(err());
         }
-        let action = match (*verb, extra) {
-            ("build", [id]) => Action::Build(
-                BuildingKind::from_id(id.parse().map_err(|_| err())?).ok_or_else(err)?,
-            ),
-            ("bulldoze", []) => Action::Bulldoze,
-            ("evacuate", []) => Action::Evacuate,
-            ("query", []) => Action::Query,
-            ("flood", []) => Action::Flood,
-            _ => return Err(err()),
-        };
         let point = Point {
             x: x.parse().map_err(|_| err())?,
             y: y.parse().map_err(|_| err())?,
         };
+        let (action, remaining) = match *verb {
+            "build" => {
+                let bad_group = || invalid(format!("invalid group at line {}", i + 1));
+                let (id, remaining) = extra.split_first().ok_or_else(bad_group)?;
+                let id: u16 = id.parse().map_err(|_| bad_group())?;
+                if usize::from(id) >= BuildingKind::GROUP_SLOTS {
+                    return Err(bad_group());
+                }
+                (BuildingKind::from_id(id).map(Action::Build), remaining)
+            }
+            "bulldoze" => (Some(Action::Bulldoze), extra),
+            "evacuate" => (Some(Action::Evacuate), extra),
+            "query" => (Some(Action::Query), extra),
+            "flood" => (Some(Action::Flood), extra),
+            unknown => return Err(invalid(format!("unknown action: {unknown}"))),
+        };
+        if !remaining.is_empty() {
+            return Err(invalid(format!("extra input at line {}", i + 1)));
+        }
         cmds.push(Command {
             day,
             action,
@@ -83,9 +108,17 @@ fn reason(city: &City, action: Action, p: Point, error: &ActionError) -> String 
         ),
         DesertHere(p) => format!("desert-here {}", loc(p)),
         RequiresRiver => "port-requires-river".into(),
-        IncompleteMonument(p) => format!("incomplete-monument {} group=25", loc(p)),
-        ProtectedFire(p) => format!("protected-building {} group=34", loc(p)),
-        NonemptyTip(p) => format!("nonempty-tip {} group=16", loc(p)),
+        IncompleteMonument(p) => format!(
+            "incomplete-monument {} group={}",
+            loc(p),
+            BuildingKind::Monument.id()
+        ),
+        ProtectedFire(p) => format!(
+            "protected-building {} group={}",
+            loc(p),
+            BuildingKind::Fire.id()
+        ),
+        NonemptyTip(p) => format!("nonempty-tip {} group={}", loc(p), BuildingKind::Tip.id()),
         NoOre => "no-ore".into(),
         OutOfMoney => "out-of-money credit-exhausted=1".into(),
         BuildDenied(BuildDenial::OutOfMoney) => "out-of-money credit-exhausted=0".into(),
@@ -105,24 +138,27 @@ fn reason(city: &City, action: Action, p: Point, error: &ActionError) -> String 
 }
 
 fn execute(city: &mut City, out: &mut impl Write, i: usize, c: &Command) -> io::Result<()> {
+    let action = c
+        .action
+        .ok_or_else(|| invalid("unregistered building group"))?;
     let p = c.point;
     let key = format!("{}\taction[{i}].{}({},{})", c.day, c.verb, p.x, p.y);
-    let allowed = city.preview(c.action, p);
+    let allowed = city.preview(action, p);
     writeln!(out, "{key}\tallowed\t{}", u8::from(allowed.is_ok()))?;
     if let Err(e) = allowed {
-        writeln!(out, "{key}\treason\t{}", reason(city, c.action, p, &e))?;
+        writeln!(out, "{key}\treason\t{}", reason(city, action, p, &e))?;
     }
-    let quote = city.quote(c.action, p);
+    let quote = city.quote(action, p);
     if let Some(quote) = quote {
         writeln!(out, "{key}\tquote\t{quote}")?;
     }
     let before = city.balance();
-    let result = match city.apply(c.action, p) {
+    let result = match city.apply(action, p) {
         Ok(()) => "ok".into(),
         Err(ActionError::DecisionTrace(msg)) => return Err(invalid(msg)),
         Err(error) => {
-            let detail = reason(city, c.action, p, &error);
-            match c.action {
+            let detail = reason(city, action, p, &error);
+            match action {
                 Action::Build(kind)
                     if quote.is_some() && !matches!(error, ActionError::OutOfMoney) =>
                 {
@@ -144,7 +180,7 @@ fn execute(city: &mut City, out: &mut impl Write, i: usize, c: &Command) -> io::
     writeln!(out, "{key}\tmoney_delta\t{}", city.balance() - before)
 }
 
-type Inventories = BTreeMap<(i32, i32), (BuildingKind, [i32; 10])>;
+type Inventories = BTreeMap<(i32, i32), (BuildingKind, [i32; Commodity::ALL.len()])>;
 
 fn snapshot(
     day: u32,
@@ -199,13 +235,13 @@ fn snapshot(
     Ok(())
 }
 
-fn run(args: &[String]) -> io::Result<()> {
-    let [mode, tape, scenario, profile, days, actions, directory] = args else {
-        return Err(invalid(
-            "usage: rustcity-replay record|replay TAPE SCENARIO traffic|reduced|no-traffic DAYS ACTIONS|- OUTPUT_DIR",
-        ));
-    };
-    let days: u32 = days.parse().map_err(|_| invalid("invalid day count"))?;
+fn run([mode, tape, scenario, profile, days, actions, directory]: &[String; 7]) -> io::Result<()> {
+    let days = days
+        .parse::<i32>()
+        .ok()
+        .filter(|_| !days.starts_with('+'))
+        .and_then(|days| u32::try_from(days).ok())
+        .ok_or_else(|| invalid("invalid day count"))?;
     let profile = match profile.as_str() {
         "traffic" => VehicleTraffic::Normal,
         "reduced" => VehicleTraffic::Reduced,
@@ -213,15 +249,19 @@ fn run(args: &[String]) -> io::Result<()> {
         _ => return Err(invalid("invalid traffic profile")),
     };
     let actions = commands(actions, days)?;
-    let decisions = match mode.as_str() {
-        "record" => Decisions::record(RECORDING_SEED, fs::File::create(tape)?)?,
-        "replay" => Decisions::replay(BufReader::new(fs::File::open(tape)?))?,
-        _ => return Err(invalid("invalid replay mode")),
-    };
-    let mut city = City::load_with_decisions(fs::File::open(scenario)?, decisions)?;
-    city.set_vehicle_traffic(profile);
     let dir = Path::new(directory);
     fs::create_dir_all(dir)?;
+    let decisions = match mode.as_str() {
+        "record" => Decisions::record(RECORDING_SEED, fs::File::create(tape)?)?,
+        "replay" => Decisions::replay(BufReader::new(
+            fs::File::open(tape).map_err(|_| invalid("cannot open decision tape"))?,
+        ))?,
+        _ => return Err(invalid("invalid mode")),
+    };
+    let input = fs::File::open(scenario)
+        .map_err(|_| invalid(format!("failed to open file: {scenario}")))?;
+    let mut city = City::load_with_decisions(input, decisions)?;
+    city.set_vehicle_traffic(profile);
     let mut out = BufWriter::new(fs::File::create(dir.join("state.tsv"))?);
     let mut previous = Inventories::new();
     let mut next = 0;
@@ -266,7 +306,11 @@ fn run(args: &[String]) -> io::Result<()> {
 }
 
 fn main() {
-    if let Err(error) = run(&env::args().skip(1).collect::<Vec<_>>()) {
+    let Ok(args) = env::args().skip(1).collect::<Vec<_>>().try_into() else {
+        eprintln!("{USAGE}");
+        std::process::exit(2);
+    };
+    if let Err(error) = run(&args) {
         eprintln!("{error}");
         std::process::exit(1);
     }

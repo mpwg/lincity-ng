@@ -11,6 +11,25 @@ pub struct CityReport {
     pub housed_acc: i32,
     pub population_acc: i32,
     pub tech_level: i32,
+    pub rockets_launched: i32,
+    pub successful_launches: i32,
+}
+
+/// Read-only state of the selected building, borrowed until the next city mutation.
+#[derive(Debug)]
+pub struct BuildingState<'city> {
+    pub origin: Point,
+    pub kind: BuildingKind,
+    pub evacuating: bool,
+    pub ready_to_launch: bool,
+    inventory: &'city [i32; Commodity::ALL.len()],
+}
+
+impl BuildingState<'_> {
+    /// Amount of a commodity currently in storage.
+    pub fn stock(&self, commodity: Commodity) -> i32 {
+        self.inventory[commodity as usize]
+    }
 }
 
 /// Terrain, deposits and service coverage at a single map coordinate.
@@ -122,9 +141,27 @@ impl City {
         }
     }
 
+    /// Extends the population, unemployment, starvation and homeless histories for charting.
+    /// Shorter requests preserve the existing samples.
+    pub fn ensure_population_history(&mut self, months: usize) {
+        self.stats.ensure_population_history(months);
+    }
+
     /// City accounts including period totals, inventory, demographics and their histories.
     pub fn statistics(&self) -> &crate::stats::Stats {
         &self.stats
+    }
+
+    /// Selects the building occupying any square of its footprint.
+    pub fn building_state(&self, point: Point) -> Option<BuildingState<'_>> {
+        let (origin, b) = self.buildings.get(self.buildings.at(point)?)?;
+        Some(BuildingState {
+            origin,
+            kind: b.kind,
+            evacuating: b.evacuating,
+            inventory: &b.stock,
+            ready_to_launch: matches!(&b.operation, Operation::Rocket(r) if r.ready_to_launch()),
+        })
     }
 
     /// Snapshot of the current day, treasury, population and technology.
@@ -136,6 +173,8 @@ impl City {
             housed_acc: self.stats.population.housed_m.acc,
             population_acc: self.stats.population.population_m.acc,
             tech_level: self.tech_level,
+            rockets_launched: self.rockets_launched,
+            successful_launches: self.rockets_successful,
         }
     }
 

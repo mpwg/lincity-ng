@@ -118,6 +118,9 @@ pub enum BuildDenial {
 }
 
 impl BuildingKind {
+    /// Number of slots in the persisted group table, including terrain and unused IDs.
+    pub const GROUP_SLOTS: usize = Self::ParkPond as usize + 1;
+
     /// All registered construction groups in numeric save-file order.
     pub const ALL: [Self; 43] = [
         Self::PowerLine,
@@ -194,10 +197,64 @@ impl BuildingKind {
             .find(|kind| kind.metadata().resource == resource)
     }
 
+    pub(crate) fn technology_variant(self, tech_level: i32) -> Self {
+        match self {
+            Self::Windmill | Self::WindPower
+                if tech_level >= Self::WindPower.metadata().required_tech =>
+            {
+                Self::WindPower
+            }
+            Self::Windmill | Self::WindPower => Self::Windmill,
+            other => other,
+        }
+    }
+
+    /// Remaining inventions in announcement order, excluding technologies already reached.
+    pub fn inventions_after(tech_level: i32) -> impl Iterator<Item = Self> {
+        use BuildingKind::*;
+        let mut milestones = [
+            Pottery,
+            Monument,
+            Waterwell,
+            Commune,
+            OrganicFarm,
+            Track,
+            ResidenceHighLow,
+            OreMine,
+            Tip,
+            Market,
+            School,
+            Parkland,
+            Blacksmith,
+            Cricket,
+            FireStation,
+            Mill,
+            Windmill,
+            Port,
+            Road,
+            CoalMine,
+            Health,
+            University,
+            LightIndustry,
+            HeavyIndustry,
+            Rail,
+            CoalPower,
+            Recycle,
+            ResidenceHighHigh,
+            WindPower,
+            SolarPower,
+            RocketPad,
+        ];
+        milestones.sort_by_key(|kind| kind.metadata().required_tech);
+        milestones
+            .into_iter()
+            .filter(move |kind| kind.metadata().required_tech > tech_level)
+    }
+
     pub fn cost(self, tech_level: i32) -> i32 {
         let m = self.metadata();
         let scaled = m.cost_multiplier * tech_level;
-        (m.base_cost as f32 * (1.0 + scaled as f32 / 1_000_000.0)) as i32
+        (m.base_cost as f32 * (1.0 + scaled as f32 / crate::rules::MAX_TECH_LEVEL as f32)) as i32
     }
 
     /// Check city-wide requirements before inspecting the proposed site.
@@ -208,7 +265,9 @@ impl BuildingKind {
         schools: u32,
         universities: u32,
     ) -> Result<(), BuildDenial> {
-        if self == Self::University && schools / 4 <= universities {
+        if self == Self::University
+            && schools / crate::rules::civic::SCHOOLS_PER_UNIVERSITY <= universities
+        {
             return Err(BuildDenial::NotEnoughStudents);
         }
         if tech_level < self.metadata().required_tech {

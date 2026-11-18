@@ -10,12 +10,13 @@ mod market;
 mod persistence;
 mod port;
 mod rocket;
+mod search;
+pub use search::Landform;
 use crate::buildings::{BuildingId, Buildings};
 use crate::decisions::{Decisions, PlacementId, VisitPhase};
 use crate::stats::Stats;
 use crate::{BuildDenial, BuildingKind};
 use std::{collections::BTreeMap, io};
-const MIN_ORE_FOR_MINE: i64 = 1000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Point {
@@ -109,6 +110,8 @@ enum Operation {
 }
 
 struct Building {
+    sprite_resource: &'static str,
+    sprite_frame: i32,
     transparent: bool,
     installed_tech: i32,
     neighbors: Vec<crate::buildings::BuildingId>,
@@ -119,9 +122,11 @@ struct Building {
     saved: Option<crate::save::Element>,
     kind: BuildingKind,
     evacuating: bool,
+    never_evacuate: bool,
 }
 
 impl Building {
+    #[cfg(test)]
     fn new(kind: BuildingKind) -> Self {
         Self::installed(kind, 0)
     }
@@ -144,6 +149,8 @@ impl Building {
         };
         Self {
             installed_tech: tech,
+            sprite_resource: kind.metadata().resource,
+            sprite_frame: 0,
             transparent: matches!(kind, PowerLine | TrackBridge | RailBridge | RoadBridge),
             operation,
             production: Default::default(),
@@ -153,6 +160,7 @@ impl Building {
             stock: [0; 10],
             saved: None,
             evacuating: false,
+            never_evacuate: kind.is_transport() || matches!(kind, PowerLine | Parkland | ParkPond | Tip | Shanty),
         }
     }
 }
@@ -245,7 +253,7 @@ impl City {
                 Operation::Farm(farm) => farm.groundwater = wet_tiles,
                 Operation::Commune(c) => c.wet_tiles = wet_tiles,
                 Operation::Civic(civic::Civic::Well(output)) => {
-                    *output = wet_tiles * crate::rules::civic::WELL_WATER_PER_WET_TILE
+                    output.output = wet_tiles * crate::rules::civic::WELL_WATER_PER_WET_TILE
                 }
                 _ => unreachable!(),
             }
@@ -283,7 +291,7 @@ impl City {
     pub fn empty_with_decisions(side: i32, decisions: Decisions) -> Result<Self, MapSizeError> {
         let area = side
             .checked_mul(side)
-            .filter(|_| side >= 3)
+            .filter(|_| side >= crate::rules::MIN_MAP_SIDE)
             .ok_or(MapSizeError)?;
         let mut tiles = Vec::new();
         tiles
@@ -424,27 +432,25 @@ impl City {
                     Rail
                 }
             }
-            Windmill | WindPower => {
-                if self.tech_level >= WindPower.metadata().required_tech {
-                    WindPower
-                } else {
-                    Windmill
-                }
-            }
-            other => other,
+            other => other.technology_variant(self.tech_level),
         }
     }
 
-    fn quote_build(&self, kind: BuildingKind, point: Point) -> Result<i32, ActionError> {
+    /// Checks technology, treasury and school requirements without selecting a site.
+    pub fn can_build(&self, kind: BuildingKind) -> Result<(), BuildDenial> {
         use BuildingKind::*;
-        let kind = self.actual_kind(kind, point);
-        kind.can_build(
+        kind.technology_variant(self.tech_level).can_build(
             self.tech_level,
             self.balance,
             self.stats.group_count[School.id() as usize],
             self.stats.group_count[University.id() as usize],
         )
-        .map_err(ActionError::BuildDenied)?;
+    }
+
+    fn quote_build(&self, kind: BuildingKind, point: Point) -> Result<i32, ActionError> {
+        use BuildingKind::*;
+        let kind = self.actual_kind(kind, point);
+        self.can_build(kind).map_err(ActionError::BuildDenied)?;
         let size = i32::from(kind.metadata().size);
         if point.x >= self.side - size || point.y >= self.side - size {
             return Err(ActionError::OutsideMap(point));
@@ -471,7 +477,7 @@ impl City {
         if matches!(kind, ParkPond | Parkland | Waterwell) && !groundwater {
             return Err(ActionError::DesertHere(point));
         }
-        if kind == OreMine && ore < MIN_ORE_FOR_MINE {
+        if kind == OreMine && ore < i64::from(crate::rules::industry::ORE_RESERVE) {
             return Err(ActionError::NoOre);
         }
         if kind == Port
@@ -493,27 +499,9 @@ impl City {
         match action {
             Action::Build(kind) => self.quote_build(kind, point),
             Action::Query => Ok(0),
-            Action::Evacuate => match self.building_at(point) {
+            Action::Evacuate => match self.buildings.at(point).and_then(|id| self.buildings.get(id)) {
                 None => Err(ActionError::NothingToEvacuate(point)),
-                Some((BuildingKind::Monument,_)) if self.buildings.at(point).and_then(|id|self.buildings.get(id)).is_some_and(|(_,b)|matches!(&b.operation,Operation::Civic(civic::Civic::Monument(m)) if m.completed))=> Err(ActionError::CannotEvacuate(point)),
-                Some((kind, _))
-                    if matches!(
-                        kind,
-                        BuildingKind::Parkland
-                            | BuildingKind::ParkPond
-                            | BuildingKind::Road
-                            | BuildingKind::Rail
-                            | BuildingKind::Track
-                            | BuildingKind::RoadBridge
-                            | BuildingKind::RailBridge
-                            | BuildingKind::TrackBridge
-                            | BuildingKind::PowerLine
-                            | BuildingKind::Tip
-                            | BuildingKind::Shanty
-                    ) =>
-                {
-                    Err(ActionError::CannotEvacuate(point))
-                }
+                Some((_, Building { never_evacuate: true, .. })) => Err(ActionError::CannotEvacuate(point)),
                 Some(_) => Ok(0),
             },
             Action::Flood if ground == Terrain::Water || self.buildings.at(point).is_some() => {
@@ -564,32 +552,25 @@ impl City {
     pub fn apply(&mut self, action: Action, point: Point) -> Result<(), ActionError> {
         let cost = self.preview(action, point)?;
         let index = (point.y * self.side + point.x) as usize;
-        let balance = self
-            .balance
-            .checked_sub(cost)
-            .filter(|v| *v >= crate::rules::CREDIT_LIMIT)
-            .ok_or(ActionError::OutOfMoney)?;
-        if self.balance > 0 && balance <= 0 {
-            self.events.push_back(CityEvent::OutOfMoney);
+        if action == Action::Query || (action == Action::Bulldoze
+            && self.tiles[index].ground == Terrain::Desert && self.buildings.at(point).is_none()) {
+            return Ok(());
         }
-        self.balance = balance;
-        self.stats.expenses.construction.acc =
-            self.stats.expenses.construction.acc.saturating_add(cost);
+        if action == Action::Evacuate {
+            let building = self.buildings.get_mut(self.buildings.at(point).unwrap()).unwrap();
+            building.evacuating = !building.evacuating;
+            if let Operation::Market(market) = &mut building.operation {
+                market.evacuate(building.evacuating);
+            }
+            return Ok(());
+        }
+        if !finance::expense(&mut self.balance, &mut self.stats.expenses.construction, &mut self.events, cost) {
+            return Err(ActionError::OutOfMoney);
+        }
         let mut origin = point;
         let mut size = 1;
         match action {
-            Action::Query => return Ok(()),
-            Action::Evacuate => {
-                let building = self
-                    .buildings
-                    .get_mut(self.buildings.at(point).unwrap())
-                    .unwrap();
-                building.evacuating = !building.evacuating;
-                if let Operation::Market(m) = &mut building.operation {
-                    m.evacuate(building.evacuating);
-                }
-                return Ok(());
-            }
+            Action::Query | Action::Evacuate => unreachable!("handled before charging"),
             Action::Build(kind) => {
                 let kind = self.actual_kind(kind, point);
                 size = i32::from(kind.metadata().size);
@@ -623,6 +604,7 @@ impl City {
                 self.tiles[index].ground = Terrain::Water;
                 self.tiles[index].frame = 0;
                 self.tiles[index].groundwater = true;
+                self.connect_river(point);
             }
             Action::Bulldoze => {
                 if let Some(id) = self.buildings.at(point) {
@@ -637,7 +619,11 @@ impl City {
                 } else {
                     self.tiles[index].ground = match self.tiles[index].ground {
                         Terrain::Desert => return Ok(()),
-                        Terrain::Water => Terrain::Grass,
+                        Terrain::Water => {
+                            self.tiles[index].river = false;
+                            self.tiles[index].cables = 0;
+                            Terrain::Grass
+                        }
                         _ => Terrain::Desert,
                     };
                 }
@@ -666,9 +652,13 @@ impl City {
     }
 }
 mod observations;
+mod report;
+mod visuals;
+pub use report::{ReportMode,ReportRow};
+pub use visuals::{BuildingVisual,SpriteLayer};
 mod simulation;
 mod trading;
 mod transport;
-pub use observations::{CityReport, TileView};
+pub use observations::{BuildingState, CityReport, TileView};
 pub use transport::VehicleFrame;
 mod environment;

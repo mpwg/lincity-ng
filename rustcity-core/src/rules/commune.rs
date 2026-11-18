@@ -15,3 +15,5 @@ pub(crate) const ABANDONMENT_MONTHS: i32 = 10 * super::MONTHS_PER_YEAR;
 pub(crate) const FRAME_INTERVAL_MS: i32 = 750;
 pub(crate) const FRAME_JITTER_MS: i32 = 50;
 pub(crate) const FRAMES_PER_ACTIVITY: u8 = 5;
+
+pub(crate) const OUTPUT_PER_BUSY_PERCENT: f64 = 3.05;

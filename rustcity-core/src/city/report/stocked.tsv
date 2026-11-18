@@ -1,0 +1,880 @@
+report	1	0
+label	Power Line
+percent	usage	0
+label	Inventory:
+pref	<<< 	Hi-Volt	87381	262144
+report	1	1
+label	Power Line
+percent	usage	0
+label	Production:
+pref	--> 	Hi-Volt	-33	-100
+report	2	0
+label	Solar Power Plant
+blank
+percent	busy	0
+percent	Tech	175
+int	Output	2475
+label	Inventory:
+pref	<<< 	Hi-Volt	6000	18000
+pref	<<< 	Labor	333	1000
+report	2	1
+label	Solar Power Plant
+blank
+percent	busy	0
+percent	Tech	175
+int	Output	2475
+label	Production:
+pref	<-- 	Hi-Volt	123750	247500
+pref	--> 	Labor	-1666	-5000
+report	3	0
+label	Power Substation
+blank
+percent	busy	0
+label	Inventory:
+pref	<<< 	Lo-Volt	20000	60000
+pref	<<< 	Hi-Volt	10000	30000
+report	3	1
+label	Power Substation
+blank
+percent	busy	0
+label	Production:
+pref	<-- 	Lo-Volt	150000	300000
+pref	--> 	Hi-Volt	-50000	-150000
+report	4	0
+label	Residence
+qty	Tenants	0	50
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	333	1000
+pref	<<< 	Waste	100	300
+pref	<<< 	Food	333	1000
+pref	<<< 	Goods	166	500
+pref	<<< 	Lo-Volt	1200	3600
+pref	<<< 	Water	333	1000
+report	4	1
+label	Residence
+qty	Tenants	0	50
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	1850	3700
+pref	<-- 	Waste	400	800
+pref	--> 	Food	-1666	-5000
+pref	--> 	Goods	-800	-2400
+pref	--> 	Lo-Volt	-6833	-20500
+pref	--> 	Water	-1666	-5000
+report	5	0
+label	Farm
+blank
+qty	Fertility	0	16
+percent	Tech	175
+percent	busy	0
+int	Output	0
+label	Inventory:
+pref	<<< 	Food	3666	11000
+pref	<<< 	Labor	86	260
+pref	<<< 	Waste	40	120
+pref	<<< 	Lo-Volt	333	1000
+pref	<<< 	Water	5333	16000
+report	5	1
+label	Farm
+blank
+qty	Fertility	0	16
+percent	Tech	175
+percent	busy	0
+int	Output	0
+label	Production:
+pref	<-- 	Food	75600	151200
+pref	--> 	Labor	-433	-1300
+pref	--> 	Waste	-200	-600
+pref	--> 	Lo-Volt	-1666	-5000
+pref	--> 	Water	-26666	-80000
+report	6	0
+label	Market
+blank
+percent	busy	0
+blank
+pref	<< 	Food	87381	262144
+pref	<< 	Labor	25600	76800
+pref	<< 	Coal	2730	8192
+pref	<< 	Goods	68266	204800
+pref	<< 	Ore	43690	131072
+pref	<< 	Steel	1365	4096
+pref	<< 	Waste	25600	76800
+pref	<< 	Water	174762	524288
+report	6	1
+label	Market
+blank
+percent	busy	0
+blank
+pref	<< 	Food	87381	262144
+pref	<< 	Labor	25600	76800
+pref	<< 	Coal	2730	8192
+pref	<< 	Goods	68266	204800
+pref	<< 	Ore	43690	131072
+pref	<< 	Steel	1365	4096
+pref	<< 	Waste	25600	76800
+pref	<< 	Water	174762	524288
+report	7	0
+label	Track
+blank
+label	Inventory:
+pref	<<< 	Food	682	2048
+pref	<<< 	Labor	341	1024
+pref	<<< 	Coal	21	64
+pref	<<< 	Goods	682	2048
+pref	<<< 	Ore	1365	4096
+pref	<<< 	Steel	42	128
+pref	<<< 	Waste	341	1024
+pref	<<< 	Lo-Volt	682	2048
+pref	<<< 	Water	1365	4096
+report	7	1
+label	Track
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	8	0
+label	Coal Mine
+percent	busy	0
+qty	Deposits	20	20
+label	Inventory:
+pref	<<< 	Labor	6120	18360
+pref	<<< 	Coal	6666	20000
+report	8	1
+label	Coal Mine
+percent	busy	0
+qty	Deposits	20	20
+label	Production:
+pref	--> 	Labor	-30600	-91800
+pref	<-> 	Coal	-33333	-100000
+report	9	0
+label	Rail
+blank
+label	Inventory:
+pref	<<< 	Food	10922	32768
+pref	<<< 	Labor	8533	25600
+pref	<<< 	Coal	1365	4096
+pref	<<< 	Goods	17066	51200
+pref	<<< 	Ore	21845	65536
+pref	<<< 	Steel	682	2048
+pref	<<< 	Waste	8533	25600
+pref	<<< 	Lo-Volt	10922	32768
+pref	<<< 	Water	21845	65536
+report	9	1
+label	Rail
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	10	0
+label	Coal Power Station
+percent	busy	0
+percent	Tech	175
+int	Output	30250
+label	Inventory:
+pref	<<< 	Hi-Volt	73333	220000
+pref	<<< 	Labor	666	2000
+pref	<<< 	Coal	293	880
+report	10	1
+label	Coal Power Station
+percent	busy	0
+percent	Tech	175
+int	Output	30250
+label	Production:
+pref	<-- 	Hi-Volt	1512500	3025000
+pref	--> 	Labor	-3333	-10000
+pref	--> 	Coal	-1466	-4400
+report	11	0
+label	Road
+blank
+label	Inventory:
+pref	<<< 	Food	2730	8192
+pref	<<< 	Labor	1706	5120
+pref	<<< 	Coal	170	512
+pref	<<< 	Goods	3413	10240
+pref	<<< 	Ore	5461	16384
+pref	<<< 	Steel	170	512
+pref	<<< 	Waste	1706	5120
+pref	<<< 	Lo-Volt	2730	8192
+pref	<<< 	Water	5461	16384
+report	11	1
+label	Road
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	12	0
+label	Light Industry
+blank
+percent	busy	0
+percent	Tech	175
+label	Inventory:
+pref	<<< 	Goods	12000	36000
+pref	<<< 	Waste	600	1800
+pref	<<< 	Labor	233	700
+pref	<<< 	Ore	833	2500
+pref	<<< 	Steel	80	240
+pref	<<< 	Lo-Volt	120000	360000
+pref	<<< 	Hi-Volt	60000	180000
+report	12	1
+label	Light Industry
+blank
+percent	busy	0
+percent	Tech	175
+label	Production:
+pref	<-- 	Goods	90000	180000
+pref	<-- 	Waste	400	800
+pref	--> 	Labor	-1966	-5900
+pref	--> 	Ore	-8333	-25000
+pref	--> 	Steel	-400	-1200
+pref	--> 	Lo-Volt	-600000	-1800000
+pref	--> 	Hi-Volt	-300000	-900000
+report	13	0
+label	University
+blank
+percent	busy	0
+percent	Tech researched	0
+label	Inventory:
+pref	<<< 	Waste	1666	5000
+pref	<<< 	Labor	1666	5000
+pref	<<< 	Goods	5000	15000
+report	13	1
+label	University
+blank
+percent	busy	0
+percent	Tech researched	0
+label	Production:
+pref	<-- 	Waste	12500	25000
+pref	--> 	Labor	-8333	-25000
+pref	--> 	Goods	-25000	-75000
+report	14	0
+label	Forest
+qty	Fertility	0	16
+percent	busy	0
+int	Pollution	0
+blank
+label	Inventory:
+pref	<<< 	Coal	20	60
+pref	<<< 	Ore	46	140
+pref	<<< 	Steel	13	40
+pref	<<< 	Waste	133	400
+pref	<<< 	Water	533	1600
+report	14	1
+label	Forest
+qty	Fertility	0	16
+percent	busy	0
+int	Pollution	0
+blank
+label	Production:
+pref	<-- 	Coal	150	300
+pref	<-- 	Ore	350	700
+pref	<-- 	Steel	5	10
+pref	--> 	Waste	-666	-2000
+pref	--> 	Water	-2666	-8000
+report	15	0
+label	Ore Mine
+percent	busy	0
+qty	Deposits	1	16000
+label	Inventory:
+pref	<<< 	Labor	1393	4180
+pref	<<< 	Ore	33333	100000
+report	15	1
+label	Ore Mine
+percent	busy	0
+qty	Deposits	1	16000
+label	Production:
+pref	--> 	Labor	-6966	-20900
+pref	<-> 	Ore	-166666	-500000
+report	16	0
+label	Land Fill
+blank
+percent	busy	0
+int	Waste	0
+percent	Filled	0
+label	Inventory:
+pref	<<< 	Waste	1333	4000
+report	16	1
+label	Land Fill
+blank
+percent	busy	0
+int	Waste	0
+percent	Filled	0
+label	Production:
+pref	<-> 	Waste	-6666	-20000
+report	17	0
+label	Port
+percent	busy	0
+int	Export	0
+int	Import	0
+percent	Culture exchanged	0
+label	Inventory:
+pref	<<< 	Labor	666	2000
+pref	<<< 	Food	3333	10000
+pref	<<< 	Coal	666	2000
+pref	<<< 	Goods	666	2000
+pref	<<< 	Ore	2000	6000
+pref	<<< 	Steel	333	1000
+report	17	1
+label	Port
+percent	busy	0
+int	Export	0
+int	Import	0
+percent	Culture exchanged	0
+label	Production:
+pref	--> 	Labor	-3333	-10000
+pref	<-> 	Food	-166666	-500000
+pref	<-> 	Coal	-33333	-100000
+pref	<-> 	Goods	-33333	-100000
+pref	<-> 	Ore	-100000	-300000
+pref	<-> 	Steel	-16666	-50000
+report	18	0
+label	Steel Works
+blank
+percent	busy	0
+percent	Tech	175
+label	Inventory:
+pref	<<< 	Steel	240	720
+pref	<<< 	Waste	60	180
+pref	<<< 	Labor	309	927
+pref	<<< 	Coal	480	1440
+pref	<<< 	Ore	4080	12240
+pref	<<< 	Lo-Volt	48000	144000
+pref	<<< 	Hi-Volt	48000	144000
+report	18	1
+label	Steel Works
+blank
+percent	busy	0
+percent	Tech	175
+label	Production:
+pref	<-- 	Steel	1800	3600
+pref	<-- 	Waste	300	600
+pref	--> 	Labor	-1533	-4600
+pref	--> 	Coal	-2400	-7200
+pref	--> 	Ore	-20400	-61200
+pref	--> 	Lo-Volt	-240000	-720000
+pref	--> 	Hi-Volt	-120000	-360000
+report	19	0
+label	Park
+blank
+int	Air Pollution	0
+report	19	1
+label	Park
+blank
+int	Air Pollution	0
+report	20	0
+label	Recycling Center
+blank
+percent	Tech	175
+percent	Efficiency Ore	80
+percent	Efficiency Steel	1.6
+percent	busy	0
+label	Inventory:
+pref	<<< 	Ore	2666	8000
+pref	<<< 	Steel	53	160
+pref	<<< 	Labor	226	680
+pref	<<< 	Waste	3333	10000
+pref	<<< 	Lo-Volt	1666	5000
+report	20	1
+label	Recycling Center
+blank
+percent	Tech	175
+percent	Efficiency Ore	80
+percent	Efficiency Steel	1.6
+percent	busy	0
+label	Production:
+pref	<-- 	Ore	20000	40000
+pref	<-- 	Steel	400	800
+pref	--> 	Labor	-1133	-3400
+pref	--> 	Waste	-18333	-55000
+pref	--> 	Lo-Volt	-8333	-25000
+report	22	0
+label	Hospital
+percent	busy	0
+label	Inventory:
+pref	<<< 	Waste	88	266
+pref	<<< 	Labor	40	120
+pref	<<< 	Goods	266	800
+text	Health Care	No
+report	22	1
+label	Hospital
+percent	busy	0
+label	Production:
+pref	<-- 	Waste	650	1300
+pref	--> 	Labor	-200	-600
+pref	--> 	Goods	-1333	-4000
+text	Health Care	No
+report	23	0
+label	Rocket Pad
+percent	busy	0
+percent	Tech	175
+percent	Completion	0
+label	Inventory:
+pref	<<< 	Waste	22220	66660
+pref	<<< 	Labor	1333	4000
+pref	<<< 	Goods	66666	200000
+pref	<<< 	Steel	1600	4800
+report	23	1
+label	Rocket Pad
+percent	busy	0
+percent	Tech	175
+percent	Completion	0
+label	Production:
+pref	<-- 	Waste	3333000	6666000
+pref	--> 	Labor	-133333	-400000
+pref	--> 	Goods	-6666666	-20000000
+pref	--> 	Steel	-160000	-480000
+report	24	0
+label	Windmill
+percent	busy	0
+percent	Tech	175
+int	Output	1237
+label	Inventory:
+pref	<<< 	Lo-Volt	3000	9000
+pref	<<< 	Labor	66	200
+report	24	1
+label	Windmill
+percent	busy	0
+percent	Tech	175
+int	Output	1237
+label	Production:
+pref	<-- 	Lo-Volt	61850	123700
+pref	--> 	Labor	-333	-1000
+report	25	0
+label	Monument
+blank
+percent	busy	0
+label	Inventory:
+pref	<<< 	Labor	666	2000
+blank
+percent	Completion	0
+report	25	1
+label	Monument
+blank
+percent	busy	0
+label	Production:
+pref	--> 	Labor	-3333	-10000
+blank
+percent	Completion	0
+report	26	0
+label	Elementary School
+blank
+percent	busy	0
+percent	Lessons learned	0
+label	Inventory:
+pref	<<< 	Waste	166	500
+pref	<<< 	Labor	1333	4000
+pref	<<< 	Goods	500	1500
+report	26	1
+label	Elementary School
+blank
+percent	busy	0
+percent	Lessons learned	0
+label	Production:
+pref	<-- 	Waste	1250	2500
+pref	--> 	Labor	-6666	-20000
+pref	--> 	Goods	-2500	-7500
+report	27	0
+label	Blacksmith
+percent	busy	0
+label	Inventory:
+pref	<<< 	Goods	333	1000
+pref	<<< 	Labor	233	700
+pref	<<< 	Coal	6	20
+pref	<<< 	Steel	6	20
+report	27	1
+label	Blacksmith
+percent	busy	0
+label	Production:
+pref	<-- 	Goods	2500	5000
+pref	--> 	Labor	-1166	-3500
+pref	--> 	Coal	-33	-100
+pref	--> 	Steel	-33	-100
+report	28	0
+label	Textile Mill
+percent	busy	0
+label	Inventory:
+pref	<<< 	Goods	500	1500
+pref	<<< 	Food	246	740
+pref	<<< 	Labor	233	700
+pref	<<< 	Coal	6	20
+pref	<<< 	Lo-Volt	400	1200
+report	28	1
+label	Textile Mill
+percent	busy	0
+label	Production:
+pref	<-- 	Goods	3750	7500
+pref	--> 	Food	-1233	-3700
+pref	--> 	Labor	-1166	-3500
+pref	--> 	Coal	-33	-100
+pref	--> 	Lo-Volt	-2000	-6000
+report	29	0
+label	Pottery
+blank
+percent	busy	0
+label	Inventory:
+pref	<<< 	Goods	233	700
+pref	<<< 	Labor	233	700
+pref	<<< 	Coal	13	40
+pref	<<< 	Ore	73	220
+report	29	1
+label	Pottery
+blank
+percent	busy	0
+label	Production:
+pref	<-- 	Goods	1750	3500
+pref	--> 	Labor	-1166	-3500
+pref	--> 	Coal	-66	-200
+pref	--> 	Ore	-366	-1100
+report	30	0
+label	Fire Station
+percent	busy	0
+label	Inventory:
+pref	<<< 	Waste	6	20
+pref	<<< 	Labor	40	120
+pref	<<< 	Goods	20	60
+text	Fire Protection	No
+report	30	1
+label	Fire Station
+percent	busy	0
+label	Production:
+pref	<-- 	Waste	50	100
+pref	--> 	Labor	-200	-600
+pref	--> 	Goods	-100	-300
+text	Fire Protection	No
+report	31	0
+label	Basketball Court
+percent	busy	0
+label	Inventory:
+pref	<<< 	Waste	6	20
+pref	<<< 	Labor	53	160
+pref	<<< 	Goods	20	60
+text	Public sports	No
+report	31	1
+label	Basketball Court
+percent	busy	0
+label	Production:
+pref	<-- 	Waste	50	100
+pref	--> 	Labor	-266	-800
+pref	--> 	Goods	-100	-300
+text	Public sports	No
+report	33	0
+label	Shanty Town
+int	Air Pollution	0
+label	Inventory:
+pref	<<< 	Waste	117	353
+pref	<<< 	Food	333	1000
+pref	<<< 	Labor	33	100
+pref	<<< 	Coal	6	20
+pref	<<< 	Goods	333	1000
+pref	<<< 	Ore	66	200
+pref	<<< 	Steel	6	20
+pref	<<< 	Lo-Volt	333	1000
+report	33	1
+label	Shanty Town
+int	Air Pollution	0
+label	Production:
+pref	--> 	Food	-1666	-5000
+pref	--> 	Labor	-166	-500
+pref	--> 	Coal	-33	-100
+pref	--> 	Goods	-1666	-5000
+pref	--> 	Ore	-333	-1000
+pref	--> 	Steel	-33	-100
+pref	<-> 	Waste	-11766	-35300
+pref	--- 	Lo-Volt	0	0
+report	34	0
+label	Fire
+blank
+int	Air Pollution	0
+qty	burnt down	0	6000
+report	34	1
+label	Fire
+blank
+int	Air Pollution	0
+qty	burnt down	0	6000
+report	36	0
+label	Residence
+qty	Tenants	0	100
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	666	2000
+pref	<<< 	Waste	200	600
+pref	<<< 	Food	666	2000
+pref	<<< 	Goods	333	1000
+pref	<<< 	Lo-Volt	2200	6600
+pref	<<< 	Water	666	2000
+report	36	1
+label	Residence
+qty	Tenants	0	100
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	3700	7400
+pref	<-- 	Waste	800	1600
+pref	--> 	Food	-3333	-10000
+pref	--> 	Goods	-1666	-5000
+pref	--> 	Lo-Volt	-12666	-38000
+pref	--> 	Water	-3333	-10000
+report	37	0
+label	Residence
+qty	Tenants	0	200
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	1333	4000
+pref	<<< 	Waste	400	1200
+pref	<<< 	Food	1333	4000
+pref	<<< 	Goods	666	2000
+pref	<<< 	Lo-Volt	4200	12600
+pref	<<< 	Water	1333	4000
+report	37	1
+label	Residence
+qty	Tenants	0	200
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	7400	14800
+pref	<-- 	Waste	1600	3200
+pref	--> 	Food	-6666	-20000
+pref	--> 	Goods	-3333	-10000
+pref	--> 	Lo-Volt	-24333	-73000
+pref	--> 	Water	-6666	-20000
+report	38	0
+label	Residence
+qty	Tenants	0	100
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	666	2000
+pref	<<< 	Waste	200	600
+pref	<<< 	Food	666	2000
+pref	<<< 	Goods	333	1000
+pref	<<< 	Lo-Volt	2200	6600
+pref	<<< 	Water	666	2000
+report	38	1
+label	Residence
+qty	Tenants	0	100
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	3700	7400
+pref	<-- 	Waste	800	1600
+pref	--> 	Food	-3333	-10000
+pref	--> 	Goods	-1666	-5000
+pref	--> 	Lo-Volt	-12666	-38000
+pref	--> 	Water	-3333	-10000
+report	39	0
+label	Residence
+qty	Tenants	0	200
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	1333	4000
+pref	<<< 	Waste	400	1200
+pref	<<< 	Food	1333	4000
+pref	<<< 	Goods	666	2000
+pref	<<< 	Lo-Volt	4200	12600
+pref	<<< 	Water	1333	4000
+report	39	1
+label	Residence
+qty	Tenants	0	200
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	7400	14800
+pref	<-- 	Waste	1600	3200
+pref	--> 	Food	-6666	-20000
+pref	--> 	Goods	-3333	-10000
+pref	--> 	Lo-Volt	-24333	-73000
+pref	--> 	Water	-6666	-20000
+report	40	0
+label	Residence
+qty	Tenants	0	400
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Inventory:
+pref	<<< 	Labor	2666	8000
+pref	<<< 	Waste	800	2400
+pref	<<< 	Food	2666	8000
+pref	<<< 	Goods	1333	4000
+pref	<<< 	Lo-Volt	8200	24600
+pref	<<< 	Water	2666	8000
+report	40	1
+label	Residence
+qty	Tenants	0	400
+int	Desireability	0
+decimal	Births p.a.	0.01
+decimal	Death p.a.	0.01
+percent	Unnat. mortality	0
+label	Production:
+pref	<-- 	Labor	14800	29600
+pref	<-- 	Waste	3300	6600
+pref	--> 	Food	-13333	-40000
+pref	--> 	Goods	-6666	-20000
+pref	--> 	Lo-Volt	-47666	-143000
+pref	--> 	Water	-13333	-40000
+report	41	0
+label	Water Tower
+blank
+qty	Fertility	0	4
+percent	busy	0
+qty	Air Pollution	0	3000
+text	Drinkable	Yes
+label	Inventory:
+pref	<<< 	Water	10666	32000
+report	41	1
+label	Water Tower
+blank
+qty	Fertility	0	4
+percent	busy	0
+qty	Air Pollution	0	3000
+text	Drinkable	Yes
+label	Production:
+pref	<-- 	Water	80000	160000
+report	46	0
+label	Track (Bridge)
+blank
+label	Inventory:
+pref	<<< 	Food	682	2048
+pref	<<< 	Labor	341	1024
+pref	<<< 	Coal	21	64
+pref	<<< 	Goods	682	2048
+pref	<<< 	Ore	1365	4096
+pref	<<< 	Steel	42	128
+pref	<<< 	Waste	341	1024
+pref	<<< 	Lo-Volt	682	2048
+pref	<<< 	Water	1365	4096
+report	46	1
+label	Track (Bridge)
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	47	0
+label	Road (Bridge)
+blank
+label	Inventory:
+pref	<<< 	Food	2730	8192
+pref	<<< 	Labor	1706	5120
+pref	<<< 	Coal	170	512
+pref	<<< 	Goods	3413	10240
+pref	<<< 	Ore	5461	16384
+pref	<<< 	Steel	170	512
+pref	<<< 	Waste	1706	5120
+pref	<<< 	Lo-Volt	2730	8192
+pref	<<< 	Water	5461	16384
+report	47	1
+label	Road (Bridge)
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	48	0
+label	Rail (Bridge)
+blank
+label	Inventory:
+pref	<<< 	Food	10922	32768
+pref	<<< 	Labor	8533	25600
+pref	<<< 	Coal	1365	4096
+pref	<<< 	Goods	17066	51200
+pref	<<< 	Ore	21845	65536
+pref	<<< 	Steel	682	2048
+pref	<<< 	Waste	8533	25600
+pref	<<< 	Lo-Volt	10922	32768
+pref	<<< 	Water	21845	65536
+report	48	1
+label	Rail (Bridge)
+blank
+label	Traffic
+percent	Food	0
+percent	Labor	0
+percent	Coal	0
+percent	Goods	0
+percent	Ore	0
+percent	Steel	0
+percent	Waste	0
+percent	Lo-Volt	0
+percent	Water	0
+report	49	0
+label	Wind Power
+percent	busy	0
+percent	Tech	175
+int	Output	1237
+label	Inventory:
+pref	<<< 	Hi-Volt	3000	9000
+pref	<<< 	Labor	100	300
+report	49	1
+label	Wind Power
+percent	busy	0
+percent	Tech	175
+int	Output	1237
+label	Production:
+pref	<-- 	Hi-Volt	61850	123700
+pref	--> 	Labor	-500	-1500
+report	50	0
+label	Park (Pond)
+blank
+int	Air Pollution	0
+report	50	1
+label	Park (Pond)
+blank
+int	Air Pollution	0

@@ -129,3 +129,34 @@ fn cpp_loads_rust_saves_and_rust_loads_cpp_checkpoints() {
     }
     fs::remove_dir_all(&output).unwrap();
 }
+
+#[test]
+fn unsupported_roots_and_versions_explain_which_format_was_encountered() {
+    for (xml, message) in [
+        (
+            "<SaveGame/>",
+            "Detected a load/save format that is too old. See the readme for how to update the load/save format.",
+        ),
+        (
+            "<other/>",
+            "invalid save file: expected <lc-game>, found <other>",
+        ),
+        (
+            "<lc-game/>",
+            "failed to parse load/save version: missing attribute ldsv-version in <lc-game>",
+        ),
+        (
+            "<lc-game ldsv-version='2129'/>",
+            "load/save version too old",
+        ),
+        (
+            "<lc-game ldsv-version='2141'/>",
+            "load/save version too new",
+        ),
+    ] {
+        assert_eq!(
+            SaveGame::read(xml.as_bytes()).unwrap_err().to_string(),
+            message
+        );
+    }
+}

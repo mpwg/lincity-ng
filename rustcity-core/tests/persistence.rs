@@ -43,7 +43,7 @@ fn smithy_stocks_continue_across_the_month_boundary_after_a_save() {
     let home = Point { x: 12, y: 12 };
     let mut city = City::load(SMITHY).unwrap();
     for _ in 0..3 {
-        city.tick();
+        city.tick().unwrap();
     }
     assert_eq!(city.stock(home, Commodity::Goods), Some(157));
     let mut checkpoint = Vec::new();
@@ -51,7 +51,7 @@ fn smithy_stocks_continue_across_the_month_boundary_after_a_save() {
     let mut resumed = City::load(checkpoint.as_slice()).unwrap();
     for day in 4..=5 {
         for c in [&mut city, &mut resumed] {
-            c.tick();
+            c.tick().unwrap();
             assert_eq!(c.stock(home, Commodity::Labor), Some(175 - day * 35));
             assert_eq!(c.stock(home, Commodity::Goods), Some(7 + day * 50));
         }

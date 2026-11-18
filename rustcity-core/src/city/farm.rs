@@ -7,17 +7,19 @@ use crate::rules::{DAYS_PER_MONTH, DAYS_PER_YEAR, MAX_TECH_LEVEL};
 use crate::rules::farm::*;
 
 pub(super) struct Farm {
+    pub(super) max_food: i32,
     rotation: i32,
     stagger: i32,
     pub(super) groundwater: i32,
     utilization: i32,
-    last_utilization: i32,
+    pub(super) last_utilization: i32,
     pub(super) frame: u8,
 }
 
 impl Farm {
     pub(super) fn new(decisions: &mut Decisions) -> io::Result<Self> {
         Ok(Self {
+            max_food: 0,
             rotation: decisions.c_modulo(CROP_ROTATIONS)? + 1,
             stagger: decisions.c_modulo(DAYS_PER_MONTH)?,
             groundwater: 0,
@@ -53,6 +55,7 @@ impl Farm {
         };
         let mut food = (potential * labor / (FIELD_TILES * LABOR_PER_BATCH)).max(MIN_FOOD_BATCH);
         let max_food = (potential / FIELD_TILES).max(MIN_FOOD_BATCH);
+        self.max_food = max_food;
         let room = BuildingKind::OrganicFarm.metadata().rule(Food).max_load - stock[Food as usize];
         if food > room {
             labor = labor * room / food;

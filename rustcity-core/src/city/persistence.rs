@@ -8,6 +8,7 @@ const LAKE: u32 = 0x0100_0000;
 const RIVER: u32 = 0x0200_0000;
 const GROUNDWATER: u32 = 0x2000_0000;
 const EVACUATE: u32 = 0x200;
+const NEVER_EVACUATE: u32 = 0x100;
 
 fn flags(node: &Element) -> io::Result<u32> {
     node.child("flags")
@@ -134,11 +135,21 @@ pub(super) fn store_trade_rules(
 }
 
 impl City {
-    /// Loads the plain or gzip-compressed city files used by LinCity.
+    /// Loads a plain or gzip-compressed LinCity save and seeds fresh decision streams.
+    ///
+    /// # Errors
+    /// Returns a read error for inaccessible input or invalid data for unsupported
+    /// versions, malformed XML, or inconsistent map and building fields.
     pub fn load(reader: impl Read) -> io::Result<Self> {
         Self::load_with_decisions(reader, crate::decisions::Decisions::native(rand::random()))
     }
 
+    /// Loads the city with the supplied decision streams already attached. Loading
+    /// can draw random values and register placements before the first simulation tick.
+    ///
+    /// # Errors
+    /// Returns the errors from [`Self::load`] or an error when a recorded decision
+    /// disagrees with the operation performed during loading.
     pub fn load_with_decisions(
         reader: impl Read,
         decisions: crate::decisions::Decisions,
@@ -224,6 +235,7 @@ impl City {
         let flags = flags(node)?;
         building.evacuating = flags & EVACUATE != 0;
         if node.child("flags").is_some() {
+            building.never_evacuate = flags & NEVER_EVACUATE != 0;
             building.transparent = flags & 0x0800_0000 != 0;
         }
         let transparent = building.transparent;
@@ -265,6 +277,10 @@ impl City {
     }
 
     /// Writes a gzip-compressed 2140 save with the current accounts, map and buildings.
+    /// Decision tapes are finalized separately with [`Self::finish_decisions`].
+    ///
+    /// # Errors
+    /// Returns an error if serialization, compression, or writing the stream fails.
     pub fn save(&self, writer: impl Write) -> io::Result<()> {
         let mut save = self
             .saved

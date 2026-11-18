@@ -1,30 +1,6 @@
 use super::*;
 
 impl City {
-    fn spiral_search(&self, mut p: Point, mut matches: impl FnMut(Point) -> bool) -> Option<Point> {
-        for i in 2..self.side * 4 {
-            let delta = if i & 2 != 0 { -1 } else { 1 };
-            for _ in 0..i / 2 {
-                if (1..self.side - 1).contains(&p.x)
-                    && (1..self.side - 1).contains(&p.y)
-                    && matches(p)
-                {
-                    return Some(p);
-                }
-                if i & 1 != 0 {
-                    p.y += delta;
-                } else {
-                    p.x += delta;
-                }
-            }
-        }
-        None
-    }
-
-    fn find_origin(&self, start: Point, kind: BuildingKind) -> Option<Point> {
-        self.spiral_search(start, |p| self.building_at(p) == Some((kind, p)))
-    }
-
     fn grow_shanty(&mut self) -> io::Result<()> {
         let x = self.decisions.c_modulo(self.side)?;
         let y = self.decisions.c_modulo(self.side)?;
@@ -35,20 +11,11 @@ impl City {
         } else {
             BuildingKind::Market
         };
-        let Some(anchor) = self.find_origin(Point { x, y }, kind) else {
+        let Some(anchor) = self.find_building(Point { x, y }, kind) else {
             return Ok(());
         };
         let size = i32::from(BuildingKind::Shanty.metadata().size);
-        let vacant = self.spiral_search(anchor, |p| {
-            p.x + size < self.side
-                && p.y + size < self.side
-                && (p.y..p.y + size).all(|y| {
-                    (p.x..p.x + size).all(|x| {
-                        let q = Point { x, y };
-                        self.buildings.at(q).is_none() && self.terrain(q) != Some(Terrain::Water)
-                    })
-                })
-        });
+        let vacant = self.find_bare_area(anchor, size);
         if let Some(origin) = vacant {
             let building = self.create_building(BuildingKind::Shanty, self.tech_level)?;
             self.place_building(origin, size, building)?;
@@ -83,7 +50,7 @@ impl City {
                 // The reference constructs MapPoint with right-to-left argument evaluation.
                 let y = self.decisions.c_modulo(self.side)?;
                 let x = self.decisions.c_modulo(self.side)?;
-                let Some(origin) = self.find_origin(Point { x, y }, BuildingKind::Shanty) else {
+                let Some(origin) = self.find_building(Point { x, y }, BuildingKind::Shanty) else {
                     break;
                 };
                 let id = self.buildings.at(origin).unwrap();

@@ -15,13 +15,17 @@ enum Stage {
 #[derive(Default)]
 pub(super) struct Rocket {
     stage: Stage,
-    steps: i32,
+    pub(super) steps: i32,
     working_days: i32,
-    busy: i32,
-    frame: u8,
+    pub(super) busy: i32,
+    pub(super) frame: u8,
     next_frame: u64,
 }
 impl Rocket {
+    pub(super) fn ready_to_launch(&self) -> bool {
+        self.stage == Stage::Awaiting
+    }
+
     pub(super) fn load(&mut self, n: &Element) -> io::Result<()> {
         self.steps = n.child_i32("steps", 0)?;
         if let Some(stage) = n.child("stage") {
@@ -80,7 +84,7 @@ impl City {
         let Operation::Rocket(r) = &mut self.buildings.get_mut(id).unwrap().operation else {
             return false;
         };
-        if r.stage != Stage::Awaiting {
+        if !r.ready_to_launch() {
             return false;
         }
         r.stage = Stage::Launching;

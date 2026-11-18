@@ -10,6 +10,7 @@ pub(crate) const COVER_MASK: u32 = CHECK_MASK | (CHECK_MASK >> 1);
 pub(crate) const FED: u32 = 0x20;
 pub(crate) const EMPLOYED: u32 = 0x40;
 pub(crate) const HAD_POWER: u32 = 0x0100_0000;
+pub(crate) const SCHOOLS_PER_UNIVERSITY: u32 = 4;
 pub(crate) const COMPLETED_MONUMENT_FLAGS: u32 = 0x0300;
 
 pub(crate) const COVER_PERIOD: i32 = 3 * super::DAYS_PER_MONTH;
@@ -203,3 +204,5 @@ pub(crate) fn housing_rule(kind: BuildingKind) -> HousingRule {
         capacity,
     }
 }
+
+pub(crate) const WELL_MAX_DRINKABLE_POLLUTION: i32 = 3000;

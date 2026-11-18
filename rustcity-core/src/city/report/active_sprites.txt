@@ -1,0 +1,9 @@
+2 1 PowerSolar,0,0,0
+3 1 SubstationOn,0,0,0
+10 1 PowerCoalLow,0,0,0 BlackSmoke,5,5,-378 BlackSmoke,6,29,-390 BlackSmoke,7,52,-397 BlackSmoke,8,76,-409 BlackSmoke,9,65,-348 BlackSmoke,10,89,-360 BlackSmoke,0,112,-371 BlackSmoke,1,136,-383
+12 1 IndustryLightH,0,0,0 GraySmoke,5,-113,-210 GraySmoke,6,-84,-198
+16 1 Tip,1,0,0
+18 1 IndustryHighH,1,0,0
+26 1 School,1,0,0 ChildOnSwing,0,0,0
+27 1 Blacksmith,1,0,0
+41 1 Waterwell,0,0,0

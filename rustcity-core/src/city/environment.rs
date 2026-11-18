@@ -30,10 +30,10 @@ impl City {
                 continue;
             }
             let neighbor = match self.decisions.c_modulo(DIFFUSION_DRAW_RANGE)? {
-                ..=WIND_NORTH_END => i - side,
-                ..=WIND_WEST_END => i - 1,
-                ..=WIND_SOUTH_END => i + side,
-                ..=WIND_EAST_END => i + 1,
+                draw if draw <= WIND_NORTH_END => i - side,
+                draw if draw <= WIND_WEST_END => i - 1,
+                draw if draw <= WIND_SOUTH_END => i + side,
+                draw if draw <= WIND_EAST_END => i + 1,
                 _ => {
                     self.tiles[i].pollution -= POLLUTION_DECAY;
                     i

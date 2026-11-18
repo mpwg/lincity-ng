@@ -3,6 +3,11 @@ use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use quick_xml::Writer;
 use std::io::{self, BufReader, Read, Write};
 
+const LEGACY_VERSION: u32 = 2130;
+const CURRENT_VERSION: u32 = 2140;
+const LEGACY_DEFAULT_SIDE: i32 = 100;
+const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+
 pub(crate) mod accounts;
 mod xml;
 pub use xml::Element;
@@ -40,12 +45,12 @@ pub struct SaveGame {
 impl SaveGame {
     pub fn new(side: i32) -> Self {
         let mut root = Element::new("lc-game");
-        root.set_attr("ldsv-version", "2140");
+        root.set_attr("ldsv-version", CURRENT_VERSION.to_string());
         root.push(Element::new("globals"));
         root.section("map").set_attr("size", side.to_string());
         Self {
             root,
-            version: 2140,
+            version: CURRENT_VERSION,
         }
     }
     pub fn version(&self) -> u32 {
@@ -68,39 +73,53 @@ impl SaveGame {
         let mut prefix = [0; 2];
         reader.read_exact(&mut prefix)?;
         let bytes = prefix.as_slice().chain(reader);
-        let root = if prefix == [0x1f, 0x8b] {
+        let root = if prefix == GZIP_MAGIC {
             Element::read(BufReader::new(MultiGzDecoder::new(bytes)))?
         } else {
             Element::read(BufReader::new(bytes))?
         };
+        if root.name == "SaveGame" {
+            return Err(invalid(
+                "Detected a load/save format that is too old. See the readme for how to update the load/save format.",
+            ));
+        }
         if root.name != "lc-game" {
-            return Err(invalid("expected lc-game root"));
+            return Err(invalid(format!(
+                "invalid save file: expected <lc-game>, found <{}>",
+                root.name
+            )));
         }
         let version = root
             .attr("ldsv-version")
-            .ok_or_else(|| invalid("missing ldsv-version"))?
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| invalid("failed to parse load/save version: missing attribute ldsv-version in <lc-game>"))?
             .parse()
             .map_err(invalid)?;
-        if !(2130..=2140).contains(&version) {
-            return Err(invalid("unsupported save version"));
+        if version < LEGACY_VERSION {
+            return Err(invalid("load/save version too old"));
+        }
+        if version > CURRENT_VERSION {
+            return Err(invalid("load/save version too new"));
         }
         let globals = root
             .child("globals")
             .ok_or_else(|| invalid("missing globals"))?;
         let map = root.child("map").ok_or_else(|| invalid("missing map"))?;
-        let size = if version == 2130 {
+        let size = if version == LEGACY_VERSION {
             globals
                 .child("world_side_len")
                 .map(|e| integer(&e.text()))
                 .transpose()?
-                .unwrap_or(100)
+                .unwrap_or(i64::from(LEGACY_DEFAULT_SIDE))
         } else {
             integer(
                 map.attr("size")
                     .ok_or_else(|| invalid("missing map size"))?,
             )?
         };
-        if !(3..=46_340).contains(&size) {
+        if !(i64::from(crate::rules::MIN_MAP_SIDE)..=i64::from(crate::rules::MAX_MAP_SIDE))
+            .contains(&size)
+        {
             return Err(invalid("invalid map size"));
         }
         for e in map
@@ -135,11 +154,12 @@ impl SaveGame {
     }
 
     pub fn upgrade(&mut self) -> io::Result<()> {
-        if self.version() == 2130 {
+        if self.version() == LEGACY_VERSION {
             migration::upgrade(self)?;
         }
-        self.root.set_attr("ldsv-version", "2140");
-        self.version = 2140;
+        self.root
+            .set_attr("ldsv-version", CURRENT_VERSION.to_string());
+        self.version = CURRENT_VERSION;
         Ok(())
     }
 }

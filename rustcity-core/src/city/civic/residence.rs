@@ -3,14 +3,26 @@ use super::*;
 use crate::decisions::Decisions;
 use crate::stats::Population;
 
-#[derive(Default)]
 pub(in crate::city) struct Residence {
-    pub(super) occupants: i32,
+    pub(in crate::city) occupants: i32,
     pub(super) flags: u32,
-    pub(super) desirability: i32,
-    births: i32,
-    deaths: i32,
-    pollution_deaths: i32,
+    pub(in crate::city) desirability: i32,
+    pub(in crate::city) births: i32,
+    pub(in crate::city) deaths: i32,
+    pub(in crate::city) pollution_deaths: i32,
+}
+
+impl Default for Residence {
+    fn default() -> Self {
+        Self {
+            occupants: 0,
+            flags: 0,
+            desirability: 0,
+            births: INACTIVE_INTERVAL,
+            deaths: INACTIVE_INTERVAL,
+            pollution_deaths: 0,
+        }
+    }
 }
 
 pub(super) struct Neighborhood<'a> {

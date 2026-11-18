@@ -137,3 +137,30 @@ fn recorded_draws_validate_the_site_domain_and_coordinate_overflow() {
             .is_err()
     );
 }
+
+#[test]
+fn malformed_draw_and_terminator_report_the_reference_event_number() {
+    let mut stream = replay("LINCITY-SIMULATION-TRACE 1\nC 2147483648\n").unwrap();
+    assert_eq!(
+        stream.c_random().unwrap_err().to_string(),
+        "simulation trace event 1: random draw outside generator range"
+    );
+    let mut stream = replay("LINCITY-SIMULATION-TRACE 1\nC 4\nZ\nZ\n").unwrap();
+    assert_eq!(stream.c_random().unwrap(), 4);
+    assert_eq!(
+        stream.finish().unwrap_err().to_string(),
+        "simulation trace event 1: trailing data or read failure"
+    );
+}
+
+#[test]
+fn nonfinite_and_overflowing_weights_return_errors_without_sampling() {
+    for weights in [
+        &[f64::INFINITY, 1.0][..],
+        &[f64::MAX, f64::MAX],
+        &[f64::NAN],
+    ] {
+        let mut d = Decisions::native(714);
+        assert!(d.discrete("invalid", weights).is_err());
+    }
+}

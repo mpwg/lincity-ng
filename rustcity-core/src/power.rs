@@ -38,7 +38,6 @@ const fn animation_threshold(millis: u64) -> u64 {
 
 #[derive(Debug, Clone)]
 pub struct CoalPlant {
-    pub technology: i32,
     pub output: i32,
     pub busy: i32,
     working_hundreds: i32,
@@ -61,7 +60,6 @@ impl CoalPlant {
 
     pub fn new(technology: i32) -> Self {
         Self {
-            technology,
             output: installed_output(COAL_OUTPUT, technology),
             busy: 0,
             working_hundreds: 0,
@@ -142,7 +140,6 @@ pub struct WindExpenses {
 #[derive(Clone, Debug)]
 pub struct WindGenerator {
     kind: BuildingKind,
-    pub technology: i32,
     pub output: i32,
     pub busy_output: i32,
     working_output: i32,
@@ -163,7 +160,6 @@ impl WindGenerator {
     fn new(kind: BuildingKind, technology: i32) -> Self {
         Self {
             kind,
-            technology,
             output: installed_output(WIND_OUTPUT, technology),
             busy_output: 0,
             working_output: 0,
@@ -287,9 +283,9 @@ impl PowerLine {
         }
     }
 
-    pub fn propagate_to(&self, neighbor: &mut PowerLine) {
-        if self.flashing && neighbor.counter <= LINE_MODULUS / 3 {
-            neighbor.counter = LINE_MODULUS;
+    pub fn receive_flash(&mut self) {
+        if self.counter <= LINE_MODULUS / 3 {
+            self.counter = LINE_MODULUS;
         }
     }
 
@@ -474,7 +470,8 @@ mod tests {
         assert_eq!((line.frame, line.counter), (3, 18));
         line.animate(101);
         assert_eq!((line.frame, line.counter), (14, 18));
-        line.propagate_to(&mut next);
+        assert!(line.flashing);
+        next.receive_flash();
         assert_eq!(next.counter, 18);
         line.animate(150);
         line.animate(200);

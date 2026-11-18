@@ -4,6 +4,17 @@
 //! returned placement ID with its building until demolition. Pass the live IDs
 //! to each visit, then update the buildings in the returned slice order.
 //! A replay or I/O error invalidates the simulation run.
+//!
+//! ```
+//! use rustcity_core::decisions::Decisions;
+//! use std::io::Cursor;
+//!
+//! let tape = b"LINCITY-SIMULATION-TRACE 1\nC 17\nZ\n";
+//! let mut decisions = Decisions::replay(Cursor::new(tape.as_slice()))?;
+//! assert_eq!(decisions.c_modulo(5)?, 2);
+//! decisions.finish()?;
+//! # Ok::<(), std::io::Error>(())
+//! ```
 
 use crate::Point;
 use rand::distr::{Distribution, weighted::WeightedIndex};
@@ -25,8 +36,11 @@ pub struct PlacementId(u64);
 /// Traversals whose order can affect the simulation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VisitPhase {
+    /// Visual updates at a host-supplied millisecond timestamp.
     Animation,
+    /// Simulation updates on the absolute in-game day.
     Daily,
+    /// Evacuation visits during a successful rocket launch.
     Evacuation,
 }
 
@@ -70,11 +84,11 @@ struct Fields<'a> {
 }
 
 impl Fields<'_> {
-    fn take<T: FromStr>(&mut self) -> io::Result<T> {
+    fn take<T: FromStr>(&mut self, detail: &str) -> io::Result<T> {
         self.tokens
             .next()
             .and_then(|s| s.parse().ok())
-            .ok_or_else(|| invalid(self.event, "missing or invalid event field"))
+            .ok_or_else(|| invalid(self.event, detail))
     }
 
     fn check(&self, valid: bool, detail: &str) -> io::Result<()> {
@@ -106,7 +120,7 @@ impl Decisions {
         }
     }
 
-    /// Records native outcomes. Call `finish` to write the terminator and flush the tape.
+    /// Records native outcomes. Call [`finish`](Self::finish) to write the terminator and flush the tape.
     pub fn record(seed: u64, output: impl Write + Send + 'static) -> io::Result<Self> {
         let mut output = BufWriter::new(Box::new(output) as Box<dyn Write + Send>);
         writeln!(output, "{HEADER}")?;
@@ -131,6 +145,10 @@ impl Decisions {
 
     fn read_event(&mut self, kind: &str) -> io::Result<Option<Fields<'_>>> {
         self.event += 1;
+        self.expect_event(kind)
+    }
+
+    fn expect_event(&mut self, kind: &str) -> io::Result<Option<Fields<'_>>> {
         let Mode::Replay(input) = &mut self.mode else {
             return Ok(None);
         };
@@ -165,10 +183,10 @@ impl Decisions {
         let id = self.last_id + 1;
         if let Some(mut fields) = self.read_event("P")? {
             let actual = (
-                fields.take()?,
-                fields.take()?,
-                fields.take()?,
-                fields.take()?,
+                fields.take("construction placement differs")?,
+                fields.take("construction placement differs")?,
+                fields.take("construction placement differs")?,
+                fields.take("construction placement differs")?,
             );
             fields.check(
                 actual == (id, point.x, point.y, group),
@@ -191,14 +209,17 @@ impl Decisions {
         order: &mut [PlacementId],
     ) -> io::Result<()> {
         if let Some(mut fields) = self.read_event(phase.tag())? {
-            let timing = (fields.take()?, fields.take()?);
+            let timing = (
+                fields.take("construction visit time or count differs")?,
+                fields.take("construction visit time or count differs")?,
+            );
             fields.check(
                 timing == (time, order.len()),
                 "construction visit time or count differs",
             )?;
             let mut available: HashSet<_> = order.iter().copied().collect();
             for slot in order {
-                let id = PlacementId(fields.take()?);
+                let id = PlacementId(fields.take("missing construction visit")?);
                 fields.check(
                     available.remove(&id),
                     "duplicate or unknown construction visit",
@@ -223,7 +244,7 @@ impl Decisions {
     /// Draws the nonnegative pre-modulo value in the Linux C generator's range.
     pub fn c_random(&mut self) -> io::Result<i32> {
         if let Some(mut fields) = self.read_event("C")? {
-            let value = fields.take::<i32>()?;
+            let value = fields.take::<i32>("random draw outside generator range")?;
             fields.check(value >= 0, "random draw outside generator range")?;
             fields.end()?;
             Ok(value)
@@ -255,7 +276,7 @@ impl Decisions {
         if let Some(mut fields) = self.read_event("S")? {
             let matching_site = fields.tokens.next() == Some(site);
             fields.check(matching_site, "unexpected distribution site")?;
-            let value = fields.take()?;
+            let value = fields.take("distribution outcome out of range")?;
             fields.check(
                 (low..=high).contains(&value),
                 "distribution outcome out of range",
@@ -272,10 +293,12 @@ impl Decisions {
         }
     }
 
+    /// Draws an integer from the inclusive interval at a named distribution site.
     pub fn uniform(&mut self, site: &str, low: i32, high: i32) -> io::Result<i32> {
         self.sample(site, low, high, |rng| rng.random_range(low..=high))
     }
 
+    /// Draws a boolean with success probability `p` between zero and one, inclusive.
     pub fn bernoulli(&mut self, site: &str, p: f64) -> io::Result<bool> {
         if !(0.0..=1.0).contains(&p) {
             return Err(invalid(self.event, "invalid probability"));
@@ -287,6 +310,7 @@ impl Decisions {
         )
     }
 
+    /// Counts successes across `trials` independent draws with probability `p`.
     pub fn binomial(&mut self, site: &str, trials: i32, p: f64) -> io::Result<i32> {
         if !(0.0..=1.0).contains(&p) || trials < 0 {
             return Err(invalid(self.event, "invalid binomial parameters"));
@@ -298,6 +322,7 @@ impl Decisions {
         self.sample(site, min, max, |rng| distribution.sample(rng) as i32)
     }
 
+    /// Selects an index according to nonnegative weights with a finite, positive sum.
     pub fn discrete(&mut self, site: &str, weights: &[f64]) -> io::Result<i32> {
         let max =
             i32::try_from(weights.len()).map_err(|_| invalid(self.event, "too many weights"))? - 1;
@@ -313,7 +338,8 @@ impl Decisions {
         Ok(choice)
     }
 
-    /// Samples a normal offset, truncating toward zero before adding it to the map coordinate.
+    /// Returns a normally distributed offset truncated toward zero. The returned
+    /// offset can be added to `origin` without overflowing a signed coordinate.
     pub fn normal_offset(&mut self, site: &str, deviation: f64, origin: i32) -> io::Result<i32> {
         if !deviation.is_finite() || deviation <= 0.0 {
             return Err(invalid(self.event, "invalid normal deviation"));
@@ -330,7 +356,7 @@ impl Decisions {
 
     /// Finishes a run and verifies that the tape contains no further events.
     pub fn finish(mut self) -> io::Result<()> {
-        if let Some(fields) = self.read_event("Z")? {
+        if let Some(fields) = self.expect_event("Z")? {
             fields.end()?;
         }
         match self.mode {
@@ -340,7 +366,7 @@ impl Decisions {
                     return Ok(());
                 }
                 if !remaining.iter().all(u8::is_ascii_whitespace) {
-                    return Err(invalid(self.event, "trailing data"));
+                    return Err(invalid(self.event, "trailing data or read failure"));
                 }
                 let count = remaining.len();
                 reader.consume(count);

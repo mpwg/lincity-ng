@@ -1,0 +1,170 @@
+report	2	0
+label	Solar Power Plant
+blank
+percent	busy	99
+percent	Tech	0
+int	Output	900
+label	Inventory:
+pref	<-- 	Hi-Volt	9900	18000
+pref	--> 	Labor	450	1000
+report	2	1
+label	Solar Power Plant
+blank
+percent	busy	99
+percent	Tech	0
+int	Output	900
+label	Production:
+pref	<-- 	Hi-Volt	89100	90000
+pref	--> 	Labor	-4950	-5000
+report	3	0
+label	Power Substation
+blank
+percent	busy	99
+label	Inventory:
+pref	<-- 	Lo-Volt	33000	60000
+pref	--> 	Hi-Volt	13500	30000
+report	3	1
+label	Power Substation
+blank
+percent	busy	99
+label	Production:
+pref	<-- 	Lo-Volt	297000	300000
+pref	--> 	Hi-Volt	-148500	-150000
+report	10	0
+label	Coal Power Station
+percent	busy	99
+percent	Tech	0
+int	Output	11000
+label	Inventory:
+pref	<-- 	Hi-Volt	121000	220000
+pref	--> 	Labor	900	2000
+pref	--> 	Coal	396	880
+report	10	1
+label	Coal Power Station
+percent	busy	99
+percent	Tech	0
+int	Output	11000
+label	Production:
+pref	<-- 	Hi-Volt	1089000	1100000
+pref	--> 	Labor	-9900	-10000
+pref	--> 	Coal	-4356	-4400
+report	12	0
+label	Light Industry
+blank
+percent	busy	99
+percent	Tech	0
+label	Inventory:
+pref	<-- 	Goods	19800	36000
+pref	<-- 	Waste	900	1800
+pref	--> 	Labor	291	700
+pref	--> 	Ore	1000	2500
+pref	--> 	Steel	108	240
+pref	--> 	Lo-Volt	162000	360000
+pref	--> 	Hi-Volt	90000	180000
+report	12	1
+label	Light Industry
+blank
+percent	busy	99
+percent	Tech	0
+label	Production:
+pref	<-- 	Goods	178200	180000
+pref	--> 	Labor	-5841	-5900
+pref	--> 	Ore	-24750	-25000
+pref	--> 	Steel	-1188	-1200
+pref	--> 	Lo-Volt	-1782000	-1800000
+pref	--> 	Hi-Volt	0	0
+pref	--- 	Waste	0	0
+report	16	0
+label	Land Fill
+blank
+percent	busy	99
+int	Waste	19996
+percent	Filled	0.19996
+label	Inventory:
+pref	<-> 	Waste	1800	4000
+report	16	1
+label	Land Fill
+blank
+percent	busy	99
+int	Waste	19996
+percent	Filled	0.19996
+label	Production:
+pref	<-> 	Waste	-19800	-20000
+report	18	0
+label	Steel Works
+blank
+percent	busy	99
+percent	Tech	0
+label	Inventory:
+pref	<-- 	Steel	396	720
+pref	<-- 	Waste	90	180
+pref	--> 	Labor	435	927
+pref	--> 	Coal	720	1440
+pref	--> 	Ore	5508	12240
+pref	--> 	Lo-Volt	72000	144000
+pref	--> 	Hi-Volt	68400	144000
+report	18	1
+label	Steel Works
+blank
+percent	busy	99
+percent	Tech	0
+label	Production:
+pref	<-- 	Steel	3564	3600
+pref	--> 	Labor	-2772	-4600
+pref	--> 	Coal	0	0
+pref	--> 	Ore	-60588	-61200
+pref	--> 	Lo-Volt	0	0
+pref	--> 	Hi-Volt	-356400	-360000
+pref	--- 	Waste	0	0
+report	26	0
+label	Elementary School
+blank
+percent	busy	100
+percent	Lessons learned	0.02
+label	Inventory:
+pref	<-- 	Waste	275	500
+pref	--> 	Labor	1800	4000
+pref	--> 	Goods	675	1500
+report	26	1
+label	Elementary School
+blank
+percent	busy	100
+percent	Lessons learned	0.02
+label	Production:
+pref	<-- 	Waste	2500	2500
+pref	--> 	Labor	-20000	-20000
+pref	--> 	Goods	-7500	-7500
+report	27	0
+label	Blacksmith
+percent	busy	99
+label	Inventory:
+pref	<-- 	Goods	550	1000
+pref	--> 	Labor	315	700
+pref	--> 	Coal	9	20
+pref	--> 	Steel	9	20
+report	27	1
+label	Blacksmith
+percent	busy	99
+label	Production:
+pref	<-- 	Goods	4950	5000
+pref	--> 	Labor	-3465	-3500
+pref	--> 	Coal	-99	-100
+pref	--> 	Steel	-99	-100
+report	41	0
+label	Water Tower
+blank
+qty	Fertility	0	4
+percent	busy	99
+qty	Air Pollution	0	3000
+text	Drinkable	Yes
+label	Inventory:
+pref	<-- 	Water	16000	32000
+report	41	1
+label	Water Tower
+blank
+qty	Fertility	0	4
+percent	busy	99
+qty	Air Pollution	0	3000
+text	Drinkable	Yes
+label	Production:
+pref	<-- 	Water	0	160000

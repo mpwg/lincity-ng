@@ -20,35 +20,42 @@ pub(super) use rules::{
 };
 #[derive(Default)]
 pub(super) struct Service {
-    active: bool,
+    pub(super) active: bool,
     days: i32,
     supplied: i32,
     working: i32,
-    busy: i32,
+    pub(super) busy: i32,
     animate: bool,
     next_frame: u64,
-    frame: i32,
+    pub(super) frame: i32,
 }
 #[derive(Default)]
 pub(super) struct Education {
-    tech: i32,
+    pub(super) tech: i32,
     working: i32,
-    busy: i32,
-    frame: i32,
-    swing: i32,
+    pub(super) busy: i32,
+    pub(super) frame: i32,
+    pub(super) swing: i32,
     next_frame: u64,
     stop: u64,
 }
 #[derive(Default)]
 pub(super) struct Monument {
     working: i32,
-    busy: i32,
-    frame: i32,
+    pub(super) busy: i32,
+    pub(super) frame: i32,
     labor: i32,
-    completion: i32,
-    tech: i32,
+    pub(super) completion: i32,
+    pub(super) tech: i32,
     tail: i32,
     pub(super) completed: bool,
+}
+
+#[derive(Default)]
+pub(super) struct Well {
+    pub(super) output: i32,
+    working: i32,
+    pub(super) busy: i32,
 }
 
 pub(super) enum Civic {
@@ -56,7 +63,7 @@ pub(super) enum Civic {
     Service(Service),
     Education(Education),
     Monument(Monument),
-    Well(i32),
+    Well(Well),
     Park,
     Shanty(WasteFire),
     Fire(FireState),
@@ -71,7 +78,7 @@ impl Civic {
             Health | FireStation | Cricket => Self::Service(Default::default()),
             School | University => Self::Education(Default::default()),
             BuildingKind::Monument => Self::Monument(Default::default()),
-            Waterwell => Self::Well(0),
+            Waterwell => Self::Well(Default::default()),
             ParkPond | Parkland => Self::Park,
             BuildingKind::Shanty => Self::Shanty(Default::default()),
             BuildingKind::Fire => Self::Fire(Default::default()),
@@ -261,9 +268,10 @@ impl City {
                     self.tiles[idx].pollution -= 1;
                 }
             }
-            Civic::Well(output) => {
-                if stock[Water as usize] + *output <= b.kind.metadata().rule(Water).max_load {
-                    stock[Water as usize] += *output;
+            Civic::Well(well) => {
+                if stock[Water as usize] + well.output <= b.kind.metadata().rule(Water).max_load {
+                    stock[Water as usize] += well.output;
+                    well.working += 1;
                 }
             }
             Civic::Monument(m) => {
@@ -274,6 +282,7 @@ impl City {
                     m.completion = m.labor * 100 / MONUMENT_TOTAL_LABOR;
                 } else if m.completion >= 100 {
                     m.completed = true;
+                    b.never_evacuate = true;
                     b.evacuating = true;
                     if self.tech_level < MONUMENT_RESEARCH_CEILING
                         && self.day % MONUMENT_RESEARCH_INTERVAL == MONUMENT_RESEARCH_PHASE
@@ -423,6 +432,7 @@ impl City {
         {
             match civic {
                 Civic::Education(e) => e.busy = std::mem::take(&mut e.working),
+                Civic::Well(well) => well.busy = std::mem::take(&mut well.working),
                 Civic::Service(s) => s.busy = std::mem::take(&mut s.working),
                 Civic::Monument(m) => m.busy = std::mem::take(&mut m.working),
                 _ => {}

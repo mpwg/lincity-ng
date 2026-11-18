@@ -10,12 +10,12 @@ pub(super) struct Market {
     pub rules: [crate::CommodityRule; Commodity::ALL.len()],
     labor: i32,
     working_days: i32,
-    busy: i32,
-    fill: i32,
+    pub(super) busy: i32,
+    pub(super) fill: i32,
     burning: bool,
     fire_until: u64,
     next_frame: u64,
-    frame: i32,
+    pub(super) frame: i32,
 }
 impl Default for Market {
     fn default() -> Self {

@@ -26,3 +26,99 @@ fn replays_the_versioned_smithy_with_actions_and_checkpoint_days() {
     }
     fs::remove_dir_all(target).unwrap();
 }
+
+#[test]
+fn rejects_invalid_cli_inputs_with_the_reference_diagnostics() {
+    check_invalid_inputs(Path::new(env!("CARGO_BIN_EXE_rustcity-replay")));
+}
+
+#[test]
+#[ignore = "set RUSTCITY_CPP_REPLAY to the C++ core_replay executable"]
+fn cpp_confirms_the_invalid_input_diagnostics() {
+    check_invalid_inputs(Path::new(&std::env::var_os("RUSTCITY_CPP_REPLAY").unwrap()));
+}
+
+fn check_invalid_inputs(runner: &Path) {
+    let name = runner.file_stem().unwrap().to_string_lossy();
+    let root = std::env::temp_dir().join(format!("rustcity-invalid-{name}-{}", std::process::id()));
+    fs::create_dir_all(&root).unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../lincity-core/tests/fixtures/blacksmith-2140.xml");
+    let usage = Command::new(runner).output().unwrap();
+    assert_eq!(usage.status.code(), Some(2));
+    for (mode, days, input, diagnostic) in [
+        ("invalid", "1", "", "invalid mode"),
+        ("record", "+1", "", "invalid day count"),
+        ("record", "2147483648", "", "invalid day count"),
+        (
+            "record",
+            "1",
+            "2 query 1 1",
+            "invalid action or day at line 1",
+        ),
+        ("record", "1", "1 unknown 1 1", "unknown action: unknown"),
+        ("record", "1", "1 build 1 1 51", "invalid group at line 1"),
+        (
+            "record",
+            "1",
+            "1 build 1 1 32",
+            "unregistered building group",
+        ),
+        ("record", "1", "1 query 1 1 extra", "extra input at line 1"),
+        ("replay", "1", "", "cannot open decision tape"),
+    ] {
+        fs::write(root.join("actions"), input).unwrap();
+        let result = Command::new(runner)
+            .current_dir(&root)
+            .args([mode, "test-tape"])
+            .arg(&fixture)
+            .args(["no-traffic", days, "actions", "output"])
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        assert_eq!(
+            String::from_utf8_lossy(&result.stderr).trim_end(),
+            diagnostic,
+            "{input}"
+        );
+        let _ = fs::remove_file(root.join("test-tape"));
+    }
+    for (arguments, diagnostic) in [
+        (
+            [
+                "record",
+                "test-tape",
+                "absent.city",
+                "no-traffic",
+                "0",
+                "-",
+                "output",
+            ],
+            "failed to open file: absent.city",
+        ),
+        (
+            [
+                "record",
+                "test-tape",
+                "absent.city",
+                "no-traffic",
+                "0",
+                "absent.actions",
+                "output",
+            ],
+            "cannot open actions: absent.actions",
+        ),
+    ] {
+        let result = Command::new(runner)
+            .current_dir(&root)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        assert_eq!(
+            String::from_utf8_lossy(&result.stderr).trim_end(),
+            diagnostic
+        );
+    }
+    fs::remove_dir_all(root).unwrap();
+}

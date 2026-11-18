@@ -259,7 +259,7 @@ fn tile_flags(old: u32) -> u32 {
 pub(super) fn upgrade(game: &mut SaveGame) -> io::Result<()> {
     let old = game.globals();
     let current = globals(old)?;
-    let size = field(old, "world_side_len", 100)?;
+    let size = field(old, "world_side_len", super::LEGACY_DEFAULT_SIDE)?;
     let mut x = field(old, "main_screen_originx", size / 2)?;
     let mut y = field(old, "main_screen_originy", size / 2)?;
     // Stage the conversion so a malformed legacy field leaves the source intact.

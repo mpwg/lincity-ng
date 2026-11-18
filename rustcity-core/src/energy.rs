@@ -101,7 +101,7 @@ pub(crate) fn exchange(center: &mut TradeStock, peer: &mut TradeStock, ratio: i6
 pub struct SolarPlant {
     pub labor: i32,
     pub high_voltage: TradeStock,
-    output: i32,
+    pub(crate) output: i32,
     working_output: i32,
     pub busy: i32,
 }

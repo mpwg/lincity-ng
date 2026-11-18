@@ -49,7 +49,7 @@ if(EXISTS "${rust_manifest}")
       --manifest-path "${rust_manifest}" --target-dir "${rust_target_dir}"
       --locked --release --bin rustcity-replay)
     set_tests_properties(rustcity.cross.build PROPERTIES FIXTURES_SETUP rustcity_replay)
-    foreach(cross_case continuation traffic)
+    foreach(cross_case continuation traffic actions)
       add_test(NAME "rustcity.cross.${cross_case}" COMMAND "${Python3_EXECUTABLE}" -B
         "${CMAKE_CURRENT_SOURCE_DIR}/../tests/replay/check_continuation.py"
         "$<TARGET_FILE:core_replay>" "${rust_replay}" "${cross_case}")
@@ -63,9 +63,23 @@ if(EXISTS "${rust_manifest}")
   endif()
 endif()
 
-add_executable(core_building_report_reference building_report_reference.cpp)
-target_link_libraries(core_building_report_reference PRIVATE LinCity::Core)
-add_test(NAME core.parity.building_reports COMMAND "${CMAKE_COMMAND}"
-  "-DPROGRAM=$<TARGET_FILE:core_building_report_reference>"
-  "-DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/../../rustcity-core/src/city/report/reference.tsv"
-  -P "${CMAKE_CURRENT_SOURCE_DIR}/compare.cmake")
+set(building_report_cases "${CMAKE_CURRENT_SOURCE_DIR}/../../rustcity-core/src/city/report")
+if(EXISTS "${building_report_cases}/reference.tsv")
+  add_executable(core_building_report_reference building_report_reference.cpp)
+  target_link_libraries(core_building_report_reference PRIVATE LinCity::Core)
+  add_test(NAME core.parity.building_reports COMMAND "${CMAKE_COMMAND}"
+    "-DPROGRAM=$<TARGET_FILE:core_building_report_reference>"
+    "-DEXPECTED=${building_report_cases}/reference.tsv"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/compare.cmake")
+  foreach(case IN ITEMS stocked working sprites active_sprites)
+    if(NOT case MATCHES "sprites$")
+      set(file "${case}.tsv")
+    else()
+      set(file "${case}.txt")
+    endif()
+    add_test(NAME "core.parity.building_${case}" COMMAND "${CMAKE_COMMAND}"
+      "-DPROGRAM=$<TARGET_FILE:core_building_report_reference>" "-Darguments=${case}"
+      "-DEXPECTED=${building_report_cases}/${file}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/compare.cmake")
+  endforeach()
+endif()

@@ -57,10 +57,10 @@ impl City {
                     ..point
                 },
             ] {
-                if let Some(id) = self.buildings.at(p) {
-                    if !candidates.contains(&id) {
-                        candidates.push(id);
-                    }
+                if let Some(id) = self.buildings.at(p)
+                    && !candidates.contains(&id)
+                {
+                    candidates.push(id);
                 }
             }
         } else {
