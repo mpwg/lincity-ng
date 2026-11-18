@@ -82,3 +82,11 @@ Ablehnungsgrund ausschließlich bei einer abgelehnten Vorschau.
   Gzip-Rückrufe gemeldet. Der Linux-Test verwendet dafür das vorhandene
   Zeichengerät `/dev/full`. Die Fehlererkennung beim abschließenden Schreiben
   hängt damit nicht von `xmlTextWriterClose` ab.
+
+Originalticket #369 nennt Abstürze beim Bau von Kohleminen, Häfen und bei
+Flussarbeiten. Der dort untersuchte Stacktrace führt zur Behandlung einer
+Hafenablehnung in der Desktop-Oberfläche. Der aktuelle Desktop-Code erkennt
+diese Meldung bereits. Die beiden hier abgedeckten Randfehler bei Kohlemine
+und Fluss sind durch eigene Tests belegt. Für die übrigen Abstürze liefert das
+Ticket keine bestätigte Ursache. #159 beschreibt das Anlegen eines Flusses
+ohne vorhandenen Flussanschluss. [#369](https://github.com/lincity-ng/lincity-ng/issues/369) · [#159](https://github.com/lincity-ng/lincity-ng/issues/159)
