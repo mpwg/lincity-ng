@@ -833,6 +833,43 @@ void verifyShantyOnFullMap(bool hasShanty) {
 }
 }
 
+void verifyShantyAtMapEdge() {
+  World world(8);
+  const MapPoint market(1, 1), available(5, 5), water(4, 5);
+  marketConstructionGroup.placeItem(world, market);
+  for(auto& tile : world.map) {
+    if(world.map.is_visible(tile.point) && tile.is_bare() &&
+       (tile.point.x < available.x || tile.point.y < available.y))
+      tile.setTerrain(GROUP_WATER);
+  }
+
+  world.people_pool = SHANTY_MIN_PP + SHANTY_POP;
+  std::ostringstream choices;
+  choices << "C 7\nC 7\nP 1 " << available.x << ' ' << available.y << ' ' << GROUP_SHANTY << '\n';
+  replayChoices(choices.str(), [&] { update_shanty(world); });
+  const auto* shanty = world.map(available)->getConstruction();
+  require(shanty && shanty->getConstructionGroup() == &shantyConstructionGroup &&
+          world.map(available.se())->getReportingConstruction() == shanty &&
+          world.map(available.e(2))->is_bare() && world.map(water)->is_water() &&
+          world.stats.groupCount[GROUP_SHANTY] == 1,
+          "settlement did not fit the only vacant plot beside the map border");
+}
+
+void verifyShantyMissingAnchor(bool growing) {
+  World world(32);
+  const MapPoint site(12, 12);
+  marketConstructionGroup.placeItem(world, site);
+  const auto* market = world.map(site)->getConstruction();
+  // Exercise stale bookkeeping without putting an invalid construction on the map.
+  world.stats.groupCount[GROUP_SHANTY] = growing ? 1 : 2;
+  world.people_pool = growing ? SHANTY_MIN_PP + 2 * SHANTY_POP + 5 : 0;
+  replayChoices(growing ? "C 12\nC 12\nC 1\n" : "C 12\nC 12\n",
+                [&] { update_shanty(world); });
+  require(world.map(site)->getConstruction() == market && world.map.constructionCount() == 1 &&
+          world.stats.groupCount[GROUP_FIRE] == 0 && !world.popMessage(),
+          "missing shanty anchor disturbed another building or produced a fire");
+}
+
 int main() {
   std::srand(724);
   BasicUrbg::get().seed(724);
@@ -864,6 +901,9 @@ int main() {
     verifyShantyClusterGrowth();
     verifyShantyOnFullMap(false);
     verifyShantyOnFullMap(true);
+    verifyShantyAtMapEdge();
+    verifyShantyMissingAnchor(true);
+    verifyShantyMissingAnchor(false);
   } catch(const Message::Exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

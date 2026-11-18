@@ -5,7 +5,10 @@
 #include "util/simulation_trace.hpp"
 #include "lincity/world.hpp"
 
+#include <libxml/xmlwriter.h>
+
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -201,8 +204,37 @@ void checkRocketLaunchFunding() {
             RocketResultMessage::LaunchResult::SUCCESS,
           "launch did not resume once the city could pay its upkeep");
   rocket.update();
-  require(world.stats.expenses.rockets.acc == ROCKET_PAD_RUNNING_COST && !world.popMessage(),
-          "spent rocket continued charging upkeep or reporting launches");
+  require(!world.launchRocket(site) && rocket.stage == RocketPad::DONE &&
+          world.stats.expenses.rockets.acc == ROCKET_PAD_RUNNING_COST && !world.popMessage(),
+          "spent rocket could launch again or continued charging upkeep");
+}
+
+void checkUnknownRocketStage() {
+  World world(32);
+  const MapPoint site(8, 8);
+  rocketPadConstructionGroup.placeItem(world, site);
+  auto& rocket = dynamic_cast<RocketPad&>(*world.map(site)->getConstruction());
+  // 5 is representable by Stage, whose declared enumerators are 0 through 4.
+  const auto unknown = static_cast<RocketPad::Stage>(5);
+  rocket.stage = unknown;
+  require(!world.launchRocket(site) && rocket.stage == unknown &&
+          world.rockets_launched == 0 && !world.popMessage(),
+          "launch command accepted an unknown rocket stage");
+
+  const std::unique_ptr<xmlBuffer, decltype(&xmlBufferFree)> buffer(xmlBufferCreate(), xmlBufferFree);
+  require(bool(buffer), "could not allocate an XML buffer");
+  const std::unique_ptr<xmlTextWriter, decltype(&xmlFreeTextWriter)>
+    writer(xmlNewTextWriterMemory(buffer.get(), 0), xmlFreeTextWriter);
+  require(writer && xmlTextWriterStartElement(writer.get(), BAD_CAST "Construction") >= 0,
+          "could not start writing rocket XML");
+  bool rejected = false;
+  try {
+    rocket.save(writer.get());
+  } catch(const std::runtime_error& error) {
+    rejected = std::string(error.what()) == "unknown rocket stage";
+  }
+  require(rejected && rocket.stage == unknown && world.map(site)->getConstruction() == &rocket,
+          "unsupported rocket stage was saved or changed during rejection");
 }
 
 void checkRocketConstructionLimits() {
@@ -291,6 +323,7 @@ int main() {
     checkEvacuationCapacity(1000, 0, true, Result::EVAC);
     checkCrash();
     checkRocketLaunchFunding();
+    checkUnknownRocketStage();
     checkRocketConstructionLimits();
   } catch(const Message::Exception& error) {
     std::cerr << error.what() << '\n';

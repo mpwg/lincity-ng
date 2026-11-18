@@ -24,8 +24,6 @@
 
 #include "tile.hpp"
 
-#include <cassert>                  // for assert
-
 #include "lincity/all_buildings.hpp"  // for GROUP_BARE_BUL_COST, GROUP_BARE_C...
 #include "lincity/groups.hpp"         // for GROUP_BARE, GROUP_DESERT, GROUP_TREE
 #include "util/gettextutil.hpp"
@@ -121,8 +119,15 @@ TileConstructionGroup tree3ConstructionGroup(
   0                         //range tiles is 0
 );
 
-//Dont use this one after all maptiles are no constructions
-Construction *TileConstructionGroup::createConstruction(World& world) {
-  assert(false);
+bool TileConstructionGroup::can_build(const World&, Message::ptr& message) const {
+  message.reset();
+  return false;
+}
+
+bool TileConstructionGroup::can_build_here(const World& world, MapPoint, Message::ptr& message) const {
+  return can_build(world, message);
+}
+
+Construction *TileConstructionGroup::createConstruction(World&) {
   return nullptr;
 }

@@ -50,8 +50,12 @@ public:
       name, name_plural, no_credit, group, size, colour, cost_mul, bul_cost,
       fire_chance,   cost, tech, range
   ) { };
-  // dont use that one tiles are no constructions
-  virtual Construction *createConstruction(World& world);
+  using ConstructionGroup::can_build;
+  using ConstructionGroup::can_build_here;
+
+  bool can_build(const World& world, Message::ptr& message) const override;
+  bool can_build_here(const World& world, MapPoint point, Message::ptr& message) const override;
+  Construction *createConstruction(World& world) override;
 };
 
 extern TileConstructionGroup waterConstructionGroup;

@@ -156,6 +156,32 @@ void placementDiagnostic() {
         world.map.constructionCount() == 1);
 }
 
+void terrainGroupsCannotBeBuilt() {
+  World world(32);
+  world.total_money = 50000;
+  world.tech_level = MAX_TECH_LEVEL;
+  for(auto* terrain : {&bareConstructionGroup, &desertConstructionGroup, &waterConstructionGroup,
+                       &treeConstructionGroup, &tree2ConstructionGroup, &tree3ConstructionGroup}) {
+    const UserOperation build{UserOperation::ACTION_BUILD, terrain};
+    Message::ptr reason;
+    CHECK(!build.isAllowed(world, reason));
+    CHECK(!build.isAllowedHere(world, site, reason));
+    CHECK(!terrain->can_build_here(world, site, reason));
+    const auto denied = checkRejected<CannotBuildMessage>(build, world, site);
+    CHECK(&denied->getGroup() == terrain);
+
+    bool noBuilding = false;
+    try {
+      terrain->placeItem(world, site);
+    } catch(const std::runtime_error& error) {
+      noBuilding = std::string(error.what()).find("failed to create") != std::string::npos;
+    }
+    CHECK(noBuilding && world.map(site)->is_bare() && world.map.constructionCount() == 0);
+    CHECK(world.total_money == 50000 && world.stats.expenses.construction.acc == 0);
+    CHECK(!world.isUpdated(World::Updatable::MAP) && !world.isUpdated(World::Updatable::MONEY));
+  }
+}
+
 void moveOverlayFrame() {
   World world(32);
   auto& source = *world.map(site);
@@ -606,6 +632,7 @@ int main() {
     commandEntryPoints();
     invalidCommands();
     placementDiagnostic();
+    terrainGroupsCannotBeBuilt();
     windSelection();
     moveOverlayFrame();
     floodAndTransport();
