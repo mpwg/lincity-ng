@@ -113,8 +113,33 @@ void checkAccountingLimits() {
   CHECK(world.total_money == INT_MAX - 8 && expenses.acc == INT_MAX);
 }
 
+void yearEndDebtAndTradeRules() {
+  struct Balance { int opening, closing, interest; };
+  for(const auto& spec : {Balance{-10000, -10150, 150}, Balance{-1998000000, -1999000000, 1000000},
+                          Balance{INT_MIN, -2000000000, 0}, Balance{INT_MAX, 2000000000, 0}}) {
+    World world(32);
+    world.total_time = NUMOF_DAYS_IN_YEAR - 2;
+    world.people_pool = 7;
+    world.total_money = spec.opening;
+    for(auto& rule : world.tradeRule) rule.give = false;
+    std::string tape = "LINCITY-SIMULATION-TRACE 1\nD 1199 0\n";
+    for(int i = 0; i < STUFF_COUNT; ++i) tape += "C 150\nC 100\n";
+    std::istringstream input(tape + "Z\n");
+    SimulationTrace trace(input);
+    world.do_time_step();
+    trace.finish();
+    CHECK(world.total_time == NUMOF_DAYS_IN_YEAR - 1);
+    CHECK(world.total_money == spec.closing);
+    CHECK(world.stats.expenses.interest.acc == spec.interest);
+    CHECK(!world.popMessage());
+    for(const auto& rule : world.tradeRule)
+      CHECK(!rule.take && rule.give);
+  }
+}
+
 void calendar() {
   checkAccountingLimits();
+  yearEndDebtAndTradeRules();
   World world(32);
   world.total_time = 1197;
   world.people_pool = 7;

@@ -3,10 +3,13 @@
 #include "lincity/modules/health_centre.hpp"
 #include "lincity/modules/market.hpp"
 #include "lincity/modules/monument.hpp"
+#include "lincity/modules/organic_farm.hpp"
 #include "lincity/modules/port.hpp"
 #include "lincity/modules/rocket_pad.hpp"
 #include "lincity/modules/tip.hpp"
 #include "lincity/world.hpp"
+
+#include <libxml++/exceptions/parse_error.h>
 
 #include <filesystem>
 #include <fstream>
@@ -47,12 +50,24 @@ void checkMigratedWorld(const World& world) {
   CHECK(world.given_scene == "Legacy accounting and history" && world.total_time == 309);
   CHECK(world.map.len() == 32 && world.map.recentPoint == MapPoint(12, 12));
   CHECK(world.tech_level == 7500 && world.stats.tech_level == 7500);
-  // 467 at 15%, 105 at 20%, and an already-denominated windmill charge.
-  CHECK(world.total_money == 1596);
-  CHECK(world.stats.expenses.import.stat == 58 && world.stats.expenses.import.acc == 70);
-  CHECK(world.stats.expenses.unemployment.acc == 21 && world.stats.expenses.windmill.acc == 13);
+  const auto& expenses = world.stats.expenses;
+  CHECK(world.total_money == 1501);
+  CHECK(expenses.import.stat == 58 && expenses.import.acc == 70);
+  CHECK(expenses.unemployment.acc == 21 && expenses.transport.acc == 13);
+  CHECK(expenses.health.acc == 18 && expenses.firestation.acc == 24);
+  CHECK(expenses.windmill.acc == 13 && expenses.university.acc == 9 && expenses.recycle.acc == 6);
+  CHECK(expenses.deaths.acc == 3 && expenses.rockets.acc == 11);
+  CHECK(expenses.school.acc == 4 && expenses.cricket.acc == 7);
   CHECK(world.stats.income.income_tax.stat == 37 && world.taxable.labor == 91);
-  CHECK(world.stats.population.unemployed_days_t == 2417);
+  const auto& population = world.stats.population;
+  CHECK(population.housed_m.acc == 72121 && population.housing_m.acc == 91800);
+  CHECK(population.starving_m.acc == 1034 && population.unemployed_m.acc == 1037);
+  CHECK(population.starve_deaths_t == 6 && population.starve_deaths_history == 2.75f);
+  CHECK(population.pollution_deaths_t == 8 && population.pollution_deaths_history == 3.125f);
+  CHECK(population.unemployed_days_t == 2417);
+  const auto& sustainability = world.stats.sustainability;
+  CHECK(!sustainability.mining_flag && sustainability.mining_years == 4);
+  CHECK(sustainability.trade_flag && sustainability.trade_years == 7);
   CHECK(!world.tradeRule[STUFF_FOOD].take && world.tradeRule[STUFF_FOOD].give);
   CHECK(world.tradeRule[STUFF_GOODS].take && !world.tradeRule[STUFF_GOODS].give);
 
@@ -61,6 +76,8 @@ void checkMigratedWorld(const World& world) {
   CHECK(history.starve.at(1) == 23 && history.nojobs.at(2) == 27 && history.ppool.at(1) == 109);
   CHECK(history.tech.at(0) == 7500 && history.tech.at(1) == 7250);
   CHECK(history.tech.at(2) == 7000 && history.tech.at(3) == 7450);
+  CHECK(history.money.at(0) == -326 && history.money.at(1) == -281);
+  CHECK(history.pollution.at(0) == 275 && history.pollution.at(1) == 256);
   const auto& food = history.inventory[STUFF_FOOD];
   CHECK(food.at(0).amount == 660 && food.at(0).capacity == 1000);
   CHECK(food.at(1).amount == 620 && food.at(1).capacity == 1000);
@@ -69,7 +86,13 @@ void checkMigratedWorld(const World& world) {
 
   const auto& tile = *world.map(MapPoint(6, 8));
   CHECK(tile.group == GROUP_WATER && tile.is_river() && tile.ground.altitude == 17);
-  CHECK(tile.flags & FLAG_HAS_UNDERGROUND_WATER);
+  CHECK((tile.flags & (FLAG_HAS_UNDERGROUND_WATER | FLAG_MARKET_COVER | FLAG_MARKET_COVER_CHECK))
+        == (FLAG_HAS_UNDERGROUND_WATER | FLAG_MARKET_COVER | FLAG_MARKET_COVER_CHECK));
+  const auto& lake = *world.map(MapPoint(7, 8));
+  CHECK(lake.is_lake());
+  constexpr auto services = FLAG_FIRE_COVER | FLAG_FIRE_COVER_CHECK |
+    FLAG_HEALTH_COVER | FLAG_HEALTH_COVER_CHECK | FLAG_CRICKET_COVER | FLAG_CRICKET_COVER_CHECK;
+  CHECK((lake.flags & services) == services);
   const auto& monument = buildingAt<Monument>(world, MapPoint(12, 12));
   CHECK(monument.tech_made == 3 && monument.tail_off == 2);
   CHECK(monument.completion == 18 && monument.labor_consumed == 63000);
@@ -79,7 +102,63 @@ void migrate2130(const fs::path& fixtures, const fs::path& saved) {
   auto world = World::load(fixtures / "migration-2130.xml");
   checkMigratedWorld(*world);
   world->save(saved);
-  checkMigratedWorld(*World::load(saved));
+  auto restored = World::load(saved);
+  checkMigratedWorld(*restored);
+
+  for(auto* city : {world.get(), restored.get()}) {
+    city->do_time_step();
+    const auto& farm = buildingAt<Organic_farm>(*city, MapPoint(20, 12));
+    const auto& stock = farm.commodityCount;
+    // One tile has groundwater, and 350 stored water irrigates seven more.
+    // The eight irrigated tiles yield 330 food with the rebuilt tech bonus.
+    CHECK(stock[STUFF_FOOD] == 350 && stock[STUFF_LABOR] == 17);
+    CHECK(stock[STUFF_LOVOLT] == 25 && stock[STUFF_WATER] == 0 && stock[STUFF_WASTE] == 14);
+  }
+}
+
+void checkStatistics2140(const World& world) {
+  CHECK(world.given_scene == "Frühjahr in der Altstadt" && world.total_time == 1249);
+  CHECK(world.total_money == -492 && world.stats.total_money == -492 && world.people_pool == 12);
+  CHECK(world.tech_level == 96800 && world.stats.highest_tech_level == 98900);
+  CHECK(world.rockets_launched == 9 && world.rockets_launched_success == 6);
+  CHECK(world.gameEnd && world.coal_survey_done && world.stats.total_pollution == 324);
+  CHECK(world.money_rates.income_tax == 17 && world.money_rates.transport_cost == 21);
+  CHECK(world.taxable.labor == 312 && world.taxable.trade_ex == 74);
+  CHECK(!world.tradeRule[STUFF_FOOD].take && world.tradeRule[STUFF_FOOD].give);
+  const auto& population = world.stats.population;
+  CHECK(population.population_m.stat == 6700 && population.population_m.acc == 3500);
+  CHECK(population.starving_m.stat == 40 && population.starving_m.acc == 17);
+  CHECK(population.births_t == 42 && population.max_pop_ever == 164);
+  CHECK(population.starve_deaths_t == 9 && population.starve_deaths_history == 2.625f);
+  CHECK(world.stats.income.goods_tax.stat == -153 && world.stats.income.goods_tax.acc == -94);
+  CHECK(world.stats.expenses.coalSurvey.stat == 100 && world.stats.expenses.health.acc == 69);
+  const auto& sustainability = world.stats.sustainability;
+  CHECK(!sustainability.mining_flag && sustainability.trade_flag);
+  CHECK(sustainability.old_money == -512 && sustainability.fire_years == 7);
+
+  const auto& history = world.stats.history;
+  CHECK(history.births.at(0) == 10 && history.births.at(1) == 0 && history.births.at(3) == 8);
+  const auto& food = history.inventory[STUFF_FOOD];
+  CHECK(food.at(0).amount == 3100 && food.at(0).capacity == 5500);
+  CHECK(food.at(1).amount == 1200 && food.at(1).capacity == 5000);
+
+  CHECK(world.map.recentPoint == MapPoint(5, 17));
+  CHECK(world.map.alt_min == -12 && world.map.alt_max == 36 && world.map.alt_step == 4);
+  const auto& lake = *world.map(MapPoint(6, 8));
+  CHECK(lake.is_lake() && (lake.flags & FLAG_HAS_UNDERGROUND_WATER));
+  CHECK(!(lake.flags & VOLATILE_FLAGS));
+  CHECK(lake.pollution == 61 && lake.ore_reserve == 170 && lake.coal_reserve == 240);
+  const auto& ground = lake.ground;
+  CHECK(ground.altitude == -12 && ground.ecotable == 97);
+  CHECK(ground.wastes == 3 && ground.pollution == 26);
+  CHECK(ground.water_alt == 5 && ground.water_pol == 12 && ground.water_wast == 8);
+}
+
+void statistics2140(const fs::path& fixtures, const fs::path& saved) {
+  const auto world = World::load(fixtures / "statistics-2140.xml");
+  checkStatistics2140(*world);
+  world->save(saved);
+  checkStatistics2140(*World::load(saved));
 }
 
 void extendedPopulationHistory(const fs::path& saved) {
@@ -157,9 +236,25 @@ void expectFailure(Operation operation, std::string_view diagnostic) {
   throw std::runtime_error("Expected rejection: " + std::string(diagnostic));
 }
 
+void rejectEmptySave(const fs::path& saved) {
+  writeXml(saved, "");
+  try {
+    World::load(saved);
+  } catch(const xmlpp::parse_error&) {
+    return;
+  } catch(const std::runtime_error& error) {
+    CHECK(std::string_view(error.what()).find("save file is empty") != std::string_view::npos);
+    return;
+  }
+  throw std::runtime_error("Expected rejection of an empty city save");
+}
+
 void parserErrors(const fs::path& saved) {
+  rejectEmptySave(saved);
   writeXml(saved, "<SaveGame/>");
   expectFailure([&] { World::load(saved); }, "format that is too old");
+  writeXml(saved, "<lc-game ldsv-version='latest'/>");
+  expectFailure([&] { World::load(saved); }, "failed to parse XML value");
   // A regular file cannot be the parent of a save path.
   const auto unavailable = saved / "unavailable.sav.gz";
   expectFailure([&] { World::load(unavailable); }, "failed to open file");
@@ -197,6 +292,9 @@ void parserErrors(const fs::path& saved) {
 
 #ifdef NDEBUG
 void unknownFields(const fs::path& saved) {
+  writeXml(saved, "<settings/>");
+  expectFailure([&] { World::load(saved); }, "failed to find <lc-game>");
+
   // Release builds skip unknown fields and keep reading the known siblings.
   writeXml(saved, R"xml(
     <lc-game ldsv-version="2140">
@@ -240,6 +338,7 @@ int main(int argc, char** argv) {
   try {
     marketDirections(saved);
     migrate2130(fixtures, saved);
+    statistics2140(fixtures, saved);
     extendedPopulationHistory(saved);
     specializedBuildings(fixtures, saved);
     parserErrors(saved);

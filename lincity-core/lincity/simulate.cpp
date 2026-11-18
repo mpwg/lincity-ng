@@ -205,7 +205,7 @@ World::end_of_year_update(void) {
 
   try {
     if(total_money < 0)
-      expense(std::min((-total_money / 1000) * INTEREST_RATE, 1000000),
+      expense(std::min(-(total_money / 1000) * INTEREST_RATE, 1000000),
         stats.expenses.interest);
   } catch(const OutOfMoneyMessage::Exception& ex) {
     // TODO: penalty for being bankrupt

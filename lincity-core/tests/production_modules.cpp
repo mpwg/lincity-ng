@@ -1,3 +1,4 @@
+#include "lincity/ConstructionReport.hpp"
 #include "lincity/modules/coal_power.hpp"
 #include "lincity/modules/coalmine.hpp"
 #include "lincity/modules/commune.hpp"
@@ -13,9 +14,13 @@
 #include "lincity/modules/windmill.hpp"
 #include "lincity/modules/windpower.hpp"
 #include "lincity/world.hpp"
+#include "util/simulation_trace.hpp"
 
+#include <algorithm>
 #include <initializer_list>
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -25,6 +30,22 @@ const MapPoint site(12, 12);
 
 #define CHECK(expression) do { if(!(expression)) throw std::runtime_error( \
   std::string(__func__) + " line " + std::to_string(__LINE__) + ": " #expression); } while(false)
+
+class CommuneReport : public ConstructionReport {
+public:
+  std::optional<std::pair<int, int>> idleMonths;
+
+  void addBlank() override {}
+  void addLabel(const std::string&) override {}
+  void addLabeledText(const std::string&, const std::string&) override {}
+  void addInteger(const std::string&, int) override {}
+  void addDecimal(const std::string&, double) override {}
+  void addPercentage(const std::string&, double) override {}
+  void addPrefixedQuantity(const std::string&, const std::string&, int, int) override {}
+  void addQuantity(const std::string& label, int value, int capacity) override {
+    if(label == "lazy months") idleMonths.emplace(value, capacity);
+  }
+};
 
 Construction& place(World& world, ConstructionGroup& group) {
   group.placeItem(world, site);
@@ -63,6 +84,68 @@ void coalPower() {
   CHECK(stored[STUFF_HIVOLT] == 220000 && stored[STUFF_COAL] == 0 && stored[STUFF_LABOR] == 0);
   CHECK(world.map(site)->pollution == 30);
   CHECK(plant.commodityProdPrev[STUFF_HIVOLT] == 33000);
+}
+
+int visibleSmoke(const World& world, const char* resource) {
+  auto* frames = world.map(site)->getFrames();
+  if(!frames) return 0;
+  return std::count_if(frames->begin(), frames->end(), [&](const auto& frame) {
+    return frame.resourceGroup == ResourceGroup::resMap.at(resource) && frame.frame >= 0;
+  });
+}
+
+void coalPowerAnimation() {
+  World world(32);
+  auto& plant = place(world, coal_powerConstructionGroup);
+  struct Case { int coal; const char* appearance; };
+  for(const auto& test : {
+    Case{88, "PowerCoalEmpty"}, Case{89, "PowerCoalLow"},
+    Case{440, "PowerCoalLow"}, Case{441, "PowerCoalMed"},
+    Case{704, "PowerCoalMed"}, Case{705, "PowerCoalFull"},
+  }) {
+    stock(plant, {{STUFF_COAL, test.coal}});
+    world.do_animate(0);
+    CHECK(plant.getFrame().resourceGroup == ResourceGroup::resMap.at(test.appearance));
+  }
+  CHECK(visibleSmoke(world, "BlackSmoke") == 0);
+
+  for(int day = 77; day <= 99; ++day) {
+    world.total_time = day;
+    stock(plant, {{STUFF_COAL, 44}, {STUFF_LABOR, 100}, {STUFF_HIVOLT, 0}});
+    plant.update();
+  }
+  world.do_animate(ANIM_THRESHOLD(SMOKE_ANIM_SPEED) - 1);
+  CHECK(visibleSmoke(world, "BlackSmoke") == 0);
+  world.do_animate(ANIM_THRESHOLD(SMOKE_ANIM_SPEED));
+  CHECK(visibleSmoke(world, "BlackSmoke") == 2);
+
+  world.total_time = 199;
+  plant.update();
+  world.do_animate(2 * ANIM_THRESHOLD(SMOKE_ANIM_SPEED));
+  CHECK(visibleSmoke(world, "BlackSmoke") == 0);
+}
+
+void bulldozedSmokeFrames(ConstructionGroup& group, std::size_t frameCount) {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.total_money = 20000000;
+  world.buildConstruction(group, site);
+  const auto afterConstruction = world.total_money;
+  const auto* tile = world.map(site);
+  CHECK(tile->getFrames() && tile->getFrames()->size() == frameCount);
+  CHECK(world.stats.groupCount[group.group] == 1);
+
+  world.bulldozeArea(site.e().s());
+  CHECK(world.total_money == afterConstruction - group.bul_cost);
+  CHECK(!tile->getFrames() || tile->getFrames()->empty());
+  CHECK(world.stats.groupCount[group.group] == 0);
+  for(int y = 0; y < group.size; ++y)
+    for(int x = 0; x < group.size; ++x)
+      CHECK(!world.map(site.e(x).s(y))->getReportingConstruction());
+  world.do_time_step();
+
+  world.buildConstruction(group, site);
+  CHECK(tile->getFrames() && tile->getFrames()->size() == frameCount);
 }
 
 void coalMineThresholds() {
@@ -153,6 +236,27 @@ void coalMineExhaustion() {
   world.do_time_step(); // The simulation reclaims the detached construction on the next tick.
 }
 
+void coalMineMapEdges() {
+  struct Case { MapPoint mine, deposit, border; };
+  for(const auto& test : {
+    Case{{1, 1}, {1, 1}, {0, 1}},
+    Case{{26, 26}, {30, 30}, {31, 30}},
+  }) {
+    World world(32);
+    auto& deposit = *world.map(test.deposit);
+    auto& border = *world.map(test.border);
+    deposit.coal_reserve = 20;
+    border.coal_reserve = 20;
+    coalmineConstructionGroup.placeItem(world, test.mine);
+    auto& mine = *world.map(test.mine)->getConstruction();
+    stock(mine, {{STUFF_LABOR, 918}});
+    mine.update();
+    CHECK(mine.commodityCount[STUFF_COAL] == 1000);
+    CHECK(deposit.coal_reserve == 19 && deposit.pollution == 3);
+    CHECK(border.coal_reserve == 20 && border.pollution == 0);
+  }
+}
+
 void oreMineConstruction() {
   World world(32);
   world.tech_level = MAX_TECH_LEVEL;
@@ -227,6 +331,24 @@ void oreMineExhaustion() {
   world.do_time_step();
 }
 
+void oreMineFullDeposit() {
+  World world(32);
+  for(int y = 0; y < GROUP_OREMINE_SIZE; ++y)
+    for(int x = 0; x < GROUP_OREMINE_SIZE; ++x)
+      world.map(site.e(x).s(y))->ore_reserve = 1500;
+  auto& mine = place(world, oremineConstructionGroup);
+  stock(mine, {{STUFF_ORE, 85001}, {STUFF_LABOR, 209}});
+  mine.update();
+  CHECK(mine.commodityCount[STUFF_ORE] == 85001 && mine.commodityCount[STUFF_LABOR] == 209);
+  CHECK(world.map(site)->ore_reserve == 1500);
+
+  auto& deposit = *world.map(site.e(3).s(3));
+  --deposit.ore_reserve;
+  mine.update();
+  CHECK(mine.commodityCount[STUFF_ORE] == 80001 && mine.commodityCount[STUFF_LABOR] == 0);
+  CHECK(deposit.ore_reserve == 1500 && world.map(site)->ore_reserve == 1500);
+}
+
 void communeProduction() {
   World world(32);
   auto& commune = place(world, communeConstructionGroup);
@@ -257,16 +379,25 @@ void idleCommuneBecomesParks() {
   World world(32);
   world.map(site.e())->flags |= FLAG_HAS_UNDERGROUND_WATER;
   auto& commune = place(world, communeConstructionGroup);
+  CommuneReport initial;
+  commune.report(initial, false);
+  CHECK(!initial.idleMonths);
   stock(commune, {{STUFF_COAL, 60}, {STUFF_ORE, 140}, {STUFF_STEEL, 40}});
   for(int month = 0; month < 120; ++month) {
     world.total_time = 100 * month + 99;
     commune.update();
   }
   CHECK(world.map(site)->getConstruction() == &commune);
+  CommuneReport beforeRecovery;
+  commune.report(beforeRecovery, false);
+  CHECK(beforeRecovery.idleMonths == std::make_pair(120, 120));
   stock(commune, {{STUFF_ORE, 134}});
   world.total_time = 12099;
   commune.update();
   CHECK(commune.commodityCount[STUFF_ORE] == 140);
+  CommuneReport afterRecovery;
+  commune.report(afterRecovery, false);
+  CHECK(afterRecovery.idleMonths == std::make_pair(119, 120));
   world.total_time = 12199;
   commune.update();
   CHECK(world.map(site)->getConstruction() == &commune);
@@ -384,6 +515,46 @@ void powerlineLoss() {
   CHECK(line.commodityCount[STUFF_HIVOLT] == 0 && line.commodityProdPrev[STUFF_HIVOLT] == -1);
 }
 
+void powerlineFlash() {
+  World world(32);
+  world.tech_level = MAX_TECH_LEVEL;
+  world.total_money = 4000000;
+  const auto source = site.w(4);
+  world.buildConstruction(solarPowerConstructionGroup, source);
+  world.buildConstruction(powerlineConstructionGroup, site);
+  auto& line = dynamic_cast<Powerline&>(*world.map(site)->getConstruction());
+  auto& solar = *world.map(source)->getConstruction();
+  stock(solar, {{STUFF_HIVOLT, 9000}});
+  {
+    std::istringstream tape("LINCITY-SIMULATION-TRACE 1\nC 1\nZ\n");
+    SimulationTrace trace(tape);
+    line.trade();
+    trace.finish();
+  }
+  CHECK(line.commodityCount[STUFF_HIVOLT] > 0);
+  CHECK(line.anim_counter == POWER_MODULUS + 1);
+  const auto unlit = line.getFrame().frame;
+  CHECK(unlit < 11);
+  const unsigned long start = 100;
+  const auto step = ANIM_THRESHOLD(POWER_LINE_FLASH_SPEED);
+  world.do_animate(start);
+  CHECK(!line.flashing && line.getFrame().frame == unlit);
+  for(const unsigned long time : {start + 1, start + 2}) {
+    world.do_animate(time);
+    CHECK(line.anim_counter == POWER_MODULUS && line.flashing);
+    CHECK(line.getFrame().frame == unlit + 11);
+  }
+  world.do_animate(start + step);
+  CHECK(line.anim_counter == POWER_MODULUS - 1 && line.flashing);
+  world.do_animate(start + 2 * step);
+  CHECK(line.anim_counter == POWER_MODULUS - 2 && line.flashing);
+  for(const unsigned long time : {start + 2 * step + 1, start + 2 * step + 2}) {
+    world.do_animate(time);
+    CHECK(line.anim_counter == POWER_MODULUS - 2 && !line.flashing);
+    CHECK(line.getFrame().frame == unlit);
+  }
+}
+
 void heavyIndustryEnergy() {
   struct Case { int hv, lv, coal, steel, hvLeft, lvLeft, coalLeft, laborLeft, pollution; };
   for(const auto& test : {
@@ -458,6 +629,60 @@ void industryWasteOverflow(ConstructionGroup& group, int labor, int ore, int cap
   CHECK(world.map(site)->pollution == waste - 1);
 }
 
+void industryFilters() {
+  struct Case { int tech; int heavyPollution, heavyWaste; int lightPollution, lightWaste; };
+  for(const auto& test : {
+    Case{3 * MAX_TECH_LEVEL / 2, 4, 4, 5, 5},
+    Case{5 * MAX_TECH_LEVEL / 2, 0, 4, 0, 5},
+    Case{7 * MAX_TECH_LEVEL / 2, 0, 0, 0, 0},
+  }) {
+    World world(32);
+    world.tech_level = test.tech;
+    auto& heavy = place(world, industryHeavyConstructionGroup);
+    const auto lightSite = site.e(8);
+    industryLightConstructionGroup.placeItem(world, lightSite);
+    auto& light = *world.map(lightSite)->getConstruction();
+    // Existing factories keep the technology they were built with.
+    world.tech_level = 0;
+    stock(heavy, {{STUFF_LABOR, 46}, {STUFF_ORE, 612}, {STUFF_HIVOLT, 3600}});
+    stock(light, {{STUFF_LABOR, 40}, {STUFF_ORE, 125}});
+    heavy.update();
+    light.update();
+    CHECK(heavy.commodityCount[STUFF_STEEL] == 36);
+    CHECK(light.commodityCount[STUFF_GOODS] == 225);
+    CHECK(heavy.commodityCount[STUFF_WASTE] == test.heavyWaste);
+    CHECK(light.commodityCount[STUFF_WASTE] == test.lightWaste);
+    CHECK(world.map(site)->pollution == test.heavyPollution);
+    CHECK(world.map(lightSite)->pollution == test.lightPollution);
+  }
+}
+
+void lightIndustryAnimation() {
+  struct Case { int workingDays; const char* appearance; int plumes; };
+  for(const auto& test : {
+    Case{10, "IndustryLight", 0}, Case{11, "IndustryLight", 1},
+    Case{25, "IndustryLight", 1}, Case{26, "IndustryLightL", 1},
+    Case{55, "IndustryLightL", 1}, Case{56, "IndustryLightM", 1},
+    Case{70, "IndustryLightM", 1}, Case{71, "IndustryLightM", 2},
+    Case{80, "IndustryLightM", 2}, Case{81, "IndustryLightH", 2},
+  }) {
+    World world(32);
+    auto& industry = place(world, industryLightConstructionGroup);
+    for(int day = 1; day <= test.workingDays; ++day) {
+      world.total_time = day;
+      stock(industry, {{STUFF_LABOR, 59}, {STUFF_ORE, 250}, {STUFF_STEEL, 12},
+        {STUFF_LOVOLT, 18000}, {STUFF_GOODS, 0}});
+      industry.update();
+      CHECK(industry.commodityCount[STUFF_GOODS] == 1800);
+    }
+    world.total_time = 100;
+    industry.update();
+    world.do_animate(0);
+    CHECK(industry.getFrame().resourceGroup == ResourceGroup::resMap.at(test.appearance));
+    CHECK(visibleSmoke(world, "GraySmoke") == test.plumes);
+  }
+}
+
 void potteryCooldown() {
   World world(32);
   auto& pottery = place(world, potteryConstructionGroup);
@@ -511,13 +736,18 @@ void recycleCapacity() {
 int main() {
   try {
     coalPower();
+    coalPowerAnimation();
+    bulldozedSmokeFrames(coal_powerConstructionGroup, 9);
+    bulldozedSmokeFrames(industryLightConstructionGroup, 3);
     coalMineThresholds();
     coalMineReturnRetry();
     coalMineExtractionRetry();
     coalMineExhaustion();
+    coalMineMapEdges();
     oreMineConstruction();
     oreMineThresholds();
     oreMineExhaustion();
+    oreMineFullDeposit();
     communeProduction();
     idleCommuneBecomesParks();
     farmWaterAndCapacity();
@@ -526,11 +756,14 @@ int main() {
     solarHeadroom();
     windHeadroom();
     powerlineLoss();
+    powerlineFlash();
     heavyIndustryEnergy();
     lightIndustryEnergy();
     lightIndustryCapacity();
     industryWasteOverflow(industryHeavyConstructionGroup, 46, 612, 180, 9, 3600);
     industryWasteOverflow(industryLightConstructionGroup, 40, 125, 1800, 11, 0);
+    industryFilters();
+    lightIndustryAnimation();
     potteryCooldown();
     recycleCapacity();
   } catch(const std::exception& error) {
