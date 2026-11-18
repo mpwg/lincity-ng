@@ -33,3 +33,25 @@ Bei der Brückenplatzierung kann der allgemeine Bauplatztest zunächst einen
 belegten Platz melden, den die spezifische Brückenregel anschließend zulässt.
 Der Rückgabewert entscheidet über die Freigabe. Der Trace erfasst einen
 Ablehnungsgrund ausschließlich bei einer abgelehnten Vorschau.
+
+## Befunde aus den zusätzlichen Abdeckungstests
+
+- Eine Überflutung am Kreditlimit hinterließ trotz Ablehnung Wasser auf der
+  Karte. Die Ausgabe wird jetzt vor der Geländeveränderung gebucht. Der Test
+  prüft Karte, Konto und Änderungsindikatoren nach der Ablehnung.
+- Ein weiterer erfolgreicher Raketenstart nach Spielende konnte in einer
+  leeren Stadt bei der Evakuierung hängen bleiben. Die Evakuierung endet jetzt
+  auch bei bereits gesetztem Spielende, wenn sie keine Einwohner mehr findet.
+  Das Originalticket #241 betrifft die Wiederverwendung der Startrampe.
+  [#241](https://github.com/lincity-ng/lincity-ng/issues/241)
+- Gespeicherte Marktregeln mit unterschiedlichen Kauf- und Verkaufswerten
+  gingen beim Laden verloren. Der Lader prüft jetzt das Präfix vor der
+  Umwandlung in einen Wahrheitswert und weist dem ausgewählten Feld den
+  gelesenen Wert zu. Die sechs historischen Szenarien enthalten nur Märkte mit
+  symmetrischen Einstellungen. Ein neuer Spielstand prüft beide Richtungen.
+- Die Schule erfasst laufende Kosten zunächst im Ausgabenkonto und schließt
+  die Periode an Tag 100 ab. Die Universität belastet die Kasse direkt und
+  schließt an Tag 99 ab. Das Monument benötigt mehr Arbeiterbestand als sein
+  Tagesverbrauch und wechselt nach Erreichen von 100 Prozent erst im nächsten
+  Update in den abgeschlossenen Zustand. Diese Eigenschaften sind
+  als Referenzverhalten in den neuen Tests erfasst.

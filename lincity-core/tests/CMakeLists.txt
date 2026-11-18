@@ -18,6 +18,7 @@ add_test(NAME core.actions COMMAND core_actions)
 add_executable(core_animation animation.cpp)
 target_link_libraries(core_animation PRIVATE LinCity::Core)
 add_test(NAME core.animation COMMAND core_animation)
+set_tests_properties(core.animation PROPERTIES TIMEOUT 20)
 
 add_executable(core_modules modules.cpp)
 target_link_libraries(core_modules PRIVATE LinCity::Core randutil)
@@ -58,3 +59,14 @@ endif()
 add_executable(core_world_behavior world_behavior.cpp)
 target_link_libraries(core_world_behavior PRIVATE LinCity::Core randutil)
 add_test(NAME core.world_behavior COMMAND core_world_behavior)
+
+foreach(suite production_modules services civic)
+  add_executable("core_${suite}" "${suite}.cpp")
+  target_link_libraries("core_${suite}" PRIVATE LinCity::Core randutil)
+  add_test(NAME "core.${suite}" COMMAND "core_${suite}")
+endforeach()
+
+add_executable(core_persistence persistence.cpp)
+target_link_libraries(core_persistence PRIVATE LinCity::Core)
+add_test(NAME core.persistence COMMAND core_persistence
+  "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" "${CMAKE_CURRENT_BINARY_DIR}/persistence.sav.gz")

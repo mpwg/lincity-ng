@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<lc-game ldsv-version="2130">
+  <globals>
+    <given_scene>Legacy accounting and history</given_scene>
+    <world_side_len>32</world_side_len>
+    <main_screen_originx>12</main_screen_originx>
+    <main_screen_originy>12</main_screen_originy>
+    <total_time>309</total_time>
+    <total_money>1700</total_money>
+    <tech_level>7500</tech_level>
+    <ly_income_tax>37</ly_income_tax>
+    <income_tax>91</income_tax>
+    <ly_import_cost>58</ly_import_cost>
+    <import_cost>467</import_cost>
+    <import_cost_rate>15</import_cost_rate>
+    <unemployment_cost>105</unemployment_cost>
+    <dole_rate>20</dole_rate>
+    <windmill_cost>13</windmill_cost>
+    <total_unemployed_days>17</total_unemployed_days>
+    <total_unemployed_years>2</total_unemployed_years>
+    <import_Food_enable>0</import_Food_enable>
+    <export_Goods_enable>0</export_Goods_enable>
+    <monthgraph_pop>901 801 701</monthgraph_pop>
+    <monthgraph_starve>31 23 11</monthgraph_starve>
+    <monthgraph_nojobs>41 39 27</monthgraph_nojobs>
+    <monthgraph_ppool>121 109 99</monthgraph_ppool>
+    <pbar id="1">
+      <!-- Older progress bars stored values oldest first. -->
+      <diff>50</diff>
+      <data>7000 7250 7500</data>
+    </pbar>
+    <pbar id="3">
+      <!-- Inventories stored fractions in thousandths. -->
+      <diff>40</diff>
+      <data>660</data>
+    </pbar>
+    <pbar id="14">
+      <diff>20</diff>
+      <data>910</data>
+    </pbar>
+  </globals>
+  <map>
+    <MapTile group="21" map-x="6" map-y="8">
+      <flags>0x20800000</flags>
+      <altitude>17</altitude>
+    </MapTile>
+    <Construction group="25" map-x="12" map-y="12">
+      <tech_made>3</tech_made>
+      <tail_off>2</tail_off>
+      <completion>18</completion>
+      <jobs_consumed>63000</jobs_consumed>
+    </Construction>
+  </map>
+</lc-game>

@@ -1,3 +1,4 @@
+#include "lincity/Vehicles.hpp"
 #include "lincity/modules/all_modules.hpp"
 #include "lincity/sustainable.hpp"
 #include "lincity/world.hpp"
@@ -5,6 +6,7 @@
 
 #include <array>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -125,6 +127,175 @@ void riversAndCables() {
   }
 }
 
+void transportFrames() {
+  struct Kind { ConstructionGroup& land; ConstructionGroup& bridge; bool longRamp; };
+  for(const auto& kind : std::array<Kind, 3>{{
+    {trackConstructionGroup, trackbridgeConstructionGroup, false},
+    {roadConstructionGroup, roadbridgeConstructionGroup, true},
+    {railConstructionGroup, railbridgeConstructionGroup, true}
+  }}) {
+    const std::array<MapPoint, 4> directions{MapPoint(0,-1), MapPoint(-1,0),
+                                           MapPoint(0,1), MapPoint(1,0)};
+    for(unsigned index = 0; index < directions.size(); ++index) {
+      World world(32);
+      const auto d = directions[index];
+      const auto at = [&](int step) { return MapPoint(site.x + d.x * step, site.y + d.y * step); };
+      world.map(at(1))->setTerrain(GROUP_WATER);
+      kind.bridge.placeItem(world, at(1));
+      kind.land.placeItem(world, at(0));
+      kind.land.placeItem(world, at(-1));
+      world.map.connect_transport(8, 8, 16, 16);
+      CHECK(world.map(at(0))->getType() == 13 + index);
+      CHECK(world.map(at(1))->getType() == (d.x ? 1 : 0));
+      CHECK(world.map(at(1))->getTransportGroup() == kind.land.group);
+      CHECK(world.map(at(1))->getLowerstVisibleGroup() == GROUP_WATER);
+      if(kind.longRamp)
+        CHECK(world.map(at(-1))->getType() == 17 + index);
+
+      world.bulldozeArea(at(-1));
+      world.map(at(-1))->setTerrain(GROUP_WATER);
+      kind.bridge.placeItem(world, at(-1));
+      world.map.connect_transport(8, 8, 16, 16);
+      CHECK(world.map(at(0))->getType() == (d.x ? 12 : 11));
+      CHECK(world.map(at(0))->getConstruction()->flags & FLAG_TRANSPARENT);
+    }
+  }
+
+  for(auto* road : {&trackConstructionGroup, &roadConstructionGroup}) {
+    World crossings(32);
+    railConstructionGroup.placeItem(crossings, site);
+    road->placeItem(crossings, site.e());
+    road->placeItem(crossings, site.w());
+    crossings.map.connect_transport(8, 8, 16, 16);
+    const int offset = road == &trackConstructionGroup ? 0 : 2;
+    CHECK(crossings.map(site)->getType() == 22 + offset);
+    crossings.bulldozeArea(site.e());
+    crossings.bulldozeArea(site.w());
+    road->placeItem(crossings, site.n());
+    road->placeItem(crossings, site.s());
+    crossings.map.connect_transport(8, 8, 16, 16);
+    CHECK(crossings.map(site)->getType() == 21 + offset);
+  }
+}
+
+void vehicleCrossings() {
+  struct Route { MapPoint step; int direction; };
+  for(const auto& route : std::array<Route, 4>{{
+    {MapPoint(0, 1), 0}, {MapPoint(1, 0), 2}, {MapPoint(0, -1), 4}, {MapPoint(-1, 0), 6}
+  }}) {
+    World world(32);
+    const auto at = [&](int n) {
+      return MapPoint(site.x + n * route.step.x, site.y + n * route.step.y);
+    };
+    for(int n = 0; n < 6; ++n) {
+      if(n == 2)
+        railConstructionGroup.placeItem(world, at(n));
+      else
+        trackConstructionGroup.placeItem(world, at(n));
+    }
+    auto car = std::make_unique<Vehicle>(world, site, VEHICLE_BLUECAR);
+    car->update(1);
+    CHECK(car->point == at(1));
+    car->update(car->anim + 1);
+    CHECK(car->point == at(2) && car->direction == route.direction);
+    CHECK(car->frameIt->frame == route.direction);
+    car->update(car->anim + 1);
+    CHECK(car->point == at(3) && car->direction == route.direction);
+  }
+
+  struct Crossing { ConstructionGroup& land; ConstructionGroup& bridge; };
+  for(const auto& kind : std::array<Crossing, 2>{{
+    {trackConstructionGroup, trackbridgeConstructionGroup},
+    {roadConstructionGroup, roadbridgeConstructionGroup}
+  }}) {
+    World world(32);
+    for(int n = 0; n < 6; ++n) {
+      if(n == 2) {
+        world.map(site.e(n))->setTerrain(GROUP_WATER);
+        kind.bridge.placeItem(world, site.e(n));
+      } else {
+        kind.land.placeItem(world, site.e(n));
+      }
+    }
+    auto car = std::make_unique<Vehicle>(world, site, VEHICLE_BLUECAR);
+    car->update(1);
+    car->update(car->anim + 1);
+    CHECK(car->point == site.e(2) && car->frameIt->frame == 9);
+    car->update(car->anim + 1);
+    CHECK(car->point == site.e(3) && car->frameIt->frame == 2);
+    car->update(car->anim + 1);
+    CHECK(car->point == site.e(4) && car->frameIt->frame == 13);
+  }
+}
+
+void eventDiagnostics() {
+  World world(32);
+  const auto outside = OutsideMapMessage::create(site);
+  try {
+    outside->throwEx();
+  } catch(const Message::Exception& error) {
+    CHECK(Message::fromCurrentException() == outside);
+    CHECK(std::string(error.what()) == "outside map: (12,12)");
+  }
+
+  try {
+    throw std::runtime_error("resource unavailable");
+  } catch(...) {
+    CHECK(Message::fromCurrentException()->str().find("resource unavailable") != std::string::npos);
+  }
+  try {
+    throw 2;
+  } catch(...) {
+    CHECK(Message::fromCurrentException()->str() == "unknown exception");
+  }
+
+  world.total_time = NUMOF_DAYS_IN_MONTH - 2;
+  world.people_pool = 0;
+  world.do_time_step();
+  const auto noPeople = dynamic_message_cast<NoPeopleLeftMessage>(world.popMessage());
+  CHECK(noPeople && noPeople->getTime() == NUMOF_DAYS_IN_MONTH - 1);
+  CHECK(noPeople->str() == "everyone died");
+  CHECK(world.gameEnd);
+
+  blacksmithConstructionGroup.placeItem(world, site);
+  world.map(site)->flags |= FLAG_FIRE_COVER;
+  const auto ignite = [&] {
+    std::istringstream input("LINCITY-SIMULATION-TRACE 1\nC 12\nC 12\nC 0\nZ\n");
+    SimulationTrace trace(input);
+    // Placement after ignition is an observable side effect. Record those
+    // entries only for the unprotected case below.
+    world.do_random_fire();
+    trace.finish();
+  };
+  ignite();
+  CHECK(!world.popMessage() && world.map(site)->getGroup() == GROUP_BLACKSMITH);
+
+  world.map(site)->flags &= ~FLAG_FIRE_COVER;
+  std::istringstream fire("LINCITY-SIMULATION-TRACE 1\nC 12\nC 12\nC 0\nP 1 12 12 " +
+    std::to_string(GROUP_FIRE) + "\nP 2 13 12 " + std::to_string(GROUP_FIRE) +
+    "\nP 3 12 13 " + std::to_string(GROUP_FIRE) + "\nP 4 13 13 " +
+    std::to_string(GROUP_FIRE) + "\nZ\n");
+  SimulationTrace trace(fire);
+  world.do_random_fire();
+  trace.finish();
+  const auto started = dynamic_message_cast<FireStartedMessage>(world.popMessage());
+  CHECK(started && started->getPoint() == site && started->getGroup().group == GROUP_BLACKSMITH);
+  CHECK(started->str().find("(12,12)") != std::string::npos);
+  CHECK(world.map(site)->getGroup() == GROUP_FIRE);
+}
+
+void inventionThreshold() {
+  World world(32);
+  const auto before = inventionsAfter(rocketPadConstructionGroup.tech - 1);
+  CHECK(before.size() == 1 && before.front() == &rocketPadConstructionGroup);
+  CHECK(inventionsAfter(rocketPadConstructionGroup.tech).empty());
+  int prev = 0;
+  for(const auto* group : inventionsAfter(0)) {
+    CHECK(group->tech > 0 && group->tech >= prev);
+    prev = group->tech;
+  }
+}
+
 void sustainability() {
   World world(32);
   auto& stats = world.stats.sustainability;
@@ -194,6 +365,10 @@ int main() {
     riversAndCables();
     pollutionAndRecovery();
     sustainability();
+    transportFrames();
+    vehicleCrossings();
+    inventionThreshold();
+    eventDiagnostics();
   } catch(const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
