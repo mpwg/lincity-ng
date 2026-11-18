@@ -202,12 +202,13 @@ fn snapshot(
 fn run(args: &[String]) -> io::Result<()> {
     let [mode, tape, scenario, profile, days, actions, directory] = args else {
         return Err(invalid(
-            "usage: rustcity-replay record|replay TAPE SCENARIO traffic|no-traffic DAYS ACTIONS|- OUTPUT_DIR",
+            "usage: rustcity-replay record|replay TAPE SCENARIO traffic|reduced|no-traffic DAYS ACTIONS|- OUTPUT_DIR",
         ));
     };
     let days: u32 = days.parse().map_err(|_| invalid("invalid day count"))?;
     let profile = match profile.as_str() {
         "traffic" => VehicleTraffic::Normal,
+        "reduced" => VehicleTraffic::Reduced,
         "no-traffic" => VehicleTraffic::Disabled,
         _ => return Err(invalid("invalid traffic profile")),
     };

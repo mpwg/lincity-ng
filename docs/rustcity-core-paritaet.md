@@ -17,12 +17,12 @@ Desktop-Vergleich haben jeweils eigene Einstiegspunkte.
 | Kohle- und Erzbergwerk, Leicht- und Schwerindustrie, Recycling und Deponie | Die C++-Referenz verzeichnet Tage, Bargeld, Umweltzustand, Reserven, Evakuierung, Vorräte und Produktionszähler. Weitere Tests betreffen Stilllegung, verbleibende Erzvorkommen und Abrisssperren. [Referenzprogramm](../lincity-core/parity/production_reference.cpp) · [Fälle](../rustcity-core/src/production/cases/) · [Integrationstests](../rustcity-core/tests/industry_actions.rs) |
 | Sechs Wohngebiete, Baracke, Schule, Universität, Feuerwehr, Gesundheitsdienst, Sportplatz, Denkmal, Brunnen und beide Parktypen | Die Gruppen teilen sich Zustands- und Aktualisierungsregeln. Gezielte Tests betreffen versorgte Wohnhäuser, getrennte Bildungsbudgets und die Warenentnahme der Baracke. [Regeln und Tests](../rustcity-core/src/city/civic/) · [Gruppenzuordnung](../rustcity-core/src/city/civic.rs) |
 | Markt, Hafen, Steuern und Stadthaushalt | Kauf- und Verkaufsregeln, Handel mit entfernten Partnern, Importabbuchung, Exportreste und Reihenfolge des Jahresabschlusses. [Finanztests](../rustcity-core/tests/finance.rs) |
-| Wege, Straßen, Schienen und drei Brückentypen | Gruppenwahl beim Bau auf Wasser, Kosten, Netzanbindung und Warenaustausch. Gesonderte Prüfung der Fahrzeugwahl, Wegfindung und Animation in belebten Städten bleibt erforderlich. [Aktionsdaten](../lincity-core/tests/replay/state-v1.tsv) · [Transporttests](../rustcity-core/tests/transport.rs) |
+| Wege, Straßen, Schienen und drei Brückentypen | Gruppenwahl beim Bau auf Wasser, Kosten, Netzanbindung und Warenaustausch. Ein Straßennetz mit 96 Feldern prüft Pendlerfahrten unter allen drei Verkehrsmodi. Frame-Referenzen decken Kurven, Brücken und Bahnübergänge ab. [Aktionsdaten](../lincity-core/tests/replay/state-v1.tsv) · [Transporttests](../rustcity-core/tests/transport.rs) · [Fahrzeugreferenz](../lincity-core/parity/transport_reference.cpp) |
 | Entscheidungen und Besuchsreihenfolge | Separate Zufallsquellen je Stadt, native Aufnahme und Wiedergabe, Rohwert vor C-Modulo, benannte Verteilungen, Platzierungs-IDs und A-/D-/E-Reihenfolgen. Tests manipulieren IDs, Zeit, Anzahl, Ereignistyp, Wahlausgang und Dateiende. [Tape-Tests](../rustcity-core/tests/decision_tape.rs) |
 | Umwelt, Ereignisse und Stadtinstanzen | Nachwachsen freiliegender Wüste, verschmutzte Rand- und Innenfelder, Warteschlange beim Übergang in Schulden, Spielfortsetzung und unabhängige Karten. [Umwelttests](../rustcity-core/tests/environment.rs) · [Ökologiefall](../rustcity-core/tests/farm.rs) |
-| Format 2130, Format 2140 und Fortsetzung | Migration alter Konten, Historien, Gebäude, XML und gzip. Ein zusätzlicher Test startet den C++-Runner und vergleicht den Folgetag aus einem Rust-Spielstand. [Persistenztests](../rustcity-core/tests/persistence.rs) · [Kreuztest](../rustcity-core/src/save/tests.rs) |
+| Format 2130, Format 2140 und Fortsetzung | Migration alter Konten, Historien, Gebäude, XML und gzip. Schmiede (2140) und Beach (2130) werden je fünf Ticks bis zur Übergabe gespielt. Beide Kerne speichern und spielen die Zwischenstände des jeweils anderen Kerns sieben weitere Ticks. [Persistenztests](../rustcity-core/tests/persistence.rs) · [Mehrtägiger Kreuztest](../lincity-core/tests/replay/check_continuation.py) |
 | Generierte Städte | Für Fluss-, Wüsten-, gemäßigte und Sumpfkarten laufen Kombinationen mit und ohne Wald sowie mit und ohne Dorf in 50×50 und 100×100. Vier weitere Fälle prüfen die Mindestgrößen 13 und 26 sowie zwei Küsten bei Größe 50. C++ und Rust nahmen abwechselnd auf und spielten das jeweils andere Tape ab. Alle 72 daraus gespeicherten Kartenpaare stimmten einschließlich Gelände, Höhen, Wasserständen, Rohstoffreserven und Dorfgebäuden überein. [Kreuztest](../rustcity-core/tests/world_generation.rs) · [C++-Referenzprogramm](../lincity-core/parity/generation_reference.cpp) |
-| Kommune, Feuer, Raketenrampe und Verkehrsmodus „reduziert“ | Die Szenarien prüfen einzelne Zustände dieser Bereiche. Für die Gesamtabnahme sind eigenständige Verhaltensbelege sowie Läufe aller Verkehrsmodi erforderlich. |
+| Kommune, Feuer und Raketenrampe | Gezielte Gebäude- und Replaytests ergänzen die Szenarien. Die Langzeitläufe prüfen auch Wechselwirkungen mit Handel, Bevölkerung und Umwelt. [Kommunen](../rustcity-core/src/city/commune.rs) · [Feuer](../rustcity-core/src/city/civic.rs) · [Raketenstarts](../rustcity-core/tests/rocket.rs) |
 | SDL-Anbindung, FFI und eigenständige Crate | Die Desktop-Abnahme setzt erfolgreiche Headless-Parität voraus. Der [Abnahmeplan](superpowers/plans/2026-11-18-rustcity-core.md) benennt die Tests für Build-Auswahl, Eingaben, Kreuzladen und Lebenszyklus. |
 
 ## Szenariovergleich
@@ -81,4 +81,25 @@ Rust-API bietet `City::generate` für die native Auswahl und
 cmake --build build/core --target core_generation_reference
 RUSTCITY_CPP_GENERATOR="$PWD/build/core/parity/core_generation_reference" \
   cargo test --manifest-path rustcity-core/Cargo.toml --release --test world_generation -- --include-ignored
+```
+
+## Spielstandübergabe und Verkehr
+
+Der Mehrtages-Kreuztest führt die sechs versionierten Aktionen für die Schmiede
+und Beach aus. Er vergleicht das Aufwärmen und prüft anschließend dieselbe
+gespeicherte Stadt aus jeder Schreibimplementierung mit dem jeweils anderen
+Reader. Alle vier Fortsetzungen über sieben Ticks stimmten an acht Tagen und
+an den drei Speicherpunkten der Fortsetzung überein.
+
+Für den Verkehrstest starten 96 verbundene Straßenfelder mit wechselnden
+Arbeitskräftevorräten. Über 20 Ticks stimmten je Profil 21 Tageszustände und
+drei vollständige Spielstände überein. Im aufgezeichneten Lauf erschienen
+0 Richtungsentscheidungen ohne Verkehr, 19 mit reduziertem und 30 mit normalem
+Verkehr. Alle aufgezeichneten Richtungen wurden im Rust-Kern validiert.
+
+Wenn beide Quellbäume, Cargo und Python vorhanden sind, führt der reguläre
+CTest-Lauf die Kreuztests aus. Für einen gezielten Lauf nach einem CMake-Build:
+
+```sh
+ctest --test-dir build/core -R '^rustcity[.]cross[.]' --output-on-failure
 ```

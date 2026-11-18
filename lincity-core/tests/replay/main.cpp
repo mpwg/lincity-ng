@@ -136,7 +136,7 @@ void execute(World& world, Observations& out, const Command& command, std::size_
 
 int main(int argc, char** argv) {
   if(argc != 8) {
-    std::cerr << "usage: core_replay record|replay TAPE SCENARIO traffic|no-traffic DAYS ACTIONS|- OUTPUT_DIR\n";
+    std::cerr << "usage: core_replay record|replay TAPE SCENARIO traffic|reduced|no-traffic DAYS ACTIONS|- OUTPUT_DIR\n";
     return 2;
   }
   try {
@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
     auto parsed = std::from_chars(count.data(), count.data() + count.size(), days);
     if(parsed.ec != std::errc() || parsed.ptr != count.data() + count.size() || days < 0)
       throw std::runtime_error("invalid day count");
-    if(profile != "traffic" && profile != "no-traffic") throw std::runtime_error("invalid traffic profile");
+    if(profile != "traffic" && profile != "reduced" && profile != "no-traffic") throw std::runtime_error("invalid traffic profile");
     const auto commands = readCommands(argv[6], days);
     std::filesystem::path dir(argv[7]);
     std::filesystem::create_directories(dir);
@@ -165,7 +165,9 @@ int main(int argc, char** argv) {
     std::srand(714);
     BasicUrbg::get().seed(714);
     auto world = World::load(argv[3]);
-    world->vehicleTraffic = profile == "traffic" ? World::VehicleTraffic::Normal : World::VehicleTraffic::Disabled;
+    if(profile == "traffic") world->vehicleTraffic = World::VehicleTraffic::Normal;
+    else if(profile == "reduced") world->vehicleTraffic = World::VehicleTraffic::Reduced;
+    else world->vehicleTraffic = World::VehicleTraffic::Disabled;
     Observations out(dir / "state.tsv", *world);
     out.snapshot(0, *world);
     world->save(dir / "day-0.gz");

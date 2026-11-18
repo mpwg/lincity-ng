@@ -18,7 +18,7 @@ tests/core_replay replay decisions.txt /path/to/good_times.scn.gz no-traffic 120
 python3 /path/to/lincity-core/tests/replay/compare.py reference candidate
 ```
 
-Both `traffic` and `no-traffic` are supported. Replace `-` with an action file to
+`traffic`, `reduced` and `no-traffic` select normal, reduced or disabled vehicles. Replace `-` with an action file to
 run commands. Each line contains the relative day, verb and x/y coordinates.
 `build` takes an additional numeric construction group. The other verbs are
 `query`, `evacuate`, `bulldoze` and `flood`. Blank lines and lines starting with

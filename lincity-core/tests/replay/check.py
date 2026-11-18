@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("executable", type=Path, help="reference core_replay executable")
     parser.add_argument("case", choices=("small", "scenario", "differential"))
     parser.add_argument("--allocator", type=Path)
-    parser.add_argument("--profile", choices=("traffic", "no-traffic"))
+    parser.add_argument("--profile", choices=("traffic", "reduced", "no-traffic"))
     parser.add_argument("--days", type=int)
     parser.add_argument("--candidate", type=Path, help="candidate for differential replay")
     parser.add_argument("--quick", action="store_true", help="compare good_times for five days")
