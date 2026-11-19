@@ -51,6 +51,8 @@ func _ready() -> void:
 		if arg.begins_with("--city="):
 			opening = arg.trim_prefix("--city=")
 	_load_city(opening)
+	if opening == OPENING and not state.is_empty():
+		camera.riverside_view("--bridge-view" in OS.get_cmdline_user_args())
 
 func _new_city(climate := 0, side := 100, village := true, trees := true) -> void:
 	var error: String = core.new_city(climate, side, village, trees)

@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://city.gd" id="1"]
+[ext_resource type="Script" path="res://orbit_camera.gd" id="2"]
+[ext_resource type="Script" path="res://world/city_view.gd" id="3"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="4"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.68, 0.77, 0.81, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.86, 0.91, 1, 1)
+ambient_light_energy = 0.72
+reflected_light_source = 1
+
+[sub_resource type="StandardMaterial3D" id="Highlight"]
+shading_mode = 0
+vertex_color_use_as_albedo = true
+no_depth_test = true
+transparency = 1
+render_priority = 3
+
+[node name="City" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-51, -38, 0)
+light_color = Color(1, 0.93, 0.82, 1)
+light_energy = 1.14
+shadow_enabled = true
+directional_shadow_mode = 1
+directional_shadow_max_distance = 110.0
+
+[node name="World" type="Node3D" parent="."]
+script = ExtResource("3")
+
+[node name="Camera" type="Camera3D" parent="."]
+current = true
+near = 0.15
+far = 1300.0
+fov = 47.0
+script = ExtResource("2")
+
+[node name="Preview" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = SubResource("Highlight")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("4")
