@@ -35,6 +35,13 @@
 #include <type_traits>
 #include <typeinfo>
 #include <tuple>
+#ifdef __APPLE__
+#include <cerrno>
+#include <cmath>
+#include <cctype>
+#include <memory>
+#include <xlocale.h>
+#endif
 
 void unexpectedXmlElement(xmlpp::TextReader& reader) {
   fmt::println(stderr, "warning: skipping unexpected element <{}>",
@@ -128,32 +135,58 @@ const xmlStrF xmlFormat<std::filesystem::path>(const std::filesystem::path x) {
   return xmlStrF(x.generic_string());
 }
 
+#ifdef __APPLE__
+// The macOS 15 libc++ headers only provide the integral from_chars overloads.
+static std::from_chars_result parseXmlFloat(const std::string& str, float& value) {
+  const char* start = str.c_str();
+  if(*start == '+') ++start;
+  if(*start == '\0' || std::isspace(static_cast<unsigned char>(*start)) || *start == '+')
+    return {start, std::errc::invalid_argument};
+
+  static const auto numericLocale = std::unique_ptr<std::remove_pointer_t<locale_t>,
+    decltype(&freelocale)>(newlocale(LC_NUMERIC_MASK, "C", nullptr), &freelocale);
+  if(!numericLocale) throw std::runtime_error("failed to create XML numeric locale");
+
+  char* end = nullptr;
+  errno = 0;
+  value = strtof_l(start, &end, numericLocale.get());
+  if(end == start) return {start, std::errc::invalid_argument};
+  if(errno == ERANGE && (value == 0 || !std::isfinite(value)))
+    return {end, std::errc::result_out_of_range};
+  return {end, {}};
+}
+#endif
+
 template<typename X>
 X xmlParse(const xmlpp::ustring& s) {
   X x;
   std::string str(s);
   char *cs = str.data();
   char *ce = cs + str.size();
-
-  // cut out the '0x' prefix
-  bool hex = false;
-  if(*cs == '-' || *cs == '+') cs++;
-  if(*cs == '0' && (cs[1] == 'x' || cs[1] == 'X')) {
-    cs += 2;
-    hex = true;
-  }
-  if(str[0] == '-') {
-    cs--;
-    *cs = '-';
-  }
-
   std::from_chars_result r;
-  if constexpr (std::is_integral_v<X>) {
-    r = std::from_chars(cs, ce, x, hex ? 16 : 10);
-  }
-  else {
-    r = std::from_chars(cs, ce, x,
-      hex ? std::chars_format::hex : std::chars_format::general);
+#ifdef __APPLE__
+  if constexpr (std::is_floating_point_v<X>) {
+    r = parseXmlFloat(str, x);
+  } else
+#endif
+  {
+    // Strip the hexadecimal prefix while preserving the sign.
+    bool hex = false;
+    if(*cs == '-' || *cs == '+') cs++;
+    if(*cs == '0' && (cs[1] == 'x' || cs[1] == 'X')) {
+      cs += 2;
+      hex = true;
+    }
+    if(str[0] == '-') {
+      cs--;
+      *cs = '-';
+    }
+    if constexpr (std::is_integral_v<X>) {
+      r = std::from_chars(cs, ce, x, hex ? 16 : 10);
+    } else {
+      r = std::from_chars(cs, ce, x,
+        hex ? std::chars_format::hex : std::chars_format::general);
+    }
   }
 
   if(r.ec != std::errc{})

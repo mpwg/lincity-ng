@@ -94,3 +94,9 @@ Die Katalogprüfung erfasst 185 Varianten mit drei Detailstufen und separaten Au
 Im separat entpackten Linux-Paket wurden alle sieben Startstädte und die Kartenerzeugung in allen vier Klimazonen geprüft. Die Bedienprüfung umfasst Handel, normale und schnelle Spielstände sowie die Kostenbestätigung beim Abriss. Die Einstellungen wurden unter X11 und Wayland getestet. Für den Verlauf wurden gemessene Daten, echte Nullwerte, Lücken aus Altspielständen und ein erneuter Speicherzyklus geprüft.
 
 Die beiden Siege und die Niederlage wurden mit je einem vorbereiteten Spielstand über den tatsächlichen Simulationsschritt und den Spielausgangsdialog geprüft. Ein Langzeitdurchlauf ab einer neu erzeugten Stadt bis zum Sieg steht als Test aus. Der aktualisierte Linux-Export erreicht in „Rocket 98“ auf der RTX 3060 Ti bei 1920 × 1080 ein P95 von 11,16 ms in der Nahansicht und 13,28 ms in der Stadtübersicht.
+
+## Apple-Silicon-Testbuild
+
+Das Testpaket für macOS 15 oder neuer enthält `LinCity-NG.app`, die ARM64-Rust-Anbindung und die benötigte libxml++-Bibliothek. Das ZIP im Finder entpacken und die App aus dem Paketordner öffnen. Die App ist ad hoc signiert. Falls Gatekeeper den ersten Start blockiert, kann die App unter „Systemeinstellungen → Datenschutz & Sicherheit“ über „Dennoch öffnen“ freigegeben werden.
+
+Der Cross-Build auf Linux verwendet Clang, LLD, das macOS-15.5-SDK und Rusts Ziel `aarch64-apple-darwin`. Für den Export benötigt [das Paketierskript](../tooling/release/package_godot_macos.py) die bereits gebaute Release-Erweiterung, Godot 4.5.1 und dessen `macos.zip`-Vorlage sowie LLVM-Werkzeuge und rcodesign. Das Skript extrahiert ARM64 aus der offiziellen Universalvorlage, bündelt die Bibliotheken, prüft deren Ladepfade und signiert die fertige App. Das SDK ist kein Bestandteil des Testpakets.

@@ -1,7 +1,12 @@
 find_program(RUSTCITY_CARGO cargo REQUIRED)
 set(manifest "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml")
 set(cargo_target "${CMAKE_CURRENT_BINARY_DIR}/cargo")
-set(library "${cargo_target}/release/${CMAKE_STATIC_LIBRARY_PREFIX}rustcity_legacy${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(cargo_platform_dir "${cargo_target}")
+if(CMAKE_CROSSCOMPILING AND APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+  set(cargo_platform_args --target aarch64-apple-darwin)
+  string(APPEND cargo_platform_dir "/aarch64-apple-darwin")
+endif()
+set(library "${cargo_platform_dir}/release/${CMAKE_STATIC_LIBRARY_PREFIX}rustcity_legacy${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set(bridge_include "${cargo_target}/cxxbridge")
 set(engine_header "${bridge_include}/rustcity-legacy/src/lib.rs.h")
 set(view_header "${bridge_include}/rustcity-legacy/src/view.rs.h")
@@ -10,7 +15,7 @@ file(GLOB_RECURSE rust_sources CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/../../rustcity-core/src/*.rs")
 add_custom_command(OUTPUT "${library}" "${engine_header}" "${view_header}"
   COMMAND "${RUSTCITY_CARGO}" build --locked --release --manifest-path "${manifest}"
-          --target-dir "${cargo_target}"
+          --target-dir "${cargo_target}" ${cargo_platform_args}
   DEPENDS ${rust_sources} "${manifest}" Cargo.lock build.rs
           "${CMAKE_CURRENT_SOURCE_DIR}/../../rustcity-core/Cargo.toml"
   VERBATIM)

@@ -44,11 +44,11 @@ target_link_libraries(lincity_lib
   ZLIB::ZLIB
   LibXml++-5.0::LibXml++-5.0
   LibXml2::LibXml2
+  fmt::fmt
   PRIVATE
   gettext
   xmlutil
   randutil
-  fmt::fmt
 )
 
 include_directories(.)
