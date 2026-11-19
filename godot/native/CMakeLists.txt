@@ -6,6 +6,15 @@ FetchContent_Declare(godot_cpp
   GIT_TAG e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77 # godot-4.5-stable
 )
 FetchContent_MakeAvailable(godot_cpp)
+if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND "c++" IN_LIST CMAKE_CXX_IMPLICIT_LINK_LIBRARIES)
+  # godot-cpp 4.5 relies on a transitive header for realloc and free.
+  set_property(SOURCE "${godot_cpp_SOURCE_DIR}/src/godot.cpp" TARGET_DIRECTORY godot-cpp
+    APPEND PROPERTY COMPILE_OPTIONS -include stdlib.h)
+  # LLVM-MinGW uses libc++ instead of the libstdc++ named by godot-cpp.
+  get_target_property(godot_cpp_link_options godot-cpp INTERFACE_LINK_OPTIONS)
+  list(REMOVE_ITEM godot_cpp_link_options "$<$<CXX_COMPILER_ID:Clang>:-lstdc++>")
+  set_property(TARGET godot-cpp PROPERTY INTERFACE_LINK_OPTIONS "${godot_cpp_link_options}")
+endif()
 add_library(lincity_godot SHARED city_world.cpp
   "${PROJECT_SOURCE_DIR}/lincity-legacy/src/lincity-ng/MapOverlay.cpp")
 target_link_libraries(lincity_godot PRIVATE godot::cpp rustcity_desktop fmt::fmt)
@@ -18,6 +27,6 @@ set_target_properties(lincity_godot PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
 
 # The Godot 4.5 editor and release runtime use different allocator padding.
-if((CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE) AND GODOTCPP_TARGET STREQUAL "template_release")
+if((CMAKE_SYSTEM_NAME STREQUAL "Linux" OR APPLE OR WIN32) AND GODOTCPP_TARGET STREQUAL "template_release")
   set_target_properties(lincity_godot PROPERTIES OUTPUT_NAME "lincity_godot.release")
 endif()

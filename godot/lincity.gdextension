@@ -5,6 +5,7 @@ compatibility_minimum = "4.5"
 [libraries]
 linux.debug = "res://bin/liblincity_godot.so"
 linux.release = "res://bin/liblincity_godot.release.so"
-windows = "res://bin/liblincity_godot.dll"
+windows.debug = "res://bin/liblincity_godot.dll"
+windows.release = "res://bin/liblincity_godot.release.dll"
 macos.debug = "res://bin/liblincity_godot.dylib"
 macos.release = "res://bin/liblincity_godot.release.dylib"
