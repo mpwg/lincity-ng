@@ -27,6 +27,10 @@ const MUTED := Color("#c4c8c0")
 const ACCENT := Color("#e3c78a")
 const PANEL := Color("#202321ee")
 const EDGE := Color("#73766a")
+const MIN_WINDOW_SIZE := preload("res://ui/settings.gd").MIN_WINDOW_SIZE
+const MIN_UI_SCALE := 0.75
+const COMPACT_LAYOUT_MIN_WIDTH := 1320
+const COMPACT_SIDEBAR_WIDTH := 296
 const SUPPLY_REPORT := 16
 const QUICK_TOOLS := [
 	[-1, "Untersuchen", "inspect"], [11, "Straße", "road"], [4, "Wohnen", "housing"],
@@ -83,8 +87,11 @@ var warning_cell := Vector2i(-1, -1)
 var date := Label.new()
 var speed_buttons := {}
 var quick_buttons := {}
+var stats_panel: PanelContainer
+var clock_panel: PanelContainer
 var catalog_panel: PanelContainer
 var category_row := HBoxContainer.new()
+var category_second_row := HBoxContainer.new()
 var category_buttons := {}
 var active_category := ""
 var catalog_heading := Label.new()
@@ -128,6 +135,7 @@ var catalog := {}
 var categories := {}
 var chosen_tool := -1
 var city := {}
+var compact_layout := false
 
 func _ready() -> void:
 	add_child(surface)
@@ -144,6 +152,65 @@ func _ready() -> void:
 	_dialogs()
 	_refresh_categories()
 	surface.add_child(session_menu)
+	get_window().size_changed.connect(_scale_interface)
+	surface.resized.connect(_layout_interface)
+	_scale_interface()
+
+func _scale_interface() -> void:
+	var window := get_window()
+	var design_size := Vector2i(
+		ProjectSettings.get_setting("display/window/size/viewport_width"),
+		ProjectSettings.get_setting("display/window/size/viewport_height"))
+	var readable_size := Vector2i(Vector2(window.size.max(MIN_WINDOW_SIZE)) / MIN_UI_SCALE)
+	var viewport_size := design_size.min(readable_size)
+	if viewport_size.x > 0 and viewport_size.y > 0 and window.content_scale_size != viewport_size:
+		window.content_scale_size = viewport_size
+	_layout_interface()
+
+func _layout_interface() -> void:
+	var use_compact := surface.size.x < COMPACT_LAYOUT_MIN_WIDTH
+	if compact_layout == use_compact:
+		return
+	compact_layout = use_compact
+	_layout_categories()
+	tool_list.columns = 2 if compact_layout else 3
+	for button: Button in quick_buttons.values():
+		button.add_theme_font_size_override("font_size", 15 if compact_layout else 13)
+	for button: Button in speed_buttons.values():
+		button.add_theme_font_size_override("font_size", 15 if compact_layout else 12)
+	for button: Button in tool_list.get_children():
+		_layout_tool_button(button)
+	details.add_theme_font_size_override("normal_font_size", 15 if compact_layout else 14)
+	preview.add_theme_font_size_override("font_size", 15 if compact_layout else 13)
+	preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if compact_layout else TextServer.AUTOWRAP_OFF
+	preview_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN if compact_layout else Control.GROW_DIRECTION_END
+	warning_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if compact_layout else TextServer.AUTOWRAP_OFF
+	warning_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
+	supply_button.clip_text = compact_layout
+	supply_button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if compact_layout else TextServer.OVERRUN_NO_TRIMMING
+	supply_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL if compact_layout else Control.SIZE_FILL
+	supply_button.tooltip_text = supply_button.text if compact_layout else tr("Warenversorgung")
+	if compact_layout:
+		_place_panel(stats_panel, Control.PRESET_TOP_WIDE, Rect2(10, 9, -20, 36))
+		_place_panel(clock_panel, Control.PRESET_TOP_LEFT, Rect2(10, 56, 0, 36))
+		clock_panel.grow_horizontal = Control.GROW_DIRECTION_END
+		_place_compact_left(warning_panel, Control.PRESET_TOP_WIDE, 103, 141)
+		_place_panel(inspector, Control.PRESET_RIGHT_WIDE, Rect2(-286, 56, 276, -310))
+		_place_compact_left(palette, Control.PRESET_BOTTOM_WIDE, -190, -10)
+		_place_compact_left(catalog_panel, Control.PRESET_BOTTOM_WIDE, -432, -200)
+		_place_compact_left(preview_panel, Control.PRESET_BOTTOM_WIDE, -236, -200)
+	else:
+		_place_panel(stats_panel, Control.PRESET_TOP_LEFT, Rect2(10, 9, 0, 36))
+		_place_panel(clock_panel, Control.PRESET_TOP_RIGHT, Rect2(-10, 9, 0, 36))
+		clock_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_place_panel(warning_panel, Control.PRESET_TOP_LEFT, Rect2(10, 57, 0, 38))
+		_place_panel(inspector, Control.PRESET_TOP_RIGHT, Rect2(-332, 61, 322, 276))
+		_place_panel(palette, Control.PRESET_CENTER_BOTTOM, Rect2(0, -123, 0, 113))
+		_place_panel(catalog_panel, Control.PRESET_CENTER_BOTTOM, Rect2(-290, -367, 580, 235))
+		_place_panel(preview_panel, Control.PRESET_CENTER_BOTTOM, Rect2(0, -174, 0, 35))
+
+func _place_compact_left(panel: PanelContainer, preset: Control.LayoutPreset, top: float, bottom: float) -> void:
+	_place_panel(panel, preset, Rect2(10, top, -COMPACT_SIDEBAR_WIDTH - 10, bottom - top))
 
 func _box(color: Color, padding_x: int, padding_y: int, radius: int = 5) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -184,11 +251,7 @@ func _theme() -> Theme:
 func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
 	var panel := PanelContainer.new()
 	game_surface.add_child(panel)
-	panel.set_anchors_and_offsets_preset(preset)
-	panel.offset_left = bounds.position.x
-	panel.offset_top = bounds.position.y
-	panel.offset_right = bounds.end.x
-	panel.offset_bottom = bounds.end.y
+	_place_panel(panel, preset, bounds)
 	var skin := _box(PANEL, 6, 5, 6)
 	skin.set_border_width_all(1)
 	skin.border_color = EDGE
@@ -196,6 +259,13 @@ func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
 	skin.shadow_size = 3
 	panel.add_theme_stylebox_override("panel", skin)
 	return panel
+
+func _place_panel(panel: PanelContainer, preset: Control.LayoutPreset, bounds: Rect2) -> void:
+	panel.set_anchors_preset(preset)
+	panel.offset_left = bounds.position.x
+	panel.offset_top = bounds.position.y
+	panel.offset_right = bounds.end.x
+	panel.offset_bottom = bounds.end.y
 
 func _label(value: String, font_size: int, color: Color = PAPER) -> Label:
 	var label := Label.new()
@@ -226,9 +296,9 @@ func _metric(row: HBoxContainer, caption: String, value: Label, symbol: String) 
 	row.add_child(value)
 
 func _top_bar() -> void:
-	var stats := _panel(Control.PRESET_TOP_LEFT, Rect2(10, 9, 0, 36))
+	stats_panel = _panel(Control.PRESET_TOP_LEFT, Rect2(10, 9, 0, 36))
 	var row := HBoxContainer.new()
-	stats.add_child(row)
+	stats_panel.add_child(row)
 	_metric(row, "Bevölkerung", inhabitants, "people")
 	row.add_child(VSeparator.new())
 	_metric(row, "Stadtkasse", treasury, "coins")
@@ -238,14 +308,15 @@ func _top_bar() -> void:
 	row.add_child(technology)
 	supply_button = _button("Warenversorgung", _open_report.bind(SUPPLY_REPORT))
 	supply_button.tooltip_text = tr("Warenversorgung")
+	supply_button.tooltip_text = tr("Warenversorgung")
 	supply_button.accessibility_name = tr("Warenversorgung")
 	row.add_child(supply_button)
 	_warning_banner()
-	var controls := _panel(Control.PRESET_TOP_RIGHT, Rect2(-10, 9, 0, 36))
-	controls.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	clock_panel = _panel(Control.PRESET_TOP_RIGHT, Rect2(-10, 9, 0, 36))
+	clock_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	var clock := HBoxContainer.new()
 	clock.add_theme_constant_override("separation", 4)
-	controls.add_child(clock)
+	clock_panel.add_child(clock)
 	var speeds := ButtonGroup.new()
 	for item in [[0, "Ⅱ", "Pause"], [1, "▶", "Normales Tempo"], [2, "▶▶", "Hohes Tempo"], [4, "▶▶▶", "Schnelllauf"]]:
 		var speed: int = item[0]
@@ -309,6 +380,10 @@ func _palette() -> void:
 	category_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	category_row.add_theme_constant_override("separation", 4)
 	tools.add_child(category_row)
+	category_second_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	category_second_row.add_theme_constant_override("separation", 4)
+	tools.add_child(category_second_row)
+	category_second_row.hide()
 	catalog_panel = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(-290, -367, 580, 235))
 	catalog_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var catalog_layout := VBoxContainer.new()
@@ -599,17 +674,32 @@ func _refresh_categories() -> void:
 			categories["Weitere"].append(id)
 	close_catalog()
 	category_buttons.clear()
-	for child in category_row.get_children():
-		category_row.remove_child(child)
-		child.queue_free()
+	for row: HBoxContainer in [category_row, category_second_row]:
+		for child in row.get_children():
+			row.remove_child(child)
+			child.queue_free()
 	for category: String in categories:
 		var button := _button(category, _toggle_category.bind(category))
 		button.toggle_mode = true
 		category_buttons[category] = button
 		category_row.add_child(button)
+	_layout_categories()
 	for id: int in quick_buttons:
 		quick_buttons[id].disabled = not catalog.has(id)
 	_sync_selection()
+
+func _layout_categories() -> void:
+	var index := 0
+	for button: Button in category_buttons.values():
+		var row := category_second_row if compact_layout and index >= 4 else category_row
+		if button.get_parent() != row:
+			var had_focus := button.has_focus()
+			button.reparent(row, false)
+			row.show()
+			if had_focus:
+				button.grab_focus()
+		index += 1
+	category_second_row.visible = category_second_row.get_child_count() > 0
 
 func _refresh_tools() -> void:
 	for child in tool_list.get_children():
@@ -629,7 +719,6 @@ func _refresh_tools() -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		button.add_theme_font_size_override("font_size", 13)
 		var footprint := int(tool.get("size", 1))
 		var tech := int(tool.get("required_tech", 0))
 		var cost := int(tool.get("base_cost", 0))
@@ -638,13 +727,19 @@ func _refresh_tools() -> void:
 		if id in [-1, -3]:
 			cost_label = tr("Kostenlos")
 		var tech_label := tr("%.1f %% Technologie") % (tech / 10000.0)
-		button.text = "%s\n%s · %s\n%s" % [tool_name, footprint_label, cost_label, tech_label]
-		button.tooltip_text = button.text
+		button.set_meta("tool_details", [tool_name, footprint_label, cost_label, tech_label])
+		_layout_tool_button(button)
 		button.set_meta("required_tech", tech)
 		button.disabled = int(city.get("tech", 0)) < tech
 		tool_list.add_child(button)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.set_meta("tool_id", id)
+
+func _layout_tool_button(button: Button) -> void:
+	var format := "%s\n%s\n%s\n%s" if compact_layout else "%s\n%s · %s\n%s"
+	button.text = format % button.get_meta("tool_details")
+	button.tooltip_text = button.text
+	button.add_theme_font_size_override("font_size", 15 if compact_layout else 13)
 
 func _sync_selection() -> void:
 	for id: int in quick_buttons:
@@ -732,6 +827,8 @@ func update_city(snapshot: Dictionary) -> void:
 			var fill := "—" if stock.capacity <= 0 else "%.0f %%" % (100.0 * stock.amount / stock.capacity)
 			essentials.append("%s %s" % [tr(GOODS[i]), fill])
 		supply_button.text = " · ".join(essentials)
+		if compact_layout:
+			supply_button.tooltip_text = supply_button.text
 	var day := int(snapshot.get("time", 0))
 	date.text = "%s %d" % [tr(MONTHS[(day / 100) % 12]), day / 1200]
 	map.update_map(snapshot)

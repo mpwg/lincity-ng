@@ -86,13 +86,35 @@ func _test() -> void:
 	hud.set_focus(Vector2i(middle, middle), 0.0)
 	hud.map._gui_input(key(KEY_LEFT))
 	check(target.back() == Vector2i(middle - 1, middle), "Pfeiltaste navigiert nicht auf der Minikarte.")
-	for pixels in [Vector2i(640, 480), Vector2i(1440, 900), Vector2i(1920, 1080)]:
+	hud._activate_layer(10)
+	hud.show_info("Markt")
+	hud._toggle_category("Wirtschaft")
+	for pixels in [Vector2i(640, 480), Vector2i(1440, 900), Vector2i(1920, 1080), Vector2i(640, 480)]:
 		root.size = pixels
 		await process_frame
 		await process_frame
 		var bounds: Rect2 = hud.palette.get_global_rect()
 		check(hud.surface.get_rect().encloses(bounds), "Bauleiste außerhalb der Spielfläche bei %s." % pixels)
 		check(not bounds.intersects(hud.map.get_global_rect()), "Bauleiste überlappt die Minikarte bei %s." % pixels)
+		if pixels == Vector2i(640, 480):
+			var font_scale := root.get_final_transform().get_scale().x
+			var menu_button: Button = hud.session_menu.buttons.new_game
+			check(menu_button.get_theme_font_size("font_size") * font_scale >= 11.0,
+				"Die Menüschrift bleibt bei 640 × 480 zu klein.")
+			var map_panel: Control = hud.map.get_parent().get_parent()
+			var panels: Array[Control] = [hud.palette, hud.catalog_panel, map_panel, hud.inspector,
+				hud.stats_panel, hud.clock_panel]
+			for i in panels.size():
+				check(hud.surface.get_rect().encloses(panels[i].get_global_rect()),
+					"Ein HUD-Bereich ragt bei 640 × 480 über den Rand.")
+				for j in range(i + 1, panels.size()):
+					check(not panels[i].get_global_rect().intersects(panels[j].get_global_rect()),
+						"Zwei HUD-Bereiche überlappen bei 640 × 480.")
+		elif pixels == Vector2i(1440, 900):
+			check(hud.tool_list.columns == 3 and is_equal_approx(root.get_final_transform().get_scale().x, 1.0),
+				"Die Standardanordnung wird nach dem Vergrößern nicht wiederhergestellt.")
+			check(hud.supply_button.tooltip_text == "Warenversorgung",
+				"Der Hinweis zur Warenversorgung fehlt nach dem Vergrößern.")
 	if errors == 0:
 		print("OK: Bauleiste, vollständiger Katalog, Zeitsteuerung, exklusive Dialoge, Tastatur, Minikarte und HUD-Größen.")
 	game.free()
