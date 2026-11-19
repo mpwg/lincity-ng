@@ -2,15 +2,16 @@ extends Control
 
 signal cell_selected(cell: Vector2i)
 
-const BASE = Color("#92965e")
+const BASE = Color("#91a46c")
 const FOREST = Color("#486e4a")
 const WATER = Color("#427f99")
-const ROADS = Color("#5a4b40")
+const ROADS = Color("#666b62")
 const BUILDINGS = Color("#c4ac86")
 const HOMES = Color("#9ab88a")
 
 var side := 0
 var focus := Vector2i(-1, -1)
+var bearing := 0.0
 var texture: ImageTexture
 var last_tiles := PackedInt32Array()
 var last_colors := PackedColorArray()
@@ -66,10 +67,25 @@ func _draw() -> void:
 	draw_texture_rect(texture, rect, false)
 	if focus.x >= 0 and focus.y >= 0 and focus.x < side and focus.y < side:
 		var point := rect.position + (Vector2(focus) + Vector2(0.5, 0.5)) * rect.size / float(side)
-		draw_circle(point, 4.5, Color("#22352f"))
-		draw_circle(point, 2.5, Color.WHITE)
+		var direction := Vector2(-sin(bearing), -cos(bearing))
+		var flank := Vector2(-direction.y, direction.x)
+		var marker := PackedVector2Array([point + direction * 7.0, point - direction * 4.0 + flank * 4.0, point - direction * 4.0 - flank * 4.0])
+		draw_colored_polygon(marker, Color("#ffedb3"))
+		marker.append(marker[0])
+		draw_polyline(marker, Color("#343b32"), 1.5, true)
+	if has_focus(): draw_rect(rect, Color("#e3c78a"), false, 2.0)
 
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and side > 0:
+		var move := Vector2i.ZERO
+		match event.keycode:
+			KEY_UP: move = Vector2i.UP
+			KEY_DOWN: move = Vector2i.DOWN
+			KEY_LEFT: move = Vector2i.LEFT
+			KEY_RIGHT: move = Vector2i.RIGHT
+			_: return
+		cell_selected.emit((focus + move).clampi(0, side - 1))
+		accept_event()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var rect := map_rect()
 		if side > 0 and rect.has_point(event.position):

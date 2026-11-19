@@ -13,13 +13,20 @@ signal survey_requested()
 signal launch_requested()
 signal trade_changed(id: int, buy: bool, sell: bool)
 signal report_requested(production: bool)
+signal inspection_closed
+signal modal_opened
 
 const Catalog = preload("res://ui/catalog.gd")
 const Minimap = preload("res://ui/minimap.gd")
-const PAPER := Color("#f1f2df")
-const MUTED := Color("#b1c6bb")
-const ACCENT := Color("#d9eb98")
-const PANEL := Color("#1c302bee")
+const PAPER := Color("#f5f2e9")
+const MUTED := Color("#c4c8c0")
+const ACCENT := Color("#e3c78a")
+const PANEL := Color("#202321ee")
+const EDGE := Color("#73766a")
+const QUICK_TOOLS := [
+	[-1, "Untersuchen", "inspect"], [11, "Straße", "road"], [4, "Wohnen", "housing"],
+	[6, "Markt", "market"], [-2, "Abriss", "demolish"],
+]
 const MONTHS := ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
 const LAYERS := ["Stadtplan", "Luftbelastung", "Arbeitsmarkt", "Ernährung", "Stromversorgung", "Feuerwehr", "Sport", "Gesundheit", "Kohlevorräte", "Verkehr", "Warenbestand"]
 const GOODS := ["Lebensmittel", "Arbeitskräfte", "Kohle", "Waren", "Erz", "Stahl", "Abfall", "Niederspannung", "Hochspannung", "Wasser"]
@@ -40,10 +47,14 @@ var surface := Control.new()
 var treasury := Label.new()
 var inhabitants := Label.new()
 var date := Label.new()
-var speed_picker := OptionButton.new()
+var speed_buttons := {}
+var quick_buttons := {}
+var catalog_button: Button
+var catalog_dialog := AcceptDialog.new()
+var preview_panel: PanelContainer
 var category_picker := OptionButton.new()
 var palette: PanelContainer
-var tool_list := HBoxContainer.new()
+var tool_list := GridContainer.new()
 var inspector: PanelContainer
 var inspected_group := -1
 var map := Minimap.new()
@@ -103,14 +114,26 @@ func _theme() -> Theme:
 	var theme := Theme.new()
 	theme.default_font_size = 15
 	theme.set_color("font_color", "Label", PAPER)
-	theme.set_constant("separation", "VBoxContainer", 7)
-	theme.set_constant("separation", "HBoxContainer", 10)
+	theme.set_color("default_color", "RichTextLabel", PAPER)
+	theme.set_constant("separation", "VBoxContainer", 8)
+	theme.set_constant("separation", "HBoxContainer", 8)
 	for type in ["Button", "OptionButton", "MenuButton"]:
-		theme.set_stylebox("normal", type, _box(Color("#30463e"), 10, 5))
-		theme.set_stylebox("hover", type, _box(Color("#405c50"), 10, 5))
-		theme.set_stylebox("pressed", type, _box(Color("#53705a"), 10, 5))
+		for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+			var fill: Color = {"normal": Color("#343835"), "hover": Color("#4a514a"), "pressed": Color("#505849"), "hover_pressed": Color("#56604e"), "focus": Color.TRANSPARENT}[state]
+			var style := _box(fill, 9, 4, 4)
+			style.set_border_width_all(2 if state == "focus" else 1)
+			style.border_color = ACCENT if state in ["pressed", "hover_pressed", "focus"] else Color("#656a60")
+			theme.set_stylebox(state, type, style)
 		theme.set_color("font_color", type, PAPER)
-		theme.set_color("font_pressed_color", type, ACCENT)
+	var dialog_style := _box(Color("#262b28"), 16, 14, 5)
+	theme.set_stylebox("panel", "AcceptDialog", dialog_style)
+	theme.set_stylebox("panel", "PopupMenu", _box(Color("#262b28"), 6, 6))
+	theme.set_stylebox("panel", "PopupPanel", dialog_style)
+	var frame := _box(Color("#363d38"), 6, 6)
+	frame.expand_margin_top = 32
+	theme.set_stylebox("embedded_border", "Window", frame)
+	theme.set_stylebox("embedded_unfocused_border", "Window", frame)
+	theme.set_color("title_color", "Window", PAPER)
 	return theme
 
 func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
@@ -121,7 +144,12 @@ func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
 	panel.offset_top = bounds.position.y
 	panel.offset_right = bounds.end.x
 	panel.offset_bottom = bounds.end.y
-	panel.add_theme_stylebox_override("panel", _box(PANEL, 12, 10))
+	var skin := _box(PANEL, 6, 5, 6)
+	skin.set_border_width_all(1)
+	skin.border_color = EDGE
+	skin.shadow_color = Color("#10141066")
+	skin.shadow_size = 3
+	panel.add_theme_stylebox_override("panel", skin)
 	return panel
 
 func _label(value: String, font_size: int, color: Color = PAPER) -> Label:
@@ -137,42 +165,53 @@ func _button(title: String, callback: Callable) -> Button:
 	button.pressed.connect(callback)
 	return button
 
-func _metric(row: HBoxContainer, caption: String, value: Label, width: int) -> void:
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 0)
-	column.custom_minimum_size.x = width
-	row.add_child(column)
-	column.add_child(_label(caption, 12, MUTED))
-	value.add_theme_font_size_override("font_size", 17)
+func _symbol(id: String) -> Texture2D:
+	return load("res://ui/symbols/%s.svg" % id)
+
+func _metric(row: HBoxContainer, caption: String, value: Label, symbol: String) -> void:
+	var icon := TextureRect.new()
+	icon.texture = _symbol(symbol)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(22, 22)
+	row.add_child(icon)
+	row.add_child(_label(caption, 14, MUTED))
 	value.text = "—"
-	column.add_child(value)
+	value.add_theme_font_size_override("font_size", 15)
+	row.add_child(value)
 
 func _top_bar() -> void:
-	var panel := _panel(Control.PRESET_TOP_WIDE, Rect2(10, 8, -20, 60))
+	var stats := _panel(Control.PRESET_TOP_LEFT, Rect2(10, 9, 0, 36))
 	var row := HBoxContainer.new()
-	panel.add_child(row)
-	var title := _label("LinCity NG", 26, ACCENT)
-	title.custom_minimum_size.x = 150
-	row.add_child(title)
-	_metric(row, "Stadtkasse", treasury, 112)
-	_metric(row, "Bevölkerung", inhabitants, 92)
-	_metric(row, "Kalender", date, 140)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(spacer)
-	row.add_child(speed_picker)
-	speed_picker.tooltip_text = "Simulationsgeschwindigkeit"
-	speed_picker.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	for speed in [0, 1, 2, 4]:
-		speed_picker.add_item("Pause" if speed == 0 else "%d× Tempo" % speed, speed)
-	speed_picker.select(1)
-	speed_picker.item_selected.connect(func(index: int): speed_changed.emit(speed_picker.get_item_id(index)))
+	stats.add_child(row)
+	_metric(row, "Bevölkerung", inhabitants, "people")
+	row.add_child(VSeparator.new())
+	_metric(row, "Stadtkasse", treasury, "coins")
+	var controls := _panel(Control.PRESET_TOP_RIGHT, Rect2(-10, 9, 0, 36))
+	controls.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	var clock := HBoxContainer.new()
+	clock.add_theme_constant_override("separation", 4)
+	controls.add_child(clock)
+	var speeds := ButtonGroup.new()
+	for item in [[0, "Ⅱ", "Pause"], [1, "▶", "Einfaches Tempo"], [2, "▶▶", "Doppeltes Tempo"], [4, "▶▶▶", "Vierfaches Tempo"]]:
+		var speed: int = item[0]
+		var button := _button(item[1], speed_changed.emit.bind(speed))
+		button.tooltip_text = item[2]
+		button.add_theme_font_size_override("font_size", 12)
+		button.button_group = speeds
+		button.toggle_mode = true
+		button.button_pressed = speed == 1
+		speed_buttons[speed] = button
+		clock.add_child(button)
+	clock.add_child(VSeparator.new())
+	date.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	date.custom_minimum_size.x = 110
+	date.tooltip_text = "Spielzeit"
+	clock.add_child(date)
 	var menu := MenuButton.new()
-	menu.text = "Spiel ▾"
-	menu.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	menu.text = "Spiel"
 	menu.flat = false
-	row.add_child(menu)
+	clock.add_child(menu)
 	var popup := menu.get_popup()
 	popup.add_item("Neue Stadt oder Szenario …", 0)
 	popup.add_item("Spielstand laden …", 1)
@@ -187,40 +226,56 @@ func _top_bar() -> void:
 	popup.id_pressed.connect(_menu_action)
 
 func _palette() -> void:
-	palette = _panel(Control.PRESET_BOTTOM_LEFT, Rect2(10, -124, 610, 116))
-	surface.resized.connect(_fit_palette)
-	var layout := VBoxContainer.new()
-	palette.add_child(layout)
+	palette = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -90, 0, 80))
+	palette.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	palette.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var row := HBoxContainer.new()
-	layout.add_child(row)
-	var category := VBoxContainer.new()
-	category.custom_minimum_size.x = 142
-	row.add_child(category)
-	category.add_child(_label("Baupalette", 15, ACCENT))
-	category.add_child(category_picker)
-	category_picker.item_selected.connect(func(_index: int): _refresh_tools())
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	row.add_child(scroll)
-	scroll.add_child(tool_list)
-	tool_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tool_list.add_theme_constant_override("separation", 5)
-	layout.add_child(preview)
-	preview.add_theme_font_size_override("font_size", 12)
-	preview.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	preview.add_theme_color_override("font_color", MUTED)
+	row.add_theme_constant_override("separation", 4)
+	palette.add_child(row)
+	for item in QUICK_TOOLS:
+		var id: int = item[0]
+		var button := _dock_button(item[1], item[2], _select_tool.bind(id))
+		button.toggle_mode = true
+		button.tooltip_text = "%s (%d)" % [Catalog.tool_name(id), quick_buttons.size() + 1]
+		row.add_child(button)
+		quick_buttons[id] = button
+	row.add_child(VSeparator.new())
+	catalog_button = _dock_button("Baukatalog", "catalog", _open_catalog)
+	catalog_button.tooltip_text = "Alle Bauwerkzeuge (B)"
+	row.add_child(catalog_button)
+	preview_panel = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -142, 0, 30))
+	preview_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	preview_panel.add_child(preview)
+	preview.add_theme_font_size_override("font_size", 13)
+	preview_panel.hide()
+
+func _dock_button(caption: String, symbol: String, action: Callable) -> Button:
+	var button := _button(caption, action)
+	button.icon = _symbol(symbol)
+	button.add_theme_constant_override("icon_max_width", 40)
+	button.add_theme_font_size_override("font_size", 13)
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	button.custom_minimum_size = Vector2(84, 64)
+	return button
+
+func _open_catalog() -> void:
+	catalog_dialog.popup_centered(Vector2i(560, 320))
+	category_picker.grab_focus()
 
 func _overview() -> void:
-	var panel := _panel(Control.PRESET_BOTTOM_RIGHT, Rect2(-198, -223, 188, 215))
+	var panel := _panel(Control.PRESET_BOTTOM_RIGHT, Rect2(-182, -212, 172, 202))
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var column := VBoxContainer.new()
 	panel.add_child(column)
-	column.add_child(_label("Stadtübersicht", 17))
+	column.add_theme_constant_override("separation", 4)
 	column.add_child(map)
-	map.custom_minimum_size = Vector2(138, 138)
+	map.custom_minimum_size = Vector2(154, 154)
+	map.focus_mode = Control.FOCUS_ALL
+	map.focus_entered.connect(map.queue_redraw)
+	map.focus_exited.connect(map.queue_redraw)
 	map.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	map.tooltip_text = "Klicken, um diesen Kartenausschnitt anzuzeigen"
+	map.tooltip_text = "Zum Ziel klicken oder mit den Pfeiltasten navigieren"
 	map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map.cell_selected.connect(func(cell: Vector2i): focus_requested.emit(cell))
 	for layer_name in LAYERS: layers.add_item(layer_name)
@@ -236,7 +291,7 @@ func _overview() -> void:
 	commodities.item_selected.connect(func(good: int): layer_selected.emit(layers.selected, good))
 
 func _footer() -> void:
-	inspector = _panel(Control.PRESET_TOP_RIGHT, Rect2(-320, 76, 310, 224))
+	inspector = _panel(Control.PRESET_TOP_RIGHT, Rect2(-332, 61, 322, 276))
 	inspector.hide()
 	var column := VBoxContainer.new()
 	inspector.add_child(column)
@@ -247,6 +302,9 @@ func _footer() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	headings.add_child(spacer)
 	headings.add_child(production)
+	var close := _button("×", _close_inspection)
+	close.tooltip_text = "Feldbericht schließen (Esc)"
+	headings.add_child(close)
 	production.text = "Produktion"
 	production.toggled.connect(func(active: bool): report_requested.emit(active))
 	column.add_child(details)
@@ -264,7 +322,26 @@ func _footer() -> void:
 	launch_button.pressed.connect(func(): launch_dialog.popup_centered())
 	set_inspection(-1, [])
 
+func _close_inspection() -> void:
+	set_inspection(-1, [])
+	inspection_closed.emit()
+
 func _dialogs() -> void:
+	surface.add_child(catalog_dialog)
+	catalog_dialog.title = "Baukatalog"
+	catalog_dialog.ok_button_text = "Schließen"
+	var catalog_layout := VBoxContainer.new()
+	catalog_dialog.add_child(catalog_layout)
+	catalog_layout.add_child(category_picker)
+	category_picker.tooltip_text = "Werkzeugkategorie"
+	category_picker.item_selected.connect(func(_index: int): _refresh_tools())
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	catalog_layout.add_child(scroll)
+	scroll.add_child(tool_list)
+	tool_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tool_list.columns = 3
 	for dialog: FileDialog in [save_dialog, load_dialog]:
 		surface.add_child(dialog)
 		dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -341,6 +418,11 @@ func _dialogs() -> void:
 	launch_dialog.ok_button_text = "Starten"
 	launch_dialog.cancel_button_text = "Abbrechen"
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
+	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, trade_dialog, survey_dialog, launch_dialog]:
+		dialog.theme = surface.theme
+		dialog.transient = true
+		dialog.exclusive = true
+		dialog.about_to_popup.connect(func(): modal_opened.emit())
 
 func _menu_action(id: int) -> void:
 	match id:
@@ -388,6 +470,9 @@ func _refresh_categories() -> void:
 	category_picker.clear()
 	for category: String in categories:
 		category_picker.add_item(category)
+	for id: int in quick_buttons:
+		quick_buttons[id].disabled = not catalog.has(id)
+	_sync_selection()
 	_refresh_tools()
 
 func _refresh_tools() -> void:
@@ -414,17 +499,43 @@ func _refresh_tools() -> void:
 		button.custom_minimum_size.x = maxf(70, button.get_theme_font("font").get_string_size(name_de, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 24)
 		button.tooltip_text = "%s · %d × %d Felder" % [name_de, tool.get("size", 1), tool.get("size", 1)]
 		tool_list.add_child(button)
-	_fit_palette()
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.set_meta("tool_id", id)
 
-func _fit_palette() -> void:
-	var preferred := tool_list.get_combined_minimum_size().x + 183
-	palette.offset_right = 10 + minf(maxf(preferred, 610), maxf(200, surface.size.x - 216))
+func _sync_selection() -> void:
+	for id: int in quick_buttons:
+		quick_buttons[id].set_pressed_no_signal(id == chosen_tool)
+	for button: Button in tool_list.get_children():
+		button.set_pressed_no_signal(button.get_meta("tool_id") == chosen_tool)
+	catalog_button.text = "Baukatalog" if chosen_tool in quick_buttons else Catalog.tool_name(chosen_tool, "Baukatalog")
+	catalog_button.icon = _symbol("catalog") if chosen_tool in quick_buttons or not Catalog.TOOLS.has(chosen_tool) else load("res://ui/icons/%s.png" % Catalog.TOOLS[chosen_tool][1])
 
 func _select_tool(id: int) -> void:
+	if not catalog.has(id): return
 	chosen_tool = id
-	if id != -1: inspector.hide()
+	if catalog_dialog.visible: catalog_dialog.hide()
+	if id != -1: _close_inspection()
+	_sync_selection()
 	show_preview("")
 	tool_changed.emit(id)
+
+func has_modal() -> bool:
+	var active := get_window().get_last_exclusive_window()
+	return active != null and active != get_window()
+
+func _shortcut_input(event: InputEvent) -> void:
+	if has_modal() or not event is InputEventKey: return
+	if not event.pressed or event.echo: return
+	match event.keycode:
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
+			_select_tool(QUICK_TOOLS[event.keycode - KEY_1][0])
+		KEY_B: _open_catalog()
+		KEY_F1: _menu_action(3)
+		KEY_ESCAPE:
+			if inspector.visible: _close_inspection()
+			else: _select_tool(-1)
+		_: return
+	get_viewport().set_input_as_handled()
 
 func _number(value: int) -> String:
 	var digits := str(absi(value))
@@ -449,18 +560,20 @@ func show_info(text: String) -> void:
 	if text.is_empty():
 		inspector.hide()
 		return
-	if chosen_tool == -1 or inspected_group < 0: inspector.show()
+	inspector.show()
 	if details.text != text:
 		details.text = text
 
 func show_preview(text: String) -> void:
-	preview.text = text if not text.is_empty() else "%s   ·   Mausrad zum Zoomen   ·   Rechts ziehen zum Drehen" % Catalog.tool_name(chosen_tool, "Bauen")
+	preview_panel.visible = not text.is_empty()
+	preview.text = text
 
 func set_speed(speed: int) -> void:
-	speed_picker.select(speed_picker.get_item_index(speed))
+	if speed_buttons.has(speed): speed_buttons[speed].button_pressed = true
 
-func set_focus(cell: Vector2i) -> void:
+func set_focus(cell: Vector2i, bearing: float) -> void:
 	map.focus = cell
+	map.bearing = bearing
 	map.queue_redraw()
 
 func set_inspection(group: int, rules: Array, show_production: bool = false) -> void:
