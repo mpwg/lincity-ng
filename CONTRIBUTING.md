@@ -25,8 +25,8 @@ You can also contribute through play-testing, translation, documentation, or art
 ### Opening a Pull Request
 
 You may contribute code, art, documentation, translation, etc. by
-[forking the project on GitHub](https://github.com/lincity-ng/lincity-ng/fork)
-and [opening a pull request](https://github.com/lincity-ng/lincity-ng/compare).
+[forking the project on GitHub](https://github.com/mpwg/lincity-ng/fork)
+and [opening a pull request](https://github.com/mpwg/lincity-ng/compare).
 
 Pull requests should contain only a single contribution. If you have multiple
 contributions, then please open a separate PR for each. This streamlines the
@@ -47,7 +47,8 @@ We just want to ensure that the project maintains the highest quality possible
 
 - `godot/` contains the 3D game, its assets, and the Rust GDExtension in `godot/native/`.
 - `rustcity-core/` contains the city simulation and its tests.
-- `tooling/` contains art creation and release tools.
+- `tooling/` contains art creation and release tools. `tooling/xtask/` implements
+  the `cargo godot-build` command that puts the library where Godot can load it.
 - `docs/` contains project documentation, screenshots and unreleased changes.
 - `target/` holds Cargo build artifacts, and `build/` holds local exports.
 
@@ -139,7 +140,10 @@ the applicable licenses.
 
 Use `cargo fmt --all` for Rust code. Follow the existing formatting and naming
 in adjacent Godot scripts.
-Run the Rust tests and the relevant Godot tests before opening a pull request.
+Run `cargo test --workspace --locked` before opening a pull request. Use
+`cargo godot-build` to stage the extension before running the relevant Godot
+tests. When changing `CityWorld`, check its GDScript callers and save/load
+behavior as well.
 [Build and test commands](docs/GODOT_DESKTOP.md#prüfung)
 
 ### Contribute Play-Testing

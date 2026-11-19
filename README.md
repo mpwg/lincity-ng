@@ -2,21 +2,15 @@
 
 https://github.com/mpwg/lincity-ng
 
-## Introduction
-
-LinCity-NG is a city simulation game. It is a polished and improved
-version of the classic LinCity game. In the game, you are required
-to build and maintain a city. You can win the game either by
-building a sustainable economy or by evacuating all citizens with
-spaceships.
-
-See the in-game help [F1] for how to play.
+LinCity-NG is a 3D city simulation based on the classic LinCity. Build a city
+and win by sustaining its economy or evacuating every resident by rocket. Press
+F1 for the in-game help.
 
 ## Build and run
 
-The Godot 4.5.1 desktop loads RustCity through a Rust GDExtension. Cargo builds
-both in one workspace. From the main menu, start a city, choose a scenario, or
-continue a saved city. [Dependencies](docs/DEPENDENCIES.md) · [Build options](docs/BUILD_OPTIONS.md)
+Install Godot 4.5.1, Rust and Cargo 1.94 or newer, and your platform's system
+linker. Cargo builds the RustCity simulation and the Rust GDExtension that
+connects it to the Godot desktop. [Dependencies](docs/DEPENDENCIES.md)
 
 Run these commands from the repository root.
 
@@ -26,8 +20,16 @@ godot --headless --path godot --import
 godot --path godot
 ```
 
-Run the Rust tests with `cargo test --workspace --locked`.
-[Desktop controls, tests, and release exports](docs/GODOT_DESKTOP.md)
+`cargo godot-build` stages the native library in `godot/bin/`. Use
+`cargo godot-build --export` to stage the library for a release export, and
+`cargo test --workspace --locked` to run the Rust tests.
+[Build options](docs/BUILD_OPTIONS.md) · [Desktop controls, tests, and exports](docs/GODOT_DESKTOP.md)
+
+## Project layout
+
+- `godot/` contains the desktop interface, scenarios, and game assets.
+- `godot/native/` contains the Rust GDExtension and the `CityWorld` API used by GDScript.
+- `rustcity-core/` contains the simulation and save-game handling.
 
 ## Saved games and the classic desktop
 

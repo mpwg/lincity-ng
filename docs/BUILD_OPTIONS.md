@@ -2,7 +2,9 @@
 
 `cargo godot-build` baut die native Erweiterung `lincity_godot` mit dem Rust-Simulationskern und legt die Bibliothek in `godot/bin/` ab. Godot lädt sie beim Start des Editors oder des Spiels aus den Quellen. Standardmäßig verwendet der Build das optimierte Cargo-Profil `release`.
 
-- `--export` legt die Bibliothek unter dem Dateinamen für Godots Release-Exportvorlagen ab. Der Editor-Build und der Export können nebeneinander in `godot/bin/` liegen.
+Der Cargo-Workspace im Stammverzeichnis verwaltet den Simulationskern, die Godot-Erweiterung und das Build-Werkzeug mit einer gemeinsamen `Cargo.lock`. Die Erweiterung baut auf `godot-rust` und der GDExtension-API von Godot 4.5 auf. Das Godot-Projekt verwendet den Editor 4.5.1. [Abhängigkeiten](DEPENDENCIES.md)
+
+- `--export` legt die Bibliothek unter dem Dateinamen für Godots Release-Exportvorlagen ab. Der Editor-Build und die Exportbibliothek können nebeneinander in `godot/bin/` liegen. Das vollständige Paket erstellen die plattformspezifischen Skripte in `tooling/release/`.
 - `--debug` baut mit dem unoptimierten Cargo-Profil `dev` und erzeugt Debugsymbole.
 - `--target TRIPLE` gibt das Rust-Ziel für den Build der Erweiterung an. Den Linker und dessen Optionen für Cross-Builds kannst du über Cargo konfigurieren.
 

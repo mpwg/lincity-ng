@@ -6,7 +6,7 @@ Im Hauptmenü lässt sich eine neue Stadt anlegen, ein Szenario auswählen, ein 
 
 ## Start aus den Quellen
 
-Cargo baut die native Erweiterung für den Godot-Editor. Die vorbereiteten GLB-Dateien sind im Repository enthalten. [Abhängigkeiten](DEPENDENCIES.md)
+Cargo baut den Rust-Simulationskern und die Rust-GDExtension für Godot. Die Erweiterung stellt GDScript die Klasse `CityWorld` bereit. Führe die Befehle vom Stammverzeichnis des Repositorys aus. [Abhängigkeiten](DEPENDENCIES.md)
 
 ```sh
 cargo godot-build
@@ -63,7 +63,10 @@ Die Paketierung verwendet Python, `ldd` und `readelf`. Sie prüft Spielstart, PC
 
 ## Prüfung
 
+Baue die Editor-Bibliothek und importiere das Projekt vor dem ersten Godot-Test wie oben beschrieben.
+
 ```sh
+cargo test --workspace --locked
 godot --headless --path godot -s res://tests/model_catalog.gd
 godot --headless --path godot -s res://tests/session.gd -- --mute
 godot --headless --path godot -s res://tests/construction_batch.gd -- --mute
@@ -89,7 +92,13 @@ Beide Aufnahmen zeigen denselben Spielstand während einer Arbeitsschicht der Le
 
 ![Blick von der Flussbrücke auf Markt und Fabrik](screenshots/godot/flussbruecke.webp)
 
-## Grafikmessungen des ursprünglichen Exports vom 19. November 2026
+## Prüfung der Rust-GDExtension
+
+Bei der Umstellung in Commit `7071ed51` bestanden 105 Rust-Tests und 15 Godot-Prüfungen. Für den Vergleich mit der vorherigen Anbindung wurden alle 24 Methoden von `CityWorld` mit sieben Spielständen auf Deutsch und Englisch erfasst. Die 1.144 Vergleichswerte stimmten überein. Beide Versionen konnten die Spielstände der jeweils anderen laden.
+
+Der Linux-Export bestand den Pakettest mit OpenGL und die Nachhaltigkeitskampagne mit 181 Bauaktionen. Unter Wine bestand das Windows-Paket den Pakettest und setzte die Stadt in einem zweiten Prozess fort. Beim macOS-ARM64-Paket wurden Architektur, Ladepfade und Ad-hoc-Signatur geprüft. Der Start auf Apple Silicon steht aus. [Commit der Umstellung](https://github.com/mpwg/lincity-ng/commit/7071ed51fdd579d1b1006fceb938e3e18eecd338)
+
+## Grafikmessungen vor der Portierung vom 19. November 2026
 
 Das separat entpackte Linux-Release wurde auf einer GeForce RTX 3060 Ti mit Treiber 620.70.06 geprüft. Die folgende Messung verwendet das Szenario „Rocket 98“ mit 100 × 100 Feldern, laufender Rust-Simulation und vollständigem HUD. Jede Stichprobe wartet auf das gezeichnete Bild einschließlich Rücklesen des Framebuffers.
 
@@ -102,7 +111,7 @@ Das Release erreicht auf der RTX das Ziel von 33,33 ms in beiden Ansichten. Auf 
 
 Die Katalogprüfung erfasst 185 Varianten mit drei Detailstufen und separaten Auswahlkörpern für anwählbare Modelle. Die Spielprüfung deckt den Markt aus vier Kamerarichtungen, Straßenbau und Abriss über eine Bereichsgrenze, Kosten, Kartenebenen, Rauch bei laufender Produktion, Raketenstart und das Weiterspielen eines gespeicherten Stands ab. Der entpackte Export wurde zusätzlich mit echten Mauseingaben, allen Lizenzansichten und einem regulären Grafikstart aus einem frischen Verzeichnis geprüft.
 
-## Prüfung der erweiterten Oberfläche
+## Prüfung der erweiterten Oberfläche vor der Portierung
 
 Im separat entpackten Linux-Paket wurden alle sieben Startstädte und die Kartenerzeugung in allen vier Klimazonen geprüft. Die Bedienprüfung umfasst Handel, normale und schnelle Spielstände sowie die Kostenbestätigung beim Abriss. Die Einstellungen wurden unter X11 und Wayland getestet. Für den Verlauf wurden gemessene Daten, echte Nullwerte, Lücken aus Altspielständen und ein erneuter Speicherzyklus geprüft.
 
@@ -110,13 +119,13 @@ Die beiden Siege und die Niederlage wurden mit je einem vorbereiteten Spielstand
 
 Die Fassung mit Hauptmenü wurde im entpackten Linux-Paket mit OpenGL geprüft. Der Pakettest wählt das Flussviertel im Menü, untersucht den Markt aus vier Richtungen, zieht eine Straße, prüft Vorschau und Abbuchung, speichert und setzt die Stadt in einem neuen Prozess fort. Ein zusätzlicher X11-Test lädt einen klassischen Spielstand über den Ladedialog. Der Wachstumstest beginnt in einer neu erzeugten Landschaft, baut ein Denkmal und schaltet eine Schule frei. Er prüft die Warenversorgung der Schule und dass sie tatsächlich forscht. Die getrennten Spielausgangstests decken beide Siege und die Niederlage ab.
 
-Im aktuellen Editorlauf mit der RTX 3060 Ti und laufender Stadt in „Rocket 98“ beträgt das P95 bei 1920 × 1080 17,41 ms in der Nahansicht und 19,34 ms in der Stadtübersicht.
+Im damaligen Editorlauf mit der RTX 3060 Ti und laufender Stadt in „Rocket 98“ betrug das P95 bei 1920 × 1080 17,41 ms in der Nahansicht und 19,34 ms in der Stadtübersicht.
 
 ## Vollständige Nachhaltigkeitskampagne
 
 Die Kampagne beginnt in einem neu erzeugten 100 × 100 großen Sumpfgebiet mit Startdorf und dem Startwert 48. Mit 181 regulären Bauaktionen erreicht der Rust-Kern den Nachhaltigkeitssieg an Tag 297.600. Beim Sieg hat die Stadt 6.832 Einwohner, keine Hungernden und 19.435.272 $ in der Kasse.
 
-Der Godot-Test öffnet den unveränderten Startstand über das Hauptmenü und spielt dieselben Bauaktionen über Bauleiste und Zeigereingaben ab. Er verwendet den regulären Simulationsschritt und überspringt das Zeichnen der Zwischenbilder. Im frisch entpackten Linux-Export erschien der Nachhaltigkeitssieg an Tag 297.600 bei 6.686 Einwohnern. Nach dem Schließen des Dialogs lief die Stadt weiter. Ein neuer Zufallsverlauf nach dem Laden kann den Siegtermin verschieben.
+Der Godot-Test öffnet den unveränderten Startstand über das Hauptmenü und spielt dieselben Bauaktionen über Bauleiste und Zeigereingaben ab. Er verwendet den regulären Simulationsschritt und überspringt das Zeichnen der Zwischenbilder. Im Linux-Export mit Rust-GDExtension erschien der Nachhaltigkeitssieg an Tag 298.800 bei 6.733 Einwohnern. Nach dem Schließen des Dialogs lief die Stadt weiter. Ein neuer Zufallsverlauf nach dem Laden kann den Siegtermin verschieben.
 
 ```sh
 RUSTCITY_CAMPAIGN_ARTIFACTS="$PWD/build/sustainable-campaign" cargo test --locked --release -p rustcity-core --test sustainable_campaign -- --ignored --nocapture
@@ -125,7 +134,7 @@ godot --path godot -s res://tests/sustainable_campaign.gd -- --mute "$PWD/build/
 
 ## Apple-Silicon-Testbuild
 
-Das Testpaket für macOS 15 oder neuer enthält `LinCity-NG.app` mit der nativen ARM64-Erweiterung. Das ZIP im Finder entpacken und die App aus dem Paketordner öffnen. Die App ist ad hoc signiert. Falls Gatekeeper den ersten Start blockiert, kann die App unter „Systemeinstellungen → Datenschutz & Sicherheit“ über „Dennoch öffnen“ freigegeben werden.
+Das Paketierskript erzeugt `LinCity-NG.app` für macOS 15 oder neuer auf Apple Silicon. Die App lässt sich aus dem Paketordner öffnen und ist ad hoc signiert. Falls Gatekeeper den ersten Start blockiert, kann die App unter „Systemeinstellungen → Datenschutz & Sicherheit“ über „Dennoch öffnen“ freigegeben werden.
 
 Die Linux-Prüfung umfasst Architektur, Ladepfade, Signatur und Archivintegrität. Der Bedienlauf auf Apple Silicon steht aus.
 
