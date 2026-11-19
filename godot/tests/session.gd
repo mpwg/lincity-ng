@@ -40,7 +40,12 @@ func _run() -> void:
 		printerr("Für den Test ist ein frisches Benutzerdatenverzeichnis erforderlich.")
 		quit(2)
 		return
+	var startup_size := root.size
+	var startup_mode := root.mode
 	var game := _launch()
+	if "--check-launch-display" in OS.get_cmdline_user_args():
+		_check(root.size == startup_size and root.mode == startup_mode,
+			"Das Hauptmenü überschreibt die Fenstergröße oder den Modus des Starts.")
 	await process_frame
 	await process_frame
 	if not game.hud.get("session_menu"):

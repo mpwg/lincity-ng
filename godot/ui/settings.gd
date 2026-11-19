@@ -70,14 +70,21 @@ func save_changes(changes: Dictionary) -> Error:
 func apply_language() -> void:
 	TranslationServer.set_locale(values.language)
 
-func apply_display(window: Window, respect_launch_options := false) -> void:
+func apply_display(window: Window, preserve_startup_geometry := false) -> void:
 	window.msaa_3d = values.msaa
 	if DisplayServer.get_name() == "headless":
 		return
-	if respect_launch_options:
-		for argument in OS.get_cmdline_args():
-			if argument in ["-f", "--fullscreen", "-w", "--windowed", "-m", "--maximized", "--resolution", "--position"]:
-				return
+	# Godot consumes its window arguments before creating the game's main scene.
+	if preserve_startup_geometry:
+		var viewport := window.content_scale_size
+		var launch_size := Vector2i(
+			ProjectSettings.get_setting("display/window/size/window_width_override", 0),
+			ProjectSettings.get_setting("display/window/size/window_height_override", 0))
+		if launch_size.x <= 0: launch_size.x = viewport.x
+		if launch_size.y <= 0: launch_size.y = viewport.y
+		if window.size != launch_size or window.mode in [
+			Window.MODE_MAXIMIZED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN]:
+			return
 	if values.fullscreen:
 		window.mode = Window.MODE_FULLSCREEN
 		return
