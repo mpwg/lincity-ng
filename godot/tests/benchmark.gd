@@ -28,11 +28,11 @@ func _start() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	RenderingServer.render_loop_enabled = false
-	root.size = Vector2i(1920, 1080)
-	root.content_scale_size = Vector2i(1920, 1080)
 	game = load("res://city.tscn").instantiate()
 	root.add_child(game)
 	current_scene = game
+	root.size = Vector2i(1920, 1080)
+	root.content_scale_size = Vector2i(1920, 1080)
 	game._load_city("res://opening/Rocket_98.scn.gz")
 	if game.state.get("time", -1) != ROCKET_98_START_DAY:
 		printerr("Messung braucht den unveränderten Referenzstand Rocket 98.")

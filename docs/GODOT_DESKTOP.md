@@ -22,7 +22,13 @@ Mit `godot --path godot -- --bridge-view` öffnet sich dieselbe Stadt von der Fl
 | Untersuchen, Straße, Wohnen, Markt, Abriss | Tasten 1 bis 5 oder Bauleiste |
 | Weitere Werkzeuge und Kartenebenen | B für den Baukatalog, Auswahl unter der Minikarte für die Kartenebene |
 | Verkehrsweg bauen | Linke Maustaste ziehen, Strg wechselt den Knick im Verlauf |
-| Hilfe und Spielstände | F1 für die Hilfe, Menü „Spiel“ zum Speichern und Laden |
+| Hilfe und Spielstände | F1 für die Hilfe, F9 zum Schnellladen, F12 zum Schnellspeichern |
+| Verlauf und Siegziele | Spiel → Verlauf und Nachhaltigkeit |
+| Anzeige, Ton und Startvorgaben | Spiel → Einstellungen |
+
+Die Nachhaltigkeitsansicht zeigt den Fortschritt aller sechs Siegkriterien. Die Verlaufsdiagramme lesen die abgeschlossenen Monate aus dem Spielstand und zeigen fehlende ältere Aufzeichnungen als Lücken. Ein erfolgreicher letzter Evakuierungsflug und eine nachhaltige Wirtschaft öffnen jeweils einen eigenen Siegdialog.
+
+Unter „Einstellungen“ lassen sich Musik und Effekte getrennt ein- und ausschalten und regeln. Die Titelauswahl berücksichtigt den Technologiestand der Stadt. Das Startargument `--mute` hinter dem doppelten Bindestrich schaltet die Sitzung stumm. Die Einstellungen werden lokal gespeichert. Die 3D-Oberfläche und Spielhilfe sind auf Deutsch. Unter X11 lässt sich die Fensterauflösung im Menü wählen. Unter Wayland wird die Fenstergröße über den Fenstermanager geändert. Vollbild steht auf beiden Plattformen zur Verfügung.
 
 ## Assets und Referenzviertel
 
@@ -51,8 +57,12 @@ Das Quellarchiv muss zur eingebundenen libxml++-Version passen. Die Paketierung 
 
 ```sh
 godot --headless --path godot -s res://tests/model_catalog.gd
-godot --headless --path godot -s res://tests/hud.gd
-godot --headless --path godot -s res://tests/acceptance.gd
+godot --headless --path godot -s res://tests/hud.gd -- --mute
+godot --headless --path godot -s res://tests/acceptance.gd -- --mute
+godot --headless --path godot -s res://tests/outcomes.gd -- --mute
+godot --headless --path godot -s res://tests/history.gd -- --mute
+godot --headless --path godot -s res://tests/audio.gd
+godot --headless --path godot -s res://tests/settings.gd
 godot --path godot -s res://tests/benchmark.gd
 ```
 
@@ -78,3 +88,9 @@ Das separat entpackte Linux-Release wurde auf einer GeForce RTX 3060 Ti mit Trei
 Das Release erreicht auf der RTX das Ziel von 33,33 ms in beiden Ansichten. Auf dem Testrechner steht eine physische GPU zur Verfügung. Der zusätzliche Softwarelauf mit Mesa 26.2.6 auf der CPU überschreitet das Ziel. Die Leistung auf einer schwächeren physischen GPU ist offen.
 
 Die Katalogprüfung erfasst 185 Varianten mit drei Detailstufen und separaten Auswahlkörpern für anwählbare Modelle. Die Spielprüfung deckt den Markt aus vier Kamerarichtungen, Straßenbau und Abriss über eine Bereichsgrenze, Kosten, Kartenebenen, Rauch bei laufender Produktion, Raketenstart und das Weiterspielen eines gespeicherten Stands ab. Der entpackte Export wurde zusätzlich mit echten Mauseingaben, allen Lizenzansichten und einem regulären Grafikstart aus einem frischen Verzeichnis geprüft.
+
+## Nachprüfung der erweiterten Oberfläche
+
+Im separat entpackten Linux-Paket wurden alle sieben Startstädte und die Kartenerzeugung in allen vier Klimazonen geprüft. Die Bedienprüfung umfasst Handel, normale und schnelle Spielstände sowie die Kostenbestätigung beim Abriss. Die Einstellungen wurden unter X11 und Wayland getestet. Für den Verlauf wurden gemessene Daten, echte Nullwerte, Lücken aus Altspielständen und ein erneuter Speicherzyklus geprüft.
+
+Die beiden Siege und die Niederlage wurden mit je einem vorbereiteten Spielstand über den tatsächlichen Simulationsschritt und den Spielausgangsdialog geprüft. Ein Langzeitdurchlauf ab einer neu erzeugten Stadt bis zum Sieg steht als Test aus. Der aktualisierte Linux-Export erreicht in „Rocket 98“ auf der RTX 3060 Ti bei 1920 × 1080 ein P95 von 11,16 ms in der Nahansicht und 13,28 ms in der Stadtübersicht.

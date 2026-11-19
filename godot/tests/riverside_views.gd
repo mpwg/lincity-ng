@@ -11,11 +11,11 @@ func _capture() -> void:
 		printerr("Bildaufnahme braucht einen Grafiktreiber und LINCITY_CAPTURE_DIR.")
 		quit(2)
 		return
-	root.size = Vector2i(1920, 1080)
-	root.content_scale_size = root.size
 	var game = load("res://city.tscn").instantiate()
 	root.add_child(game)
 	current_scene = game
+	root.size = Vector2i(1920, 1080)
+	root.content_scale_size = root.size
 	game.speed = 0
 	if game.state.is_empty():
 		quit(1)

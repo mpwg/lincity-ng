@@ -45,7 +45,9 @@ See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
 configuration options.
 
 The freely rotatable 3D desktop opens on the market street of a playable riverside
-town. It uses Godot 4.5 and the RustCity simulation. See the [3D desktop build and controls](docs/GODOT_DESKTOP.md).
+town. It uses Godot 4.5 and the RustCity simulation, with both victory conditions,
+historical charts, the original music and sound effects, and persistent settings.
+[3D desktop build and controls](docs/GODOT_DESKTOP.md)
 
 The SDL desktop uses the C++ simulation by default. Configure with
 `-DLINCITY_CORE_BACKEND=rust` to run it with RustCity Core. The Rust library

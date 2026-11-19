@@ -23,6 +23,7 @@ var _operating := PackedByteArray()
 var _smoke_mesh := QuadMesh.new()
 var _chunks: Dictionary = {}
 var _water_mask: ImageTexture
+var reflections_enabled := true
 var _mirror: RiverReflections
 
 class Chunk:
@@ -335,7 +336,7 @@ func _update_smoke(chunk: Chunk) -> void:
 func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if not camera: return
-	if _mirror and _mirror.sync(camera,not _overlay):
+	if _mirror and _mirror.sync(camera,reflections_enabled and not _overlay):
 		_catalog.set_map_parameter("reflection_active",_mirror.enabled,_material)
 	for chunk: Chunk in _chunks.values():
 		_set_detail(chunk,camera.global_position)

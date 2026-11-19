@@ -15,6 +15,9 @@ signal trade_changed(id: int, buy: bool, sell: bool)
 signal report_requested(production: bool)
 signal inspection_closed
 signal modal_opened
+signal modal_closed
+signal quit_requested
+signal history_requested
 
 const Catalog = preload("res://ui/catalog.gd")
 const Minimap = preload("res://ui/minimap.gd")
@@ -59,6 +62,9 @@ const ROCKET_EVENTS := {
 var outcome_dialog := AcceptDialog.new()
 var demolition_dialog := ConfirmationDialog.new()
 var quit_dialog := ConfirmationDialog.new()
+var history_dialog := preload("res://ui/history.gd").new()
+var settings_dialog := preload("res://ui/settings_dialog.gd").new()
+var settings: RefCounted
 var surface := Control.new()
 var treasury := Label.new()
 var inhabitants := Label.new()
@@ -238,12 +244,14 @@ func _top_bar() -> void:
 	popup.add_separator()
 	popup.add_item("Stadtstatistik", 4)
 	popup.add_item("Jahresabschluss", 5)
+	popup.add_item("Verlauf und Nachhaltigkeit …", 10)
 	popup.add_item("Ereignisse", 6)
 	popup.add_item("Kohlevorkommen erkunden …", 7)
 	popup.add_separator()
 	popup.add_item("Spielhilfe", 3)
 	popup.add_item("Mitwirkende und Lizenzen …", 8)
 	popup.add_separator()
+	popup.add_item("Einstellungen …", 9)
 	popup.add_item("Beenden …", 14)
 	popup.id_pressed.connect(_menu_action)
 
@@ -349,6 +357,8 @@ func _close_inspection() -> void:
 	inspection_closed.emit()
 
 func _dialogs() -> void:
+	surface.add_child(history_dialog)
+	surface.add_child(settings_dialog)
 	surface.add_child(outcome_dialog)
 	outcome_dialog.ok_button_text = "Weiterbauen"
 	surface.add_child(demolition_dialog)
@@ -360,7 +370,7 @@ func _dialogs() -> void:
 	quit_dialog.dialog_text = "LinCity-NG schließen?"
 	quit_dialog.ok_button_text = "Beenden"
 	quit_dialog.cancel_button_text = "Abbrechen"
-	quit_dialog.confirmed.connect(func(): get_tree().quit())
+	quit_dialog.confirmed.connect(quit_requested.emit)
 	surface.add_child(catalog_dialog)
 	catalog_dialog.title = "Baukatalog"
 	catalog_dialog.ok_button_text = "Schließen"
@@ -453,19 +463,29 @@ func _dialogs() -> void:
 	launch_dialog.ok_button_text = "Starten"
 	launch_dialog.cancel_button_text = "Abbrechen"
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
-	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog, demolition_dialog, quit_dialog]:
+	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog, demolition_dialog, quit_dialog, settings_dialog, history_dialog]:
 		dialog.theme = surface.theme
 		dialog.transient = true
 		dialog.exclusive = true
 		dialog.about_to_popup.connect(func(): modal_opened.emit())
+		dialog.visibility_changed.connect(func():
+			if not dialog.visible: modal_closed.emit())
 
 func _menu_action(id: int) -> void:
 	match id:
-		0: new_dialog.popup_centered(Vector2i(365, 180))
+		0:
+			if settings:
+				climate.select(settings.values.map_climate)
+				extent.value = settings.values.map_side
+				village.button_pressed = settings.values.map_village
+				trees.button_pressed = settings.values.map_trees
+			new_dialog.popup_centered(Vector2i(365, 180))
 		1: load_dialog.popup_centered_ratio(0.75)
 		2: save_dialog.popup_centered_ratio(0.75)
 		3: help_dialog.popup_centered(Vector2i(660, 540))
 		8: credits_dialog.popup_centered(Vector2i(710, 550))
+		9: settings_dialog.popup_centered(Vector2i(590, 405))
+		10: history_requested.emit()
 		12:
 			if FileAccess.file_exists(QUICK_SAVE):
 				load_requested.emit(QUICK_SAVE)

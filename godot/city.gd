@@ -1,5 +1,7 @@
 extends Node3D
 
+const GameSettings = preload("res://ui/settings.gd")
+const GameAudio = preload("res://audio/game_audio.gd")
 const NO_CELL := Vector2i(-1, -1)
 const OPENING := "res://scenarios/am_fluss.scn.gz"
 const TRANSPORT := [7, 9, 11]
@@ -11,6 +13,8 @@ const INVALID_COLOR := Color(1, 0.28, 0.18, 0.95)
 @onready var view = $World
 @onready var hud = $HUD
 var core: Object
+var settings := GameSettings.new()
+var audio := GameAudio.new()
 var state: Dictionary
 var tools_by_id := {}
 var tool := -1
@@ -26,15 +30,31 @@ var selected := NO_CELL
 var production := false
 var alternate := false
 var restoring_camera := false
+var quitting := false
 var pending_demolition: Array[Vector2i] = []
 
 func _ready() -> void:
+	add_child(audio)
 	if not ClassDB.class_exists("CityWorld"):
 		hud.show_info("Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen.")
 		set_process(false)
 		return
 	core = ClassDB.instantiate("CityWorld")
-	hud.tool_changed.connect(_select_tool)
+	settings.load_from_disk()
+	hud.settings = settings
+	hud.settings_dialog.setup(settings, audio)
+	hud.settings_dialog.settings_applied.connect(_apply_settings.bind(false))
+	hud.modal_opened.connect(audio.play_effect.bind(&"WindowOpen"))
+	hud.modal_closed.connect(audio.play_effect.bind(&"WindowClose"))
+	hud.quit_requested.connect(_quit)
+	hud.history_requested.connect(func():
+		hud.history_dialog.set_history(core.history())
+		hud.history_dialog.popup_centered(Vector2i(760, 490)))
+	get_tree().auto_accept_quit = false
+	_apply_settings(true)
+	hud.tool_changed.connect(func(id: int):
+		_select_tool(id)
+		audio.play_effect(&"Click"))
 	hud.inspection_closed.connect(_close_inspection)
 	hud.modal_opened.connect(_cancel_pointer)
 	hud.demolition_dialog.confirmed.connect(func():
@@ -50,7 +70,10 @@ func _ready() -> void:
 	hud.new_requested.connect(_new_city)
 	hud.new_settings.connect(_new_city)
 	hud.survey_requested.connect(func(): _after_action(core.survey_coal()))
-	hud.launch_requested.connect(func(): _after_action(core.launch_rocket(selected)))
+	hud.launch_requested.connect(func():
+		var error: String = core.launch_rocket(selected)
+		_after_action(error)
+		if error.is_empty(): audio.play_effect(&"RocketTakeoff"))
 	hud.trade_changed.connect(func(id: int, buy: bool, sell: bool): _after_action(core.set_trade(selected, id, buy, sell)))
 	hud.report_requested.connect(func(value: bool): production = value; _inspect())
 	camera.moved.connect(_camera_moved)
@@ -62,6 +85,25 @@ func _ready() -> void:
 	_load_city(opening)
 	if opening == OPENING and not state.is_empty():
 		camera.riverside_view("--bridge-view" in OS.get_cmdline_user_args())
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_node_ready():
+		_quit()
+
+func _quit() -> void:
+	if quitting:
+		return
+	quitting = true
+	if audio.is_inside_tree():
+		audio.apply_settings({"music_enabled": false, "effects_enabled": false})
+		await get_tree().create_timer(0.15).timeout
+	get_tree().quit()
+
+func _apply_settings(on_start: bool) -> void:
+	settings.apply_display(get_window(), on_start)
+	$Sun.shadow_enabled = settings.values.shadows
+	view.reflections_enabled = settings.values.reflections
+	audio.apply_settings(settings.values)
 
 func _new_city(climate := 0, side := 100, village := true, trees := true) -> void:
 	var error: String = core.new_city(climate, side, village, trees)
@@ -116,6 +158,7 @@ func _after_open(error: String) -> void:
 
 func _refresh() -> void:
 	state = core.snapshot()
+	audio.set_technology_percent(float(state.tech) / 10000.0)
 	if layer != 0:
 		state.overlay_colors = core.overlay(layer, commodity)
 	state.overlay_id = layer
@@ -128,6 +171,8 @@ func _refresh() -> void:
 	_update_preview()
 	for event: Dictionary in core.take_events():
 		hud.show_event(event)
+		if event.get("kind") == "rocket_crash":
+			audio.play_effect(&"RocketExplosion")
 
 func _set_layer(id: int, product: int) -> void:
 	layer = id
@@ -136,7 +181,7 @@ func _set_layer(id: int, product: int) -> void:
 		_refresh()
 
 func _process(delta: float) -> void:
-	if state.is_empty() or speed <= 0 or hud.has_modal():
+	if quitting or state.is_empty() or speed <= 0 or hud.has_modal():
 		return
 	view.advance_rockets(delta)
 	animation_time += delta
@@ -200,7 +245,7 @@ func _input(event: InputEvent) -> void:
 		_cancel_pointer()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if state.is_empty() or hud.has_modal():
+	if quitting or state.is_empty() or hud.has_modal():
 		return
 	if camera.input_camera(event):
 		get_viewport().set_input_as_handled()
@@ -217,6 +262,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif start != NO_CELL and hover != NO_CELL:
 			if tool == -1:
 				selected = hover
+				audio.play_tile_effect(core.tile_resource(selected))
 				production = false
 				_inspect()
 			else:
@@ -246,12 +292,19 @@ func _commit_build(id: int, cells: Array[Vector2i]) -> void:
 
 func _apply_build(id: int, cells: Array[Vector2i]) -> void:
 	var error := ""
+	var last := NO_CELL
 	for cell in cells:
 		if cells.size() == 1 or core.preview(id, cell).allowed:
 			error = core.apply(id, cell)
 			if not error.is_empty():
 				break
+			last = cell
 	_after_action(error)
+	if last != NO_CELL:
+		if id == -2:
+			audio.play_effect(&"Raze")
+		else:
+			audio.play_effect(&"Build")
 
 func _point_at(screen: Vector2) -> void:
 	var target: Vector2i = camera.tile_at(screen)

@@ -7,10 +7,13 @@ const INTRO := """[font_size=24]Die Stadt verwalten[/font_size]
 Ein Markt verteilt Lebensmittel, Güter und Arbeitskräfte in seinem Einzugsgebiet. Platziere Wohngebiete, einen Bauernhof und einen Brunnen in der Nähe. Wege verbinden die Stadt mit weiteren Betrieben.
 
 [b]Bauen und untersuchen[/b]
-Die Tasten 1 bis 5 wählen Untersuchen, Straße, Wohnen, Markt und Abriss. Im Baukatalog (B) findest du alle Werkzeuge nach Kategorie. Esc schließt den Feldbericht oder wechselt zu „Untersuchen“. Mit F1 öffnest du die Spielhilfe. Klicke zum Bauen auf ein Feld. Ziehe einen Feldweg, eine Straße oder eine Bahnlinie mit gedrückter linker Maustaste. Strg wechselt die Richtung der Kurve. Mit „Untersuchen“ öffnest du den Feldbericht und erhältst Zugang zu Produktion, Handelsregeln oder Raketenstart.
+Die Tasten 1 bis 5 wählen Untersuchen, Straße, Wohnen, Markt und Abriss. Im Baukatalog (B) findest du alle Werkzeuge nach Kategorie. Esc schließt den Feldbericht oder wechselt zu „Untersuchen“. Mit F1 öffnest du die Spielhilfe. F12 speichert schnell, F9 lädt diese Schnellspeicherung. Klicke zum Bauen auf ein Feld. Ziehe einen Feldweg, eine Straße oder eine Bahnlinie mit gedrückter linker Maustaste. Strg wechselt die Richtung der Kurve. Mit „Untersuchen“ öffnest du den Feldbericht und erhältst Zugang zu Produktion, Handelsregeln oder Raketenstart.
 
 [b]Kamera und Kartenebenen[/b]
 Drehe die Ansicht mit gedrückter rechter Maustaste oder mit Q und E. Verschiebe sie mit der mittleren Maustaste, WASD oder den Pfeiltasten. Das Mausrad zoomt. Ein Klick in die Minikarte springt zum Ziel. Unter der Minikarte wählst du die Kartenebene.
+
+[b]Statistik und Spielziele[/b]
+Unter „Spiel → Verlauf und Nachhaltigkeit“ findest du Monatsdiagramme und die sechs Kriterien für den Sieg durch eine nachhaltige Wirtschaft. Du kannst das Spiel auch durch die vollständige Evakuierung per Rakete gewinnen. Anzeige, Musik, Effekte und Vorgaben für neue Städte stehen unter „Spiel → Einstellungen“.
 
 [b]LinCity-Handbuch[/b]
 [url=tutorial-basics]Erste Schritte[/url]    [url=market]Märkte[/url]    [url=transport]Verkehr[/url]    [url=index]Alle Themen[/url]
