@@ -38,6 +38,8 @@ Eine gezogene Bau- oder Abrissauswahl umfasst höchstens 4.096 Felder. Bei einer
 
 Unter „Einstellungen“ lassen sich Musik und Effekte getrennt regeln sowie der Fahrzeugverkehr ausblenden. Im Schnelllauf fährt die Simulation so viele Tage pro Bild wie das Zeitbudget erlaubt. Das Startargument `--mute` hinter dem doppelten Bindestrich schaltet die Sitzung stumm. Die Wahl zwischen Deutsch und Englisch wird mit dem nächsten Start für Oberfläche, Hilfe und Meldungen wirksam. Unter X11 lässt sich die Fensterauflösung im Menü wählen. Unter Wayland wird die Fenstergröße über den Fenstermanager geändert. Vollbild steht auf beiden Plattformen zur Verfügung.
 
+Bei schmalen Fenstern bleibt die Schrift größer. Bauleiste, Feldbericht und Minikarte nutzen getrennte Bereiche. Die Anordnung wurde bei 640 × 480 Pixeln mit deutschen und englischen Texten geprüft.
+
 ## Assets und Referenzviertel
 
 Eine Kartenzelle entspricht einer Godot-Welteinheit. Der Modellkatalog verbindet die Gruppen des Spielkerns mit den Gebäude-, Verkehrs- und Geländevarianten. Beim Platzieren bestimmt die Straßenanbindung die Vorderseite. Für das Bild entscheidende Fassaden, Dächer und Rückseiten sind ausmodelliert. Auswahlkörper und vereinfachte Fernmodelle werden separat exportiert. Die Bau- und Terrainmodelle werden lokal erzeugt und mit dem Projekt verteilt. [Blender-Quellen und Export der Architektur](../tooling/art/architecture/README.md) · [Katalog und Modellzuordnung](../godot/world/model_catalog.gd)
@@ -106,11 +108,22 @@ Die Katalogprüfung erfasst 185 Varianten mit drei Detailstufen und separaten Au
 
 Im separat entpackten Linux-Paket wurden alle sieben Startstädte und die Kartenerzeugung in allen vier Klimazonen geprüft. Die Bedienprüfung umfasst Handel, normale und schnelle Spielstände sowie die Kostenbestätigung beim Abriss. Die Einstellungen wurden unter X11 und Wayland getestet. Für den Verlauf wurden gemessene Daten, echte Nullwerte, Lücken aus Altspielständen und ein erneuter Speicherzyklus geprüft.
 
-Die beiden Siege und die Niederlage wurden mit je einem vorbereiteten Spielstand über den tatsächlichen Simulationsschritt und den Spielausgangsdialog geprüft. Ein Langzeitdurchlauf ab einer neu erzeugten Stadt bis zum Sieg steht als Test aus. Der aktualisierte Linux-Export erreicht in „Rocket 98“ auf der RTX 3060 Ti bei 1920 × 1080 ein P95 von 11,16 ms in der Nahansicht und 13,28 ms in der Stadtübersicht.
+Die beiden Siege und die Niederlage wurden mit je einem vorbereiteten Spielstand über den tatsächlichen Simulationsschritt und den Spielausgangsdialog geprüft. Der aktualisierte Linux-Export erreicht in „Rocket 98“ auf der RTX 3060 Ti bei 1920 × 1080 ein P95 von 11,16 ms in der Nahansicht und 13,28 ms in der Stadtübersicht.
 
 Die Fassung mit Hauptmenü wurde im entpackten Linux-Paket mit OpenGL geprüft. Der Pakettest wählt das Flussviertel im Menü, untersucht den Markt aus vier Richtungen, zieht eine Straße, prüft Vorschau und Abbuchung, speichert und setzt die Stadt in einem neuen Prozess fort. Ein zusätzlicher X11-Test lädt einen klassischen Spielstand über den Ladedialog. Der Wachstumstest beginnt in einer neu erzeugten Landschaft, baut ein Denkmal und schaltet eine Schule frei. Er prüft die Warenversorgung der Schule und dass sie tatsächlich forscht. Die getrennten Spielausgangstests decken beide Siege und die Niederlage ab.
 
 Im aktuellen Editorlauf mit der RTX 3060 Ti und laufender Stadt in „Rocket 98“ beträgt das P95 bei 1920 × 1080 17,41 ms in der Nahansicht und 19,34 ms in der Stadtübersicht.
+
+## Vollständige Nachhaltigkeitskampagne
+
+Die Kampagne beginnt in einem neu erzeugten 100 × 100 großen Sumpfgebiet mit Startdorf und dem Startwert 48. Mit 181 regulären Bauaktionen erreicht der Rust-Kern den Nachhaltigkeitssieg an Tag 297.600. Beim Sieg hat die Stadt 6.832 Einwohner, keine Hungernden und 19.435.272 $ in der Kasse.
+
+Der Godot-Test öffnet den unveränderten Startstand über das Hauptmenü und spielt dieselben Bauaktionen über Bauleiste und Zeigereingaben ab. Er verwendet den regulären Simulationsschritt und überspringt das Zeichnen der Zwischenbilder. Im frisch entpackten Linux-Export erschien der Nachhaltigkeitssieg an Tag 297.600 bei 6.686 Einwohnern. Nach dem Schließen des Dialogs lief die Stadt weiter. Ein neuer Zufallsverlauf nach dem Laden kann den Siegtermin verschieben.
+
+```sh
+RUSTCITY_CAMPAIGN_ARTIFACTS="$PWD/build/sustainable-campaign" cargo test --locked --release --manifest-path rustcity-core/Cargo.toml --test sustainable_campaign -- --ignored --nocapture
+godot --path godot -s res://tests/sustainable_campaign.gd -- --mute "$PWD/build/sustainable-campaign/start.gz" "$PWD/rustcity-core/tests/fixtures/sustainable_campaign.tsv"
+```
 
 ## Apple-Silicon-Testbuild
 

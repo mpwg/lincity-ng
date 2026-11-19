@@ -94,11 +94,19 @@ func _run() -> void:
 	_click(game.hud.session_menu.buttons.load_game)
 	var dialog: FileDialog = game.hud.load_dialog
 	_check(dialog.visible, "Das Hauptmenü öffnet den Ladedialog nicht.")
-	dialog.current_path = ProjectSettings.globalize_path("res://opening/good_times.scn.gz")
-	dialog.get_ok_button().pressed.emit()
-	await process_frame
-	_check(not game.state.is_empty() and not game.hud.session_menu.visible and game.state.get("time") != day,
-		"Der klassische Spielstand wird aus dem Hauptmenü nicht geladen.")
+	# The packaged scenario is inside the PCK. The load dialog needs a real
+	# file, just as it does for a user's existing classic save.
+	var legacy_data := FileAccess.get_file_as_bytes("res://opening/good_times.scn.gz")
+	var legacy_save := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity-classic", "gz")
+	if legacy_save and not legacy_data.is_empty() and legacy_save.store_buffer(legacy_data):
+		legacy_save.flush()
+		dialog.current_path = legacy_save.get_path_absolute()
+		dialog.get_ok_button().pressed.emit()
+		await process_frame
+		_check(not game.state.is_empty() and not game.hud.session_menu.visible and game.state.get("time") != day,
+			"Der klassische Spielstand wird aus dem Hauptmenü nicht geladen.")
+	else:
+		_check(false, "Der klassische Testspielstand konnte nicht bereitgestellt werden.")
 	game.free()
 	await process_frame
 	if failures == 0:
