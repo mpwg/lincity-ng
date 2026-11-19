@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import tarfile
 import tempfile
 
 from rust_notices import ROOT, notices
@@ -32,28 +31,6 @@ def dependencies(elf, env=None):
         r"^\s*(\S+)\s+=>\s+(/.*?)\s+\(0x", output, re.MULTILINE)}
 
 
-def bundle_dependencies(stage, args):
-    extension = stage / EXTENSION
-    deps = dependencies(extension)
-    patchelf = args.patchelf
-    for name, path in deps.items():
-        if name.startswith("libxml++-5.0.so."):
-            if not args.libxmlpp_source:
-                raise SystemExit("Dieses Paket benötigt den zugehörigen libxml++-Tarball (--libxmlpp-source).")
-            with tarfile.open(args.libxmlpp_source) as archive:
-                roots = {Path(member.name).parts[0] for member in archive if Path(member.name).parts}
-                if len(roots) != 1 or not next(iter(roots)).startswith("libxml++-5."):
-                    raise SystemExit("Der Quellarchiv-Inhalt passt nicht zu libxml++ 5.")
-                source_name = next(iter(roots))
-            (stage / "sources").mkdir(exist_ok=True)
-            shutil.copy2(args.libxmlpp_source, stage / "sources" / (source_name + "".join(args.libxmlpp_source.suffixes)))
-            library = stage / "lib" / name
-            library.parent.mkdir(exist_ok=True)
-            shutil.copy2(path, library)
-            run([patchelf, "--remove-rpath", library])
-    run([patchelf, "--set-rpath", "$ORIGIN/lib", extension])
-
-
 def test_package(stage, args):
     clean_env = os.environ.copy()
     for key in ["LD_LIBRARY_PATH", "LD_PRELOAD", "GODOT_PROJECT_PATH"]:
@@ -62,14 +39,11 @@ def test_package(stage, args):
     linked.update(dependencies(stage / EXTENSION, clean_env))
     system_libs = []
     for name, path in linked.items():
-        if name.startswith("libxml++-5.0.so."):
-            if path.resolve() != (stage / "lib" / name).resolve():
-                raise SystemExit(f"{name} wird außerhalb des Pakets geladen")
-        elif any(path.resolve().is_relative_to(root) for root in ["/usr/lib", "/usr/lib64", "/lib", "/lib64"]):
+        if any(path.resolve().is_relative_to(root) for root in ["/usr/lib", "/usr/lib64", "/lib", "/lib64"]):
             system_libs.append(name)
         else:
             raise SystemExit(f"Abhängigkeit außerhalb des Pakets und der Systembibliotheken: {path}")
-    elf_files = [stage / PROGRAM, stage / EXTENSION, *(stage / "lib").glob("*.so*")]
+    elf_files = [stage / PROGRAM, stage / EXTENSION]
     version_info = run(["readelf", "--version-info", *elf_files])
     requirements = {}
     for abi, version in re.findall(r"Name: (GLIBC|GLIBCXX)_([0-9.]+)", version_info):
@@ -108,9 +82,7 @@ def test_package(stage, args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", default="godot", help="Godot-Editor mit Linux-Exportvorlage")
-    parser.add_argument("--patchelf", default="patchelf", help="Pfad zum patchelf-Programm")
     parser.add_argument("--output", type=Path, required=True, help="Neues Paketverzeichnis")
-    parser.add_argument("--libxmlpp-source", type=Path, help="Quellarchiv der mitgelieferten libxml++")
     parser.add_argument("--graphics", action="store_true", help="Export im OpenGL-Fenster testen")
     args = parser.parse_args()
     target = args.output.resolve()
@@ -125,7 +97,6 @@ def main():
         run([args.godot, "--headless", "--path", PROJECT, "--import"])
         run([args.godot, "--headless", "--path", PROJECT, "--export-release", "Linux Desktop", stage / PROGRAM])
         shutil.copytree(PROJECT / "licenses", stage / "licenses")
-        bundle_dependencies(stage, args)
         test_package(stage, args)
         stage.rename(target)
     print(target)

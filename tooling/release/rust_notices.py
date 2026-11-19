@@ -7,7 +7,7 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "lincity-legacy/rust-adapter/Cargo.toml"
+MANIFEST = ROOT / "godot/native/bridge/Cargo.toml"
 TARGET = "x86_64-unknown-linux-gnu"
 
 

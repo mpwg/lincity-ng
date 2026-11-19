@@ -15,10 +15,10 @@ if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND "c++" IN_LIST CMAKE_CXX_
   list(REMOVE_ITEM godot_cpp_link_options "$<$<CXX_COMPILER_ID:Clang>:-lstdc++>")
   set_property(TARGET godot-cpp PROPERTY INTERFACE_LINK_OPTIONS "${godot_cpp_link_options}")
 endif()
-add_library(lincity_godot SHARED city_world.cpp
-  "${PROJECT_SOURCE_DIR}/lincity-legacy/src/lincity-ng/MapOverlay.cpp")
-target_link_libraries(lincity_godot PRIVATE godot::cpp rustcity_desktop fmt::fmt)
-target_include_directories(lincity_godot PRIVATE "${PROJECT_SOURCE_DIR}/lincity-legacy/src/lincity-ng")
+add_subdirectory(bridge)
+add_library(lincity_godot SHARED city_world.cpp)
+target_compile_features(lincity_godot PRIVATE cxx_std_20)
+target_link_libraries(lincity_godot PRIVATE godot::cpp rustcity_godot fmt::fmt)
 set(LINCITY_GODOT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../bin" CACHE PATH "Output directory for the Godot extension")
 set_target_properties(lincity_godot PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY "$<1:${LINCITY_GODOT_OUTPUT_DIR}>"

@@ -28,11 +28,11 @@ pub(crate) const POPULATION_TOLERANCE_DIVISOR: i64 = 40;
 pub(crate) const TECH_TOLERANCE_DIVISOR: i64 = 100;
 pub(crate) const SUSTAINABLE_TECH: i32 = super::MAX_TECH_LEVEL / 2;
 pub(crate) const COVERAGE_CHECK_YEARS: i32 = 3;
-pub(crate) const MINING_YEARS: i32 = 180;
-pub(crate) const TRADE_YEARS: i32 = 180;
-pub(crate) const MONEY_YEARS: i32 = 60;
-pub(crate) const POPULATION_YEARS: i32 = 60;
-pub(crate) const TECHNOLOGY_YEARS: i32 = 120;
-pub(crate) const FIRE_YEARS: i32 = 60;
+pub const MINING_YEARS: i32 = 180;
+pub const TRADE_YEARS: i32 = 180;
+pub const MONEY_YEARS: i32 = 60;
+pub const POPULATION_YEARS: i32 = 60;
+pub const TECHNOLOGY_YEARS: i32 = 120;
+pub const FIRE_YEARS: i32 = 60;
 
 pub(crate) const REGROWTH_CHANCE_DENOMINATOR: i32 = 300;

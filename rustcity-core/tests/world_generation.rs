@@ -1,6 +1,8 @@
 use rustcity_core::{City, Climate, GenerationOptions, Point, decisions::Decisions};
 use std::{fs, io::BufReader, path::Path, process::Command};
 
+mod support;
+
 #[test]
 fn generation_validates_size_before_drawing_and_builds_a_seeded_village() {
     let settings = GenerationOptions {
@@ -16,6 +18,7 @@ fn generation_validates_size_before_drawing_and_builds_a_seeded_village() {
 
 fn compare_generated(
     generator: &std::ffi::OsStr,
+    comparator: &Path,
     scratch: &Path,
     id: usize,
     settings: GenerationOptions,
@@ -66,10 +69,7 @@ fn compare_generated(
         }
         let check = Command::new("python3")
             .arg("-B")
-            .arg(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../lincity-core/tests/replay/compare.py"),
-            )
+            .arg(comparator)
             .arg("--saves")
             .arg(&cpp)
             .arg(&rust)
@@ -85,9 +85,10 @@ fn compare_generated(
 }
 
 #[test]
-#[ignore = "set RUSTCITY_CPP_GENERATOR to the built core_generation_reference"]
+#[ignore = "requires RUSTCITY_CPP_ARCHIVE and RUSTCITY_CPP_GENERATOR"]
 fn cpp_and_rust_generate_matching_saves_for_every_climate_tree_and_village_setting() {
     let generator = std::env::var_os("RUSTCITY_CPP_GENERATOR").unwrap();
+    let comparator = support::archived_cpp_core().join("tests/replay/compare.py");
     let scratch = std::env::temp_dir().join(format!("rustcity-gen-{}", std::process::id()));
     for (id, climate) in [
         Climate::River,
@@ -105,8 +106,9 @@ fn cpp_and_rust_generate_matching_saves_for_every_climate_tree_and_village_setti
                     village,
                     trees,
                 };
-                compare_generated(&generator, &scratch, id, settings, 50, 615);
-                compare_generated(&generator, &scratch, id, settings, 100, 615);
+                for size in [50, 100] {
+                    compare_generated(&generator, &comparator, &scratch, id, settings, size, 615);
+                }
             }
         }
     }
@@ -118,6 +120,7 @@ fn cpp_and_rust_generate_matching_saves_for_every_climate_tree_and_village_setti
     ] {
         compare_generated(
             &generator,
+            &comparator,
             &scratch,
             2,
             GenerationOptions {

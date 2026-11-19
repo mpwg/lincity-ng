@@ -1,168 +1,27 @@
-# Build Configuration Options
+# Build-Optionen
 
-This is a list of options which may be of interest when configuring the build.
-These options should be passed to `cmake` at the configuration step.
+CMake baut die native Erweiterung `lincity_godot` und dabei den Rust-Simulationskern. Die Optionen werden beim Konfigurieren mit `-D` gesetzt.
 
+- `CMAKE_BUILD_TYPE` wählt bei Generatoren wie Ninja und Unix Makefiles die Build-Konfiguration. Die Befehle in der Dokumentation verwenden `Release`. Für Debugging stehen auch `Debug` und `RelWithDebInfo` zur Verfügung.
+- `GODOTCPP_TARGET` wählt die Zielversion der Godot-Bindings. Der dokumentierte Editor-Build verwendet den Standard `template_debug`. Setze `template_release` in einem eigenen Build-Verzeichnis, wenn die Erweiterung für ein Release-Paket gebaut wird.
+- `LINCITY_GODOT_OUTPUT_DIR` setzt das Ausgabeverzeichnis der Erweiterung. Standardmäßig schreibt CMake nach `godot/bin/`, wo das Godot-Projekt und die Paketierskripte die Bibliothek erwarten.
+- `CMAKE_TOOLCHAIN_FILE` und `CMAKE_PREFIX_PATH` geben bei Bedarf die Toolchain und die Suchpfade für Bibliotheken der Zielplattform an.
 
-## Standalone simulation
+[Beispielbefehle für Editor und Release-Exporte](GODOT_DESKTOP.md)
 
-See [the LinCity Core build instructions](../lincity-core/README.md) to
-configure, build, test or embed the simulation from its own source directory.
+Die Rust-Tests benötigen keine CMake-Konfiguration. Führe sie vom Stammverzeichnis mit `cargo test --locked --manifest-path rustcity-core/Cargo.toml` aus.
 
-## LINCITY_BUILD_GUI
+## Vergleich mit dem archivierten C++-Kern
 
-The default, `ON`, builds the SDL game. Set `OFF` to build the
-`LinCity::Core` library and run its tests without SDL.
-
-```sh
-cmake -B build/core -DLINCITY_BUILD_GUI=OFF -DBUILD_TESTING=ON
-cmake --build build/core
-ctest --test-dir build/core --output-on-failure
-```
-
-To compare the six bundled scenarios with the pinned simulation on the
-same compiler and standard library, run the following command after configuring
-from the repository root.
+Für die optionalen Kreuztests brauchst du eine separate Arbeitskopie des Archivbranches. Setze `archive` auf den absoluten Pfad zu diesem Checkout und führe die folgenden Befehle vom Stammverzeichnis des aktuellen Godot-Projekts aus.
+[Archivbranch und historische Vergleichsergebnisse](https://github.com/mpwg/lincity-ng/blob/archive/legacy-2d-cpp/docs/rustcity-core-paritaet.md)
 
 ```sh
-python3 tooling/regression/compare_scenarios.py build/core
+archive=/absoluter/pfad/zum/archiv
+cmake -S "$archive/lincity-core" -B "$archive/build" -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build "$archive/build" --target core_replay core_generation_reference
+RUSTCITY_CPP_ARCHIVE="$archive" \
+  RUSTCITY_CPP_REPLAY="$archive/build/tests/core_replay" \
+  RUSTCITY_CPP_GENERATOR="$archive/build/parity/core_generation_reference" \
+  cargo test --locked --manifest-path rustcity-core/Cargo.toml -- --ignored --skip generated_village_wins_a_sustainable_economy
 ```
-
-The comparison builds the pinned desktop reference in a temporary directory
-under `build/` and requires its desktop build dependencies. It compares saved states and game
-messages with vehicle traffic enabled and disabled. The XML comparison omits
-the optional `diffusion-active` tile attribute added for save continuation.
-The reference build includes the corrections for road and track approaches
-to rail crossings and the tax on coal picked up by a consumer. Pass
-`--original` to compare against the pinned rules before both corrections. See the
-[compatibility findings](CORE_PARITY_FINDINGS.md) for the observed difference.
-
-## LINCITY_CORE_BACKEND
-
-Selects the simulation used by the SDL game. The default is `cpp`. Select
-`rust` to run the same interface with RustCity Core. The Rust build requires
-Cargo, a Rust toolchain supporting edition 2024, and a C++20 compiler. The
-desktop adapter keeps the simulation in Rust and supplies the data used by the
-existing SDL widgets. Both backends read and write LinCity save files.
-
-```sh
-cmake -S . -B build/desktop-cpp -DLINCITY_CORE_BACKEND=cpp
-cmake --build build/desktop-cpp --target lincity-ng
-cmake -S . -B build/desktop-rust -DLINCITY_CORE_BACKEND=rust -DBUILD_TESTING=ON
-cmake --build build/desktop-rust
-ctest --test-dir build/desktop-rust -R 'rustcity[.]desktop' --output-on-failure
-```
-
-Applications using the Rust library directly depend on the `rustcity-core` crate.
-Its tests run with `cargo test --manifest-path rustcity-core/Cargo.toml --locked`.
-
-## CMAKE_BUILD_TYPE
-
-```
-cmake -B build -DCMAKE_BUILD_TYPE=<build-type>
-```
-
-Selects which debug features and optimization level to use. Values are
-case-insensitive. Default is `Release`.
-
-Allowed values are:
-- `Release`: This is for regular users or anyone not interested in debugging.
-  This enables the highest optimization level (-O3), and disables all features
-  that are only for development and/or testing. This is the default.
-- `MinSizeRel`: This tries to make the binary as small as possible.
-  It is the same as `Release` except the -Os optimization level is used.
-- `RelWithDebInfo`: This is for debugging issues in the `Release` build type
-  that may not be present with lower optimization levels. It is also useful for
-  running performance analysis. It is the same as `Release` except debug symbols
-  are included in the binary and compile-time warnings are enabled.
-- `BetaTest`: This is for beta-testing.
-  This enables the highest optimization level (-O3), includes debug symbols in
-  the binary, and enables runtime assertions. Use this only if you intend to
-  report issues that you find. The runtime assertions will cause the game
-  to crash when they fail, so this is just unnecessary inconvenience if you
-  don't report the failed assertion anyway.
-- `Debug`: This is for general development.
-  This enables the lowest optimization level (-O0) and all development and
-  testing features. This includes debug symbols, runtime-assertions, and debug
-  logging to the console. The low optimization level is used to shorten build
-  times as much as possible
-- `DebugOpt`: This is for development when a faster binary is useful.
-  This is the same as `Debug` except the -O2 optimization level is used.
-- `None`: This build type adds no additional compiler options, and it should be
-  used in conjunction with `CMAKE_<lang>_FLAGS` to specify custom compiler
-  options. This may be useful for distribution maintainers that want to use
-  specific compiler options. You should only use this build type if you know
-  what you are doing.
-- Specifying any other build type not listed above is deprecated.
-
-
-## CMAKE_INSTALL_PREFIX
-
-```
-cmake -B build -DCMAKE_INSTALL_PREFIX=<prefix>
-```
-
-Sets the installation prefix of the build. The default is system dependent.
-
-The install prefix is compiled into the binary and used at runtime to help find
-the app data directory. If later installed to a different prefix and the build
-is not [relocatable](#LINCITYNG_RELOCATABLE), then the user must set the [app
-data directory](LINCITY-NG_CONFIG.md#app-data-directory) manually.
-
-This may alternatively be specified via the `--install-prefix` command line
-option.
-
-See also: [CMAKE_INSTALL_PREFIX](https://cmake.org/cmake/help/latest/variable/CMAKE_INSTALL_PREFIX.html)
-
-
-## LINCITYNG_RELOCATABLE
-
-```
-cmake -B build -DLINCITYNG_RELOCATABLE=<ON/OFF>
-```
-
-Enables/disables building a relocatable binary. A relocatable binary will
-automatically detect the app-data location based on the binary location. This
-makes the package such that it need not necessarily be installed to the
-`CMAKE_INSTALL_PREFIX`, and the installed files may even be moved after
-installation as long as the app data stays alongside the binary. Default is
-`OFF`.
-
-Some systems do not support binary relocation; in that case,
-`CMAKE_INSTALL_PREFIX` is used as a fallback for discovering the app data
-location (which is unlikely to work if the binary is expected to be
-relocatable). Some systems may also not expect a binary behave this way and may
-inadvertently break it by moving/copying the binary away from other installed
-files.
-
-
-## LINCITYNG_VERSION_SUFFIX
-
-```
-cmake -B build -DLINCITYNG_VERSION_SUFFIX=<suffix>
-```
-
-Thin option is provided for packagers to allow marking builds as coming from a
-specific source. It's especially useful when building from a source tarball or
-with custom patches to avoid an `unknown` or `dirty` suffix.
-
-
-## ENABLE_NLS
-
-```
-cmake -B build -DENABLE_NLS=<YES/NO>
-```
-
-Enables or disables native language support. Disabling NLS removes the `libintl`
-and `gettext` dependencies, and the build will not support translation to other
-languages. Default is `YES`, i.e. NLS is enabled.
-
-
-## LINGUAS
-
-```
-cmake -B build -DLINGUAS=<list of languages>
-```
-
-If defined, only the listed language translations will be built and installed.
-Default is to build all supported languages.

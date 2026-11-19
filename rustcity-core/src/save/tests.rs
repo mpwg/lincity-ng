@@ -1,6 +1,9 @@
 use super::*;
 use std::{fs, path::Path, process::Command};
 
+#[path = "../../tests/support/mod.rs"]
+mod support;
+
 const LEGACY: &[u8] = include_bytes!("../../tests/fixtures/migration-2130.xml");
 const CURRENT: &[u8] = include_bytes!("../../tests/fixtures/statistics-2140.xml");
 
@@ -72,10 +75,10 @@ fn invalid_versions_and_incomplete_xml_are_rejected() {
 }
 
 #[test]
-#[ignore = "set RUSTCITY_CPP_REPLAY to the built C++ core_replay executable"]
+#[ignore = "requires RUSTCITY_CPP_ARCHIVE and RUSTCITY_CPP_REPLAY"]
 fn cpp_loads_rust_saves_and_rust_loads_cpp_checkpoints() {
     let replay = std::env::var_os("RUSTCITY_CPP_REPLAY").unwrap();
-    let core = Path::new(env!("CARGO_MANIFEST_DIR")).join("../lincity-core");
+    let core = support::archived_cpp_core();
     let output = std::env::temp_dir().join(format!("rustcity-save-{}", std::process::id()));
     fs::create_dir(&output).unwrap();
     for path in [

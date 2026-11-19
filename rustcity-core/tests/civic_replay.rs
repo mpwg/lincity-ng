@@ -1,12 +1,15 @@
 use std::{fs, path::Path, process::Command};
 
+mod support;
+
 /// Compares every daily observation and complete XML checkpoints on a map with
 /// all six residence densities, municipal services, a shanty and a fire.
 #[test]
-#[ignore = "set RUSTCITY_CPP_REPLAY to the C++ core_replay executable"]
+#[ignore = "requires RUSTCITY_CPP_ARCHIVE and RUSTCITY_CPP_REPLAY"]
 fn civic_district_matches_the_cpp_simulation() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = root.join("tests/fixtures/civic.xml");
+    let comparator = support::archived_cpp_core().join("tests/replay/compare.py");
     let dir = std::env::temp_dir().join(format!("rustcity-civic-replay-{}", std::process::id()));
     fs::create_dir(&dir).unwrap();
     for (runner, mode, name) in [
@@ -35,7 +38,7 @@ fn civic_district_matches_the_cpp_simulation() {
         );
     }
     let compare = Command::new("python3")
-        .arg(root.join("../lincity-core/tests/replay/compare.py"))
+        .arg(comparator)
         .current_dir(&dir)
         .args(["reference", "candidate"])
         .output()

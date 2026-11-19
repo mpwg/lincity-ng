@@ -49,15 +49,17 @@ func _check() -> void:
 	credits.hide()
 	ok = ok and _play(game)
 	var before: Dictionary = game.core.snapshot()
-	var tmp := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity-release", "gz")
+	var tmp := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity-release", "gz", true)
 	ok = ok and tmp != null
 	if tmp:
 		var path := tmp.get_path_absolute()
+		tmp.close()
 		ok = ok and game.core.save_city(path).is_empty()
 		ok = ok and game.core.load_city(path).is_empty()
 		var after: Dictionary = game.core.snapshot()
 		ok = ok and after.tiles == before.tiles and after.money == before.money
 		ok = ok and game.core.step().is_empty()
+		DirAccess.remove_absolute(path)
 	game.hud._menu_action(15)
 	await process_frame
 	if game.hud.session_menu.in_game:

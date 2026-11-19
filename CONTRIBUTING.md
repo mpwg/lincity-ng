@@ -2,7 +2,7 @@
 
 In developing LinCity-NG, my hope is it may be a pleasure and a good experience
 for others. If You enjoyed playing LinCity-NG, I encourage you to give back.
-There are many ways you can contribute even if you do not know how to code C++.
+You can also contribute through play-testing, translation, documentation, or art.
 
 - [How to Contribute](#how-to-contribute)
   - [Opening a Pull Request](#opening-a-pull-request)
@@ -12,8 +12,6 @@ There are many ways you can contribute even if you do not know how to code C++.
 - [Ways to Contribute](#ways-to-contribute)
   - [Contribute Code](#contribute-code)
     - [Formatting](#formatting)
-    - [Singletons](#singletons)
-    - [Include What You Use](#include-what-you-use)
   - [Contribute Play-Testing](#contribute-play-testing)
     - [Checklist for reporting issues](#checklist-for-reporting-issues)
   - [Contribute Translation](#contribute-translation)
@@ -47,9 +45,9 @@ We just want to ensure that the project maintains the highest quality possible
 
 ### Directory Map
 
-- `lincity-core/` contains the standalone city simulation and its tests.
-- `lincity-legacy/` contains the SDL frontend, GUI library and desktop assets.
-- `tooling/` contains build, release, save conversion and regression tools.
+- `godot/` contains the 3D game, its assets, and the native GDExtension in `godot/native/`.
+- `rustcity-core/` contains the city simulation, its native bindings, and its tests.
+- `tooling/` contains art creation and release tools.
 - `docs/` contains project documentation, screenshots and unreleased changes.
 - `build/` holds local build artifacts.
 
@@ -93,7 +91,7 @@ should not have a changelog entry.
 
 LinCity-NG has a credits screen that is accessible from the main menu. When you
 contribute meaningfully to the game, please add yourself to the credits list by
-adding an entry to [lincity-legacy/data/gui/creditslist.xml](lincity-legacy/data/gui/creditslist.xml). If you
+adding an entry to [godot/licenses/creditslist.xml](godot/licenses/creditslist.xml). If you
 already have an entry in the list, just make sure the email and year are
 up-to-date. The entry should include your name, your email, and the calender
 year that you made your contribution. Entries are categorized into several
@@ -139,75 +137,18 @@ the applicable licenses.
 
 #### Formatting
 
-Forgive me, I can be quite picky about code formatting. These aren't necessarily
-all hard and fast rules, but I might not approve your PR if I think the code is
-ugly.
-
-- Indent 2 spaces
-- Open braces go on the same line with a preceding space
-- Binary operators deserve a space on either side (except `.` and `->`)
-- Open parentheses for functions and control statements is not preceded by
-  whitespace
-- Line continuations get an indent
-- No trailing whitespace (just a newline character)
-- Unix line endings
-- End files with a single newline
-- No more than 80 characters to a line (not including the newline character)
-- Casing:
-  - Class names in PascalCase
-  - Macros in MACRO_CASE
-  - Enum members in MACRO_CASE
-  - Everything else in camelCase
-  - If you really_want_to_use_snake_case, I can excuse it for private members
-    and local variables.
-  - In PascalCase and camelCase, only the first letter of an acronym should be
-    capitalized.
-
-Much of the old code does not follow this format, so I am slowly updating it to
-use this preferred formatting.
-
-#### Singletons
-
-[Singletons are evil.](https://kentonshouse.com/singletons) I have spent
-considerable effort to remove singletons, so do me a favor and avoid adding more
-if possible.
-
-#### Include What You Use
-
-This project uses Include What You Use to manage `#include`s. The build system
-automatically runs include-what-you-use and reports warnings. When you submit a
-PR, make sure that your code does not introduce any new IWYU warnings.
-
-To find IWYU warnings for all files, run a clean build and save the standard
-error stream to a file:
-```
-cmake --build build --parallel --clean-first 2> >(tee build/iwyu.log)
-```
-
-To fix the warnings automatically, use `iwyu-fix-includes`:
-```
-iwyu-fix-includes --comments --update_comments --reorder --nosafe_headers < build/iwyu.log
-```
-
-It is also possible for IWYU warnings to exist only for certain build
-configurations or platforms. For example, if you use a certain symbol only
-within a `#ifdef DEBUG` context, then IWYU may report extraneous `#include`s for
-release builds but not for debug builds. To prevent this, you are encouraged to
-look for IWYU warnings in all relevant build configurations. If you find a
-`#include` that is needed only for certain build configurations, wrap it in a
-`#ifdef` and place it below other `#include`s.
+Use `cargo fmt --manifest-path rustcity-core/Cargo.toml` for Rust code. Follow the
+existing formatting and naming in adjacent Godot scripts and C++ extension code.
+Run the Rust tests and the relevant Godot tests before opening a pull request.
+[Build and test commands](docs/GODOT_DESKTOP.md#prüfung)
 
 ### Contribute Play-Testing
 
 You can contribute to LinCity-NG by testing it and reporting issues you find.
 Here are some pointers for testing effectively:
 
-- Test the latest master branch or open PRs (not draft). It is generally
-  less useful to test older versions (e.g. the latest release) except to confirm
-  or deny whether an issue on master exists in the latest release.
-- Configure the build with the BetaTest build type. You select this by using
-  `-DCMAKE_BUILD_TYPE=BetaTest` at configure time. This will enable runtime
-  assertions so faults will be more obvious.
+- Test the latest `main` branch or the pull request you are reviewing.
+- Use `-DCMAKE_BUILD_TYPE=Debug` when you need debug symbols for the Godot extension.
 - Run the game in gdb. This can help with reporting crashes.
 - When playing the game, make an effort to test a broad range of functionality.
   For example, test multiple kinds of starting scenarios, change settings in the
@@ -218,9 +159,9 @@ Here are some pointers for testing effectively:
 - Report all kinds of issues that you find. This might be crashes, "buggy"
   behavior, regressions, visual issues, poor performance, confusing
   user-interface, incomplete documentation, or even ideas for the feature.
-- When you find an issue on master, report it to
+- When you find an issue on `main`, report it to
   https://github.com/lincity-ng/lincity-ng/issues. If you find an issue in a
-  pull request that does not exist on master, then comment in the PR discussion
+  pull request that does not exist on `main`, then comment in the PR discussion
   thread. When opening the issue, include your LinCity-NG version and your
   platform/operating system. To avoid duplicate issues, search the issues list
   (including closed issues) to find whether your issue has already been
@@ -248,40 +189,15 @@ Here are some pointers for testing effectively:
 
 ### Contribute Translation
 
-Here is the general workflow for translating LinCity-NG:
-1. Fork and clone the lincity-ng repo
-2. Install [gettext](https://www.gnu.org/software/gettext/).
-3. Configure the build:
-   ```
-   cmake -B build
-   ```
-4. Generate an up-to-date PO template file:
-   ```
-   cmake --build build -t generate_pot
-   ```
-5. Create/Update the translation with the new strings:
-   - If you are creating a new translation:
-     ```
-     LANG=<2-character language handle e.g. 'en'>
-     msginit -i build/messages.pot -o lincity-legacy/data/locale/$LANG.po
-     ```
-   - If you are updating an existing translation:
-     ```
-     LANG=<2-character language handle e.g. 'en'>
-     msgmerge -U lincity-legacy/data/locale/$LANG.po build/messages.pot
-     ```
-6. Update and review translations in the .po file with [a PO editor](
-   https://www.gnu.org/software/trans-coord/manual/web-trans/html_node/PO-Editors.html)
-   or with your favorite text editor.
-7. If you want to edit the help texts, then create a directory with your
-   language shortcut in the lincity-legacy/data/help directory (e.g. lincity-legacy/data/help/de) and write
-   new xml files in your language (similar to the ones in the lincity-legacy/data/help/en
-   directory). You don't need to copy over the english texts, the game will
-   automatically use the english version of a text if no translated version
-   exists.
-8. You should also edit the lincity-ng.desktop file and add a comment entry for
-   your language
-9. Commit/push the changes to your fork and open a pull request against master.
+The Godot project loads the `.po` catalogs in `godot/i18n/`. Update the
+appropriate catalog when editing interface strings or simulation messages. The
+German Godot desktop strings are in `desktop_de.po`. Godot's list of configured
+catalogs is in `godot/project.godot`.
+
+Edit the in-game help XML in `godot/ui/help_en/` and `godot/ui/help_de/`. Test
+your changes by importing the project, choosing the language in Settings, and
+restarting the game. Open Help with F1 to check the pages in-game.
+[Desktop build and controls](docs/GODOT_DESKTOP.md)
 
 ### Other Ways to Contribute
 

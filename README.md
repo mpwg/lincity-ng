@@ -1,6 +1,6 @@
 # LinCity-NG: A city simulation game
 
-https://github.com/lincity-ng/lincity-ng
+https://github.com/mpwg/lincity-ng
 
 ## Introduction
 
@@ -12,129 +12,38 @@ spaceships.
 
 See the in-game help [F1] for how to play.
 
-## Building and Installation
+## Build and run
 
-For best results, follow the instructions included in your version of the
-source. That is, consult your local version of README.md. Following instructions
-for a different version than what you are building can cause build failures.
-Notably, the build system was changed in version 2.10.0, and following
-instructions for the wrong build system will definitely cause issues.
+The Godot 4.5.1 desktop uses RustCity for the simulation, city generation, and
+saved games. Its main menu can start a new city, choose a scenario, or continue
+a saved city. [Dependencies](docs/DEPENDENCIES.md) · [Build options](docs/BUILD_OPTIONS.md)
 
-### Dependencies
+Run these commands from the repository root.
 
-See [DEPENDENCIES.md](docs/DEPENDENCIES.md) for the list of dependencies.
-
-### Building
-
-To clone, configure, build, and install:
-```
-git clone https://github.com/lincity-ng/lincity-ng.git
-cd lincity-ng
-cmake -B build -DCMAKE_BUILD_TYPE=Release  # configure
-cmake --build build --parallel             # build
-sudo cmake --install build                 # install
+```sh
+cmake -S . -B build/godot-editor -DCMAKE_BUILD_TYPE=Release
+cmake --build build/godot-editor --target lincity_godot --parallel
+godot --headless --path godot --import
+godot --path godot
 ```
 
-To create a package:
-```
-cmake -B build --install-prefix <expected install path>
-cmake --build build --parallel --target package
-```
+Run the Rust tests with `cargo test --locked --manifest-path rustcity-core/Cargo.toml`.
+[Desktop controls, tests, and release exports](docs/GODOT_DESKTOP.md)
 
-See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
-configuration options.
+## Saved games and the classic desktop
 
-The freely rotatable 3D desktop opens at the main menu. Start a new city, choose
-the riverside scenario, load a save, or continue your last session. It uses
-Godot 4.5 and the RustCity simulation, with both victory conditions,
-historical charts, the original music and sound effects, and persistent settings.
-[3D desktop build and controls](docs/GODOT_DESKTOP.md)
+Godot opens classic LinCity-NG saves in formats 2130 and 2140 through the load
+dialog. For saves from LinCity-NG 2.12.x, follow the conversion instructions in
+the archived README.
+[Save conversion instructions](https://github.com/mpwg/lincity-ng/blob/archive/legacy-2d-cpp/README.md#loading-games-from-versions-prior-to-2130)
 
-The SDL desktop uses the C++ simulation by default. Configure with
-`-DLINCITY_CORE_BACKEND=rust` to run it with RustCity Core. The Rust library
-also runs independently with `cargo test --locked --manifest-path rustcity-core/Cargo.toml`.
-[Backend build instructions](docs/BUILD_OPTIONS.md#lincity_core_backend) · [Parity results](docs/rustcity-core-paritaet.md)
+The archive branch preserves the SDL desktop, the original C++ simulation, and
+the instructions and reports for comparing it with RustCity.
+[Source archive](https://github.com/mpwg/lincity-ng/tree/archive/legacy-2d-cpp) · [Parity results](https://github.com/mpwg/lincity-ng/blob/archive/legacy-2d-cpp/docs/rustcity-core-paritaet.md)
 
-### Running
+## Contributing
 
-To run the game from the source directory without installing:
-```
-./build/bin/lincity-ng --app-data build/share/lincity-ng
-```
-
-When the game is installed, you may run it with:
-```
-lincity-ng
-```
-
-## Alternative Binary Releases
-
-As an alternative to building from source, there are several places to get
-pre-built binary packages:
-
-- Linux distribution repositories. This is likely the best way to install
-  LinCity-NG pre-built binaries for Linux users. However, LTS and "stable"
-  distributions, by their very nature, may not offer the latest version of
-  LinCity-NG.
-- [Flathub](https://flathub.org/apps/io.github.lincity_ng.lincity-ng). As of
-  version 2.14.1, LinCity-NG is available on Flathub. Flatpak release is likely
-  to be more recent than packages from stable distributions, but it requires
-  installation of a Flatpak runtime and the package will likely be larger than
-  other alternatives.
-- [GitHub](https://github.com/lincity-ng/lincity-ng/releases). Binary packages
-  for both Linux and Windows are available on GitHub. However, these binaries
-  may not work for everyone due to strict library version requirements.
-
-## Loading games from versions prior to 2.13.0
-
-LinCity-NG 2.13.0 comes with a completely new load/save system that is,
-unfortunately, not backward compatible. (Some old code just needed to go.) The
-good news is all your hard work toward your super-city-utopia is not lost.
-
-You can use the script located at `tooling/save-converter/1328-to-2130.sh`
-in the source code (or `/usr/share/lincity-ng/1328-to-2130.sh` on GNU/Linux
-systems) to convert your game to the new format. The script converts games saved
-with Lincity-NG 2.12.x. And the script is likely to also work with games created
-with earlier versions if you had "binary saving" and "seed saving" options
-disabled.
-
-Before using the script, first make a backup of the games you want to convert:
-```
-mv ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz{,.orig}
-```
-
-Then use use the script by passing the old game as standard input, and saving
-the new game to standard output:
-```
-./tooling/save-converter/1328-to-2130.sh \
-  < ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz.orig \
-  > ~/.local/share/lincity-ng/<my-lincity-ng-game>.gz
-```
-
-If your game is _very_ old, you may find it in the `~/.lincity-ng` directory
-instead.
-
-If the script gives an error, then most likely the game was saved in a format
-that is incompatible with the script. To fix this, fire up a compatible version
-of LinCity-NG (2.12.x recommended, but prior versions may work if
-"binary saving" and "seed saving" are disabled), and load then save your game.
-Once you do this, the recently-saved game should work with the script.
-
-After using the script to convert your game, upon loading it with version
-2.13.x, you should not see any warnings in the console -- particularly warnings
-about unexpected elements. If you see any warnings, then please [report the
-issue](https://github.com/lincity-ng/lincity-ng/issues/new) and include the file
-you were trying to load. Such warnings could be indicative of critical errors in
-the conversion script.
-
-## Contact
-
-View the project on GitHub: https://github.com/lincity-ng/lincity-ng.
-
-Report bugs and suggest features:
-  https://github.com/lincity-ng/lincity-ng/issues.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contributing guidelines.
+[Contributing guidelines](CONTRIBUTING.md) · [Issue tracker](https://github.com/mpwg/lincity-ng/issues)
 
 ## License
 

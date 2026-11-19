@@ -7,6 +7,7 @@ pub(crate) const ORE_RESERVE: i32 = 1000;
 pub(crate) mod coal_mine {
     pub const RANGE: i32 = 6;
     pub const MINIMUM_DEPOSITS: i32 = 20;
+    /// Nominal capacity of a single coal deposit.
     pub const DEPOSIT_CAPACITY: i32 = 10_000;
     pub const BATCH: i32 = 1000;
     pub const LABOR: i32 = 900 + super::LOAD_COAL;

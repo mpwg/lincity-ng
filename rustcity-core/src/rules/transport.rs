@@ -1,6 +1,8 @@
 //! Transport and commuter rules from transport.hpp, Vehicles.hpp and all_buildings.hpp.
-pub(crate) const RATE: i32 = 8;
-pub(crate) const QUANTA: i32 = 1000;
+/// Divisor limiting each transport transfer relative to link capacity.
+pub const RATE: i32 = 8;
+/// Fixed-point scale for stock and traffic ratios.
+pub const QUANTA: i32 = 1000;
 pub(crate) const SMOOTHING: i32 = 10;
 pub(crate) const DEFAULT_COST: i32 = 14;
 pub(crate) const RAIL_COST_MULTIPLIER: i32 = 3;

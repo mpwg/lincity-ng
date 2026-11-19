@@ -45,4 +45,9 @@ mod workshop;
 pub mod decisions;
 
 mod rules;
-pub use rules::DAYS_PER_MONTH;
+pub use rules::environment::{
+    FIRE_YEARS, MINING_YEARS, MONEY_YEARS, POPULATION_YEARS, TECHNOLOGY_YEARS, TRADE_YEARS,
+};
+pub use rules::industry::coal_mine::DEPOSIT_CAPACITY as COAL_DEPOSIT_CAPACITY;
+pub use rules::transport::{QUANTA as TRANSPORT_QUANTA, RATE as TRANSPORT_RATE};
+pub use rules::{DAYS_PER_MONTH, DAYS_PER_YEAR, FLOOD_COST, MAX_TECH_LEVEL};

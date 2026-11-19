@@ -128,7 +128,6 @@ def main():
     parser.add_argument("--template", type=Path, required=True, help="macos.zip der Godot-Exportvorlagen")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--library-path", type=Path, action="append", default=[])
-    parser.add_argument("--libxmlpp-source", type=Path, required=True)
     parser.add_argument("--rcodesign", default="rcodesign")
     parser.add_argument("--fmt-license", type=Path, required=True)
     args = parser.parse_args()
@@ -152,7 +151,6 @@ def main():
     licenses = output / "licenses"
     shutil.copytree(PROJECT / "licenses", licenses)
     (licenses / "Rust-Bibliotheken.txt").write_text(notices("aarch64-apple-darwin"))
-    shutil.copyfile(args.libxmlpp_source, output / "libxml++-5.4.0.tar.xz")
     shutil.copyfile(args.fmt_license, licenses / "fmt-MIT.txt")
     dylibs = relocate(extension, frameworks, args.library_path)
     for binary in [executable, *frameworks.glob("*.dylib")]:

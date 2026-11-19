@@ -172,7 +172,8 @@ impl BuildingKind {
         self as u16
     }
 
-    pub(crate) fn is_transport(self) -> bool {
+    /// Whether this group is a track, road, railway or corresponding bridge.
+    pub fn is_transport(self) -> bool {
         matches!(
             self,
             Self::Road

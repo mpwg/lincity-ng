@@ -8,7 +8,6 @@ const FILES := {
 	"Godot Engine und Drittkomponenten": "",
 	"godot-cpp · MIT": "godot-cpp-MIT.txt",
 	"Rust-Abhängigkeiten": "Rust-Bibliotheken.txt",
-	"libxml++ · LGPL": "libxml++-LGPL.txt",
 }
 var sections := OptionButton.new()
 var body := TextEdit.new()

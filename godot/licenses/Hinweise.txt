@@ -17,7 +17,3 @@ https://godotengine.org/license/
 
 Rust-Bibliotheken
 RustCity und die Anbindung an den Desktop verwenden die in „Rust-Abhängigkeiten“ aufgeführten Bibliotheken. Die Lizenz- und Urhebervermerke stammen aus deren Originalpaketen.
-
-libxml++
-Diese Ausgabe verwendet libxml++ (ABI 5.0), eine C++-Schnittstelle für libxml2, unter der GNU Lesser General Public License 2.1. Urheber sind unter anderem Ari Johnson, Stefan Seefeld und das libxml++-Entwicklungsteam. Zu den Betreuern gehören Murray Cumming und Kjell Ahlstedt. Die Linux-Ausgabe lädt die austauschbare Bibliothek aus dem Unterverzeichnis lib. Ihr zugehöriger Quellcode liegt im Verzeichnis sources des Pakets.
-https://libxmlplusplus.github.io/libxmlplusplus/

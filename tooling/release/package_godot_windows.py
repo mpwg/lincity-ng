@@ -63,7 +63,6 @@ def main():
     parser.add_argument("--godot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="Pfad des neuen ZIP-Archivs")
     parser.add_argument("--dll-path", type=Path, action="append", required=True)
-    parser.add_argument("--libxmlpp-source", type=Path, required=True)
     parser.add_argument("--license", type=Path, action="append", required=True)
     args = parser.parse_args()
     target = args.output.resolve()
@@ -85,7 +84,6 @@ def main():
         (licenses / "Rust-Bibliotheken.txt").write_text(notices("x86_64-pc-windows-gnullvm"))
         for license_file in args.license:
             shutil.copyfile(license_file, licenses / license_file.name)
-        shutil.copyfile(args.libxmlpp_source, stage / "libxml++-5.4.0.tar.xz")
         (stage / "LIESMICH.txt").write_text(
             "LinCity-NG für Windows 10 oder neuer (x64)\n\n"
             "Das gesamte ZIP entpacken und LinCity-NG.exe öffnen. Die EXE, "
