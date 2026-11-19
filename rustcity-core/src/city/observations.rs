@@ -24,12 +24,14 @@ pub struct BuildingState<'city> {
     pub kind: BuildingKind,
     pub never_evacuate: bool,
     pub occupants: i32,
-    /// Goods or steel produced by this factory in the most recent tick.
+    /// Goods, steel or coal-fired electricity produced in the most recent tick.
     pub industrial_output_today: i32,
     pub fire_age: Option<(i32, i32)>,
     pub evacuating: bool,
     pub ready_to_launch: bool,
     pub rocket_stage: Option<RocketStage>,
+    /// Construction, lift-off or spent-pad frame used by graphical hosts.
+    pub rocket_frame: Option<u8>,
     inventory: &'city [i32; Commodity::ALL.len()],
 }
 
@@ -173,6 +175,7 @@ impl City {
                 _ => 0,
             },
             industrial_output_today: match &b.operation {
+                Operation::Coal(plant) => plant.generated_today,
                 Operation::Industry(industry::IndustryOperation::Light(m)) => m.goods_today,
                 Operation::Industry(industry::IndustryOperation::Heavy(m)) => m.steel_today,
                 _ => 0,
@@ -187,6 +190,10 @@ impl City {
             inventory: &b.stock,
             rocket_stage: match &b.operation {
                 Operation::Rocket(r) => Some(r.stage),
+                _ => None,
+            },
+            rocket_frame: match &b.operation {
+                Operation::Rocket(r) => Some(r.visual_frame()),
                 _ => None,
             },
             ready_to_launch: matches!(&b.operation, Operation::Rocket(r) if r.ready_to_launch()),

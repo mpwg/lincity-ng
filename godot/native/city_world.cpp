@@ -108,7 +108,8 @@ protected:
     ClassDB::bind_method(D_METHOD("load_city", "path"), &CityWorld::load_city);
     ClassDB::bind_method(D_METHOD("save_city", "path"), &CityWorld::save_city);
     ClassDB::bind_method(D_METHOD("step"), &CityWorld::step);
-    ClassDB::bind_method(D_METHOD("advance_traffic", "millis"), &CityWorld::advance_traffic);
+    ClassDB::bind_method(D_METHOD("advance_animation", "millis"), &CityWorld::advance_animation);
+    ClassDB::bind_method(D_METHOD("advance_traffic", "millis"), &CityWorld::advance_animation);
     ClassDB::bind_method(D_METHOD("snapshot"), &CityWorld::snapshot);
     ClassDB::bind_method(D_METHOD("tools"), &CityWorld::tools);
     ClassDB::bind_method(D_METHOD("preview", "id", "position"), &CityWorld::preview);
@@ -138,11 +139,11 @@ public:
   }
   String step() { return run([&] { world().do_time_step(); }); }
 
-  godot::PackedVector3Array advance_traffic(int64_t millis) {
+  godot::PackedVector3Array advance_animation(int64_t millis) {
     godot::PackedVector3Array poses;
     if(!city) return poses;
     try {
-      auto cars = rustcity::advance_traffic(city->engine(), millis);
+      auto cars = rustcity::advance_animation(city->engine(), millis);
       poses.resize(cars.size());
       for(std::size_t i = 0; i < cars.size(); ++i)
         poses.set(i, godot::Vector3(cars[i].x, cars[i].heading, cars[i].z));
@@ -161,6 +162,7 @@ public:
     tiles.resize(int64_t(side) * side);
     anchors.resize(tiles.size());
     pollution.resize(tiles.size());
+    Dictionary rockets;
     godot::PackedByteArray operating;
     operating.resize(tiles.size());
     auto* production = operating.ptrw();
@@ -178,9 +180,12 @@ public:
       roots[index] = anchor.y * side + anchor.x;
       emissions[index] = t.pollution;
       production[index] = 0;
-      if(t.getConstruction() && (groups[index] == GROUP_INDUSTRY_L || groups[index] == GROUP_INDUSTRY_H))
+      if(t.getConstruction() && (groups[index] == GROUP_COAL_POWER || groups[index] == GROUP_INDUSTRY_L || groups[index] == GROUP_INDUSTRY_H))
         production[index] = rustcity::factory_operating(city->engine(), {anchor.x, anchor.y});
+      if(t.getConstruction() && groups[index] == GROUP_ROCKET)
+        rockets[index] = rustcity::rocket_frame(city->engine(), {anchor.x, anchor.y});
     }
+    result["rocket_frames"] = rockets;
     result["tiles"] = tiles;
     result["operating"] = operating;
     result["anchors"] = anchors;

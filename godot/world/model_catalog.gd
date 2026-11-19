@@ -9,6 +9,7 @@ const AUTHORED := [4,6,12,18,36,37,38,39,40]
 const UNSELECTABLE := [0,19,21,35,42,43,44,45,SHORE,AVENUE]
 
 static func variant_count(group: int) -> int:
+	if group == 23: return 6
 	if group in [SHORE,AVENUE]: return 2
 	if group in NETWORKS: return 16
 	return 3 if group in VARIED else 1
@@ -26,6 +27,7 @@ class Asset:
 	var pick: TriangleMesh
 	var pick_bounds := AABB()
 	var outlets := PackedVector3Array()
+	var flight: Mesh
 
 var _assets := {}
 var _materials := {}
@@ -65,6 +67,8 @@ func asset(group: int, variant: int, surface: ShaderMaterial) -> Asset:
 		result.pick.create_from_faces(pick.mesh.get_faces())
 	for marker in root.find_children("Smoke*","Node3D",true,false):
 		result.outlets.append(marker.position)
+	var flight := root.get_node_or_null("Flight") as MeshInstance3D
+	if flight: result.flight = flight.mesh
 	root.free()
 	_assets[key] = result
 	return result

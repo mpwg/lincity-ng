@@ -9,6 +9,7 @@ func _initialize() -> void:
 	material.vertex_color_use_as_albedo = true
 	for group in Catalog.AVENUE + 1:
 		if group in Catalog.AUTHORED: continue
+		if not OS.get_cmdline_user_args().is_empty() and str(group) not in OS.get_cmdline_user_args(): continue
 		for variant in Catalog.variant_count(group):
 			var model := Node3D.new()
 			model.name = "Group%dVariant%d" % [group,variant]
@@ -27,6 +28,12 @@ func _initialize() -> void:
 				node.mesh = mesh
 				model.add_child(node)
 				node.owner = model
+			if group == 23 and variant == 5:
+				var flight := MeshInstance3D.new()
+				flight.name = "Flight"
+				flight.mesh = models.make_flight(material)
+				model.add_child(flight)
+				flight.owner = model
 			if group == 10:
 				var marker := Marker3D.new()
 				marker.name = "Smoke"

@@ -55,6 +55,16 @@ impl Rocket {
             },
         );
     }
+    pub(super) fn visual_frame(&self) -> u8 {
+        match self.stage {
+            RocketStage::Building => FRAME_STEPS.partition_point(|&n| self.steps >= n) as u8,
+            RocketStage::Awaiting => FRAME_STEPS.len() as u8,
+            RocketStage::Launching => LAUNCH_FRAME - 1,
+            RocketStage::Launch => LAUNCH_FRAME,
+            RocketStage::Done => FINISHED_FRAME,
+        }
+    }
+
     pub(super) fn animate(&mut self, time: u64) {
         match self.stage {
             RocketStage::Building | RocketStage::Awaiting => {
@@ -88,6 +98,8 @@ impl City {
         if !r.ready_to_launch() {
             return false;
         }
+        // A host may launch immediately after loading or completing construction.
+        r.frame = r.visual_frame();
         r.stage = RocketStage::Launching;
         true
     }

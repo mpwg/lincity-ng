@@ -15,8 +15,8 @@ var tools_by_id := {}
 var tool := -1
 var speed := 1
 var elapsed := 0.0
-var traffic_time := 0.0
-var traffic_sample := 0.0
+var animation_time := 0.0
+var animation_sample := 0.0
 var layer := 0
 var commodity := 0
 var start := NO_CELL
@@ -87,8 +87,8 @@ func _after_open(error: String) -> void:
 		hud.show_info(error)
 		return
 	selected = NO_CELL
-	traffic_time = 0.0
-	traffic_sample = 0.0
+	animation_time = 0.0
+	animation_sample = 0.0
 	$Traffic.update_commuters(PackedVector3Array())
 	_select_tool(-1)
 	elapsed = 0
@@ -128,11 +128,12 @@ func _set_layer(id: int, product: int) -> void:
 func _process(delta: float) -> void:
 	if state.is_empty() or speed <= 0 or hud.has_modal():
 		return
-	traffic_time += delta * speed
-	traffic_sample += delta
-	if traffic_sample >= 0.05:
-		$Traffic.update_commuters(core.advance_traffic(int(traffic_time * 1000)))
-		traffic_sample = fmod(traffic_sample, 0.05)
+	view.advance_rockets(delta)
+	animation_time += delta
+	animation_sample += delta
+	if animation_sample >= 0.1:
+		$Traffic.update_commuters(core.advance_animation(int(animation_time * 1000)))
+		animation_sample = fmod(animation_sample, 0.1)
 	elapsed += delta * speed
 	if elapsed < 0.25:
 		return
@@ -163,6 +164,8 @@ func _inspect() -> void:
 	var group: int = state.tiles[i]
 	hud.show_info(core.inspect_tile(selected, production))
 	hud.set_inspection(group, core.trade_rules(selected) if group in [6, 17] else [], production)
+	if group == 23:
+		hud.launch_button.disabled = int(state.rocket_frames.get(state.anchors[i], 0)) != 4
 
 func _camera_moved() -> void:
 	if state.is_empty():

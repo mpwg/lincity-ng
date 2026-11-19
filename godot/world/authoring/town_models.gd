@@ -103,11 +103,11 @@ func make(group: int, variant: int, material: Material, detail: int = 0) -> Arra
 		23:
 			_yard(s)
 			b.cylinder(0,0,0,.98,.98,.13,STONE)
-			b.cylinder(0,0,.13,.28,.25,2.48,Color("#e3dfcc"),14)
-			b.cylinder(0,0,2.61,.25,0,.69,BRICK,14)
-			for i in 3:
-				var a := i*TAU/3
-				b.beam(Vector3(cos(a)*.46,.16,sin(a)*.46),Vector3(cos(a)*.21,.96,sin(a)*.21),.07,BRICK)
+			if variant in [1,2,3,4]:
+				_rocket(variant)
+			if variant == 0:
+				for x: float in [-.6,0,.6]:
+					b.box(x,.66,.46,.24,.13,.18,IRON)
 			_crane(-.94,-.72,2.85)
 		24,49: _windmill(group)
 		25:
@@ -153,6 +153,23 @@ func make(group: int, variant: int, material: Material, detail: int = 0) -> Arra
 				b.box(x,0,.07,.09,.40,.64,TIMBER)
 			b.roof(0,0,1.08,.85,.99,.30,RED_TILE)
 	return b.finish(material)
+
+func make_flight(material: Material) -> ArrayMesh:
+	b = Builder.new()
+	_rocket(4)
+	b.cylinder(0,0,-.63,.025,.20,.79,Color("#f29b42"),12)
+	b.cylinder(0,0,-.32,.04,.16,.49,Color("#ffe3a2"),10)
+	return b.finish(material)
+
+func _rocket(stage: int) -> void:
+	var height: float = [0.0,.64,1.48,2.26,2.48][stage]
+	b.cylinder(0,0,.13,.28,.25,height,Color("#e3dfcc"),14)
+	for i in 3:
+		var angle := i*TAU/3.0
+		b.beam(Vector3(cos(angle)*.46,.16,sin(angle)*.46),
+				Vector3(cos(angle)*.21,minf(.96,height+.13),sin(angle)*.21),.07,BRICK)
+	if stage == 4:
+		b.cylinder(0,0,2.61,.25,0,.69,BRICK,14)
 
 func _yard(s: float, green: bool = false) -> void:
 	b.floor_rect(0,0,s,s,.002,GRASS if green else STONE,4 if green else 6)

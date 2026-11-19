@@ -12,20 +12,25 @@ fn launch_requires_completed_pad_and_animation_before_simulation_decides() {
     )
     .unwrap();
     let origin = Point { x: 3, y: 3 };
+    assert_eq!(city.building_state(origin).unwrap().rocket_frame, Some(3));
     assert!(!city.launch_rocket(origin));
     city.tick().unwrap();
     assert_eq!(city.stock(origin, Commodity::Waste), Some(3333));
     assert_eq!(city.pop_event(), Some(CityEvent::RocketReady(origin)));
+    assert_eq!(city.building_state(origin).unwrap().rocket_frame, Some(4));
     city.animate(1000).unwrap();
     assert!(!city.launch_rocket(Point { x: 4, y: 3 }));
     assert!(city.launch_rocket(origin));
     assert!(!city.launch_rocket(origin));
     city.animate(2000).unwrap();
+    assert_eq!(city.building_state(origin).unwrap().rocket_frame, Some(5));
     city.animate(3000).unwrap();
+    assert_eq!(city.building_state(origin).unwrap().rocket_frame, Some(6));
     assert_eq!(city.pop_event(), None);
     city.tick().unwrap();
     assert_eq!(city.pop_event(), Some(CityEvent::RocketSuccess(origin)));
     city.tick().unwrap();
     assert_eq!(city.balance(), -400);
+    assert_eq!(city.building_state(origin).unwrap().rocket_frame, Some(7));
     city.finish_decisions().unwrap();
 }

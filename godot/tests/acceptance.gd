@@ -76,8 +76,9 @@ func _test() -> void:
 		game._refresh()
 		check(game.view.tiles[cell.y * side + cell.x] != 11, "Abgerissene Straße wird noch angezeigt.")
 	_test_factory_status(game.core)
+	_test_rocket_and_coal(game)
 	if errors == 0:
-		print("OK: Referenzmarkt aus vier Richtungen, Bereichsgrenze, Abriss, Kartenebenen, Betriebswechsel und Spielstand.")
+		print("OK: Referenzmarkt aus vier Richtungen, Bereichsgrenze, Abriss, Kartenebenen, Betriebswechsel, Raketenstart und Spielstand.")
 	quit(1 if errors else 0)
 
 func _test_factory_status(core: Object) -> void:
@@ -94,3 +95,47 @@ func _test_factory_status(core: Object) -> void:
 		check(state.operating.size() == 1600 and state.operating[index] == expected, "Falscher Betriebszustand am Fabrikanker.")
 		check(state.tiles[index] == 12, "Betriebswechsel hat den Gebäudetyp verändert.")
 		check(core.step() == "", "Fabrik konnte nicht simuliert werden.")
+
+func _test_rocket_and_coal(game: Node) -> void:
+	# A stocked pad needs one construction step. The isolated plant has exactly
+	# one day's coal at base technology, so its plume must disappear on day two.
+	var fixture := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity-launch", "xml")
+	fixture.store_string("""<lc-game ldsv-version="2140"><globals><total_time>1</total_time>
+	<tech_level>1000000</tech_level><rockets_launched>10</rockets_launched>
+	<total_money>1000000</total_money></globals><map size="40">
+	<Construction group="23" map-x="4" map-y="4"><steps>4999</steps>
+	<labor>200</labor><steel>240</steel><goods>10000</goods></Construction>
+	<Construction group="10" map-x="16" map-y="4"><tech>0</tech><labor>100</labor>
+	<coal>44</coal></Construction></map></lc-game>""")
+	fixture.flush()
+	game._load_city(fixture.get_path_absolute())
+	var pad := 4*40+4
+	var plant := 4*40+16
+	game.selected = Vector2i(5,5)
+	game._inspect()
+	check(game.state.rocket_frames.get(pad) == 3 and game.hud.launch_button.disabled, "Rakete im Bau ist startbereit.")
+	check(_pad_variant(game) == 3, "Bauzustand fehlt am Raketenmodell.")
+	check(game.state.operating[plant] == 0, "Kohlekraftwerk vor der ersten Produktion aktiv.")
+	check(game.core.step() == "", "Fertigstellung der Rakete fehlgeschlagen.")
+	game._refresh()
+	check(game.state.operating[plant] == 1, "Keine Schornsteinfahne am produzierenden Kohlekraftwerk.")
+	check(game.state.rocket_frames.get(pad) == 4 and _pad_variant(game) == 4 and not game.hud.launch_button.disabled, "Fertige Rakete nicht sichtbar oder anwählbar.")
+	game.hud.launch_requested.emit()
+	check(game.state.rocket_frames.get(pad) == 5 and _pad_variant(game) == 5, "Start trennt Rakete und Rampe nicht.")
+	check(game.view._flights.has(pad), "Flugmodell fehlt.")
+	game.speed = 1
+	game._process(.1)
+	if game.view._flights.has(pad):
+		check(game.view._flights[pad].position.y > 0, "Rakete hebt nicht ab.")
+	for i in 15:
+		game._process(.1)
+	game.speed = 0
+	check(game.state.operating[plant] == 0, "Kohlekraftwerk ohne Brennstoff zeigt Rauch.")
+	check(game.state.rocket_frames.get(pad) == 7 and game.state.rockets == 11, "Start wurde nicht genau einmal abgeschlossen.")
+	check(_pad_variant(game) == 5 and game.view._flights.is_empty() and game.hud.launch_button.disabled, "Verbrauchter Startplatz zeigt weiterhin eine Rakete.")
+
+func _pad_variant(game: Node) -> int:
+	for batch in game.view._chunks[Vector2i.ZERO].batches:
+		if floori(batch.key/16.0) == 23:
+			return batch.key%16
+	return -1

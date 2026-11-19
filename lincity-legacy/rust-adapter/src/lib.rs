@@ -89,9 +89,10 @@ pub mod ffi {
         fn load(path: &str) -> Result<Box<Engine>>;
         fn save(engine: &Engine, path: &str) -> Result<()>;
         fn tick(engine: &mut Engine) -> Result<()>;
-        fn advance_traffic(engine: &mut Engine, millis: u64) -> Result<Vec<RoadPosition>>;
+        fn advance_animation(engine: &mut Engine, millis: u64) -> Result<Vec<RoadPosition>>;
         fn animate(engine: &mut Engine, millis: u64) -> Result<()>;
         fn set_traffic(engine: &mut Engine, traffic: Traffic) -> Result<()>;
+        fn rocket_frame(engine: &Engine, point: Point) -> u8;
         fn factory_operating(engine: &Engine, point: Point) -> bool;
         fn side(engine: &Engine) -> i32;
         fn focus(engine: &Engine) -> Point;
@@ -182,8 +183,8 @@ fn save(engine: &Engine, path: &str) -> io::Result<()> {
 fn tick(engine: &mut Engine) -> io::Result<()> {
     engine.city.tick()
 }
-fn advance_traffic(engine: &mut Engine, millis: u64) -> io::Result<Vec<ffi::RoadPosition>> {
-    engine.city.animate_vehicles(millis)?;
+fn advance_animation(engine: &mut Engine, millis: u64) -> io::Result<Vec<ffi::RoadPosition>> {
+    engine.city.animate(millis)?;
     Ok(engine
         .city
         .traffic_positions()
@@ -206,6 +207,13 @@ fn set_traffic(engine: &mut Engine, traffic: ffi::Traffic) -> io::Result<()> {
         }
     });
     Ok(())
+}
+fn rocket_frame(engine: &Engine, point: ffi::Point) -> u8 {
+    engine
+        .city
+        .building_state(point.into())
+        .and_then(|b| b.rocket_frame)
+        .unwrap_or(0)
 }
 fn factory_operating(engine: &Engine, point: ffi::Point) -> bool {
     engine

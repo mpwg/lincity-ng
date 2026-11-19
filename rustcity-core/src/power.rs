@@ -38,7 +38,9 @@ const fn animation_threshold(millis: u64) -> u64 {
 
 #[derive(Debug, Clone)]
 pub struct CoalPlant {
+    /// Installed capacity and power actually generated during the last day.
     pub output: i32,
+    pub generated_today: i32,
     pub busy: i32,
     working_hundreds: i32,
     next_animation: u64,
@@ -61,6 +63,7 @@ impl CoalPlant {
     pub fn new(technology: i32) -> Self {
         Self {
             output: installed_output(COAL_OUTPUT, technology),
+            generated_today: 0,
             busy: 0,
             working_hundreds: 0,
             next_animation: 0,
@@ -76,6 +79,7 @@ impl CoalPlant {
         counters: &mut ProductionCounters,
         pollution: &mut i32,
     ) {
+        self.generated_today = 0;
         let made = self
             .output
             .min(headroom(BuildingKind::CoalPower, HighVoltage, stock));
@@ -87,6 +91,7 @@ impl CoalPlant {
             if stock[Labor as usize] >= labor && stock[Coal as usize] >= coal {
                 counters.change(stock, Labor, -labor);
                 counters.change(stock, Coal, -coal);
+                self.generated_today = made;
                 counters.change(stock, HighVoltage, made);
                 *pollution += COAL_POLLUTION * hundreds / capacity;
                 self.working_hundreds += hundreds;

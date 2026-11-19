@@ -17,6 +17,8 @@ var _overlay := false
 var _catalog := Models.new()
 var _material := ShaderMaterial.new()
 var _overlay_map: ImageTexture
+var _rocket_frames := {}
+var _flights := {}
 var _operating := PackedByteArray()
 var _smoke_mesh := QuadMesh.new()
 var _chunks: Dictionary = {}
@@ -103,6 +105,12 @@ func update_city(snapshot: Dictionary, overlay: bool = false) -> void:
 			var new_active := i < operating.size() and operating[i] != 0
 			if old_active != new_active and groups[i] in [10,12,18]:
 				smoke_dirty[_chunk_id(i%side,floori(i/float(side)))] = true
+	var frames: Dictionary = snapshot.get("rocket_frames", {})
+	if side == new_side and frames != _rocket_frames:
+		for cell: int in frames:
+			if mini(frames[cell],5) != mini(_rocket_frames.get(cell,-1),5):
+				dirty[_chunk_id(cell%side,floori(cell/float(side)))] = true
+	_rocket_frames = frames
 	_operating = operating
 	side = new_side
 	tiles = groups
@@ -115,9 +123,32 @@ func update_city(snapshot: Dictionary, overlay: bool = false) -> void:
 	for id: Vector2i in smoke_dirty:
 		if not dirty.has(id):
 			_update_smoke(_chunks[id])
+	_update_flights()
 	if recolor or (_overlay and not _overlay_map):
 		_update_overlay()
 	_catalog.set_map_parameter("overlay_active",_overlay,_material)
+
+func _update_flights() -> void:
+	for cell: int in _flights.keys():
+		if _rocket_frames.get(cell, -1) != 5:
+			_flights[cell].free()
+			_flights.erase(cell)
+	for cell: int in _rocket_frames:
+		if _rocket_frames[cell] != 5: continue
+		if not _flights.has(cell):
+			var vehicle := MeshInstance3D.new()
+			vehicle.mesh = _catalog.asset(23,5,_material).flight
+			vehicle.position = Vector3(cell%side+2.0,0,floori(cell/float(side))+2.0)
+			vehicle.set_meta("age",0.0)
+			add_child(vehicle)
+			_flights[cell] = vehicle
+		_flights[cell].visible = not _overlay
+
+func advance_rockets(delta: float) -> void:
+	for vehicle: MeshInstance3D in _flights.values():
+		var age := float(vehicle.get_meta("age")) + delta
+		vehicle.position.y = 16.0 * age * age
+		vehicle.set_meta("age",age)
 
 func _update_overlay() -> void:
 	if not _overlay or side <= 0: return
@@ -203,7 +234,9 @@ func _build_chunk(id: Vector2i) -> void:
 			var g := tiles[i]
 			if g < 0 or g >= Models.SIZE.size(): g=0
 			var variant := 0
-			if g in Models.NETWORKS:
+			if g == 23:
+				variant = mini(_rocket_frames.get(i,0),5)
+			elif g in Models.NETWORKS:
 				variant = _mask(x,z,g)
 			elif g in Models.VARIED:
 				variant = absi(hash(Vector2i(x,z))) % 3
