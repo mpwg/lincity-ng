@@ -43,6 +43,7 @@ const SCENARIOS := {
 	"extreme_wetland.scn.gz": "Feuchtgebiet", "good_times.scn.gz": "Gute Zeiten",
 }
 
+const QUICK_SAVE := "user://Schnellspeicherung.gz"
 const OUTCOMES := {
 	"economy": ["Sieg durch Nachhaltigkeit", "Deine Stadt hat alle Nachhaltigkeitsziele erreicht. Ihre Wirtschaft kann auf Dauer bestehen."],
 	"evacuation": ["Sieg durch Evakuierung", "Du hast die letzten Einwohnerinnen und Einwohner erfolgreich ins All evakuiert."],
@@ -56,6 +57,8 @@ const ROCKET_EVENTS := {
 }
 
 var outcome_dialog := AcceptDialog.new()
+var demolition_dialog := ConfirmationDialog.new()
+var quit_dialog := ConfirmationDialog.new()
 var surface := Control.new()
 var treasury := Label.new()
 var inhabitants := Label.new()
@@ -230,6 +233,8 @@ func _top_bar() -> void:
 	popup.add_item("Neue Stadt oder Szenario …", 0)
 	popup.add_item("Spielstand laden …", 1)
 	popup.add_item("Spielstand speichern …", 2)
+	popup.add_item("Schnellladen (F9)", 12)
+	popup.add_item("Schnellspeichern (F12)", 13)
 	popup.add_separator()
 	popup.add_item("Stadtstatistik", 4)
 	popup.add_item("Jahresabschluss", 5)
@@ -238,6 +243,8 @@ func _top_bar() -> void:
 	popup.add_separator()
 	popup.add_item("Spielhilfe", 3)
 	popup.add_item("Mitwirkende und Lizenzen …", 8)
+	popup.add_separator()
+	popup.add_item("Beenden …", 14)
 	popup.id_pressed.connect(_menu_action)
 
 func _palette() -> void:
@@ -344,6 +351,16 @@ func _close_inspection() -> void:
 func _dialogs() -> void:
 	surface.add_child(outcome_dialog)
 	outcome_dialog.ok_button_text = "Weiterbauen"
+	surface.add_child(demolition_dialog)
+	demolition_dialog.title = "Teuren Abriss bestätigen"
+	demolition_dialog.ok_button_text = "Abreißen"
+	demolition_dialog.cancel_button_text = "Abbrechen"
+	surface.add_child(quit_dialog)
+	quit_dialog.title = "Spiel beenden"
+	quit_dialog.dialog_text = "LinCity-NG schließen?"
+	quit_dialog.ok_button_text = "Beenden"
+	quit_dialog.cancel_button_text = "Abbrechen"
+	quit_dialog.confirmed.connect(func(): get_tree().quit())
 	surface.add_child(catalog_dialog)
 	catalog_dialog.title = "Baukatalog"
 	catalog_dialog.ok_button_text = "Schließen"
@@ -436,7 +453,7 @@ func _dialogs() -> void:
 	launch_dialog.ok_button_text = "Starten"
 	launch_dialog.cancel_button_text = "Abbrechen"
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
-	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog]:
+	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog, demolition_dialog, quit_dialog]:
 		dialog.theme = surface.theme
 		dialog.transient = true
 		dialog.exclusive = true
@@ -449,6 +466,13 @@ func _menu_action(id: int) -> void:
 		2: save_dialog.popup_centered_ratio(0.75)
 		3: help_dialog.popup_centered(Vector2i(660, 540))
 		8: credits_dialog.popup_centered(Vector2i(710, 550))
+		12:
+			if FileAccess.file_exists(QUICK_SAVE):
+				load_requested.emit(QUICK_SAVE)
+			else:
+				show_info("Es gibt noch keine Schnellspeicherung.")
+		13: save_requested.emit(QUICK_SAVE)
+		14: quit_dialog.popup_centered(Vector2i(380, 155))
 		4, 5, 6:
 			current_report = id
 			_refresh_report()
@@ -550,6 +574,8 @@ func _shortcut_input(event: InputEvent) -> void:
 			_select_tool(QUICK_TOOLS[event.keycode - KEY_1][0])
 		KEY_B: _open_catalog()
 		KEY_F1: _menu_action(3)
+		KEY_F9: _menu_action(12)
+		KEY_F12: _menu_action(13)
 		KEY_ESCAPE:
 			if inspector.visible: _close_inspection()
 			else: _select_tool(-1)

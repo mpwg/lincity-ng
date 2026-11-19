@@ -3,6 +3,7 @@ extends Node3D
 const NO_CELL := Vector2i(-1, -1)
 const OPENING := "res://scenarios/am_fluss.scn.gz"
 const TRANSPORT := [7, 9, 11]
+const CONFIRM_DEMOLITION := [21, 25, 33]
 const BUILD_COLOR := Color(0.25, 1.0, 0.67, 0.9)
 const INVALID_COLOR := Color(1, 0.28, 0.18, 0.95)
 
@@ -25,6 +26,7 @@ var selected := NO_CELL
 var production := false
 var alternate := false
 var restoring_camera := false
+var pending_demolition: Array[Vector2i] = []
 
 func _ready() -> void:
 	if not ClassDB.class_exists("CityWorld"):
@@ -35,6 +37,11 @@ func _ready() -> void:
 	hud.tool_changed.connect(_select_tool)
 	hud.inspection_closed.connect(_close_inspection)
 	hud.modal_opened.connect(_cancel_pointer)
+	hud.demolition_dialog.confirmed.connect(func():
+		var cells := pending_demolition
+		pending_demolition = []
+		_apply_build(-2, cells))
+	hud.demolition_dialog.canceled.connect(func(): pending_demolition = [])
 	hud.speed_changed.connect(func(value: int): speed = value; elapsed = 0)
 	hud.layer_selected.connect(_set_layer)
 	hud.focus_requested.connect(camera.center_on)
@@ -87,6 +94,7 @@ func _after_open(error: String) -> void:
 		hud.show_info(error)
 		return
 	selected = NO_CELL
+	pending_demolition = []
 	hud.events.clear()
 	hud.outcome_dialog.hide()
 	animation_time = 0.0
@@ -212,19 +220,38 @@ func _unhandled_input(event: InputEvent) -> void:
 				production = false
 				_inspect()
 			else:
-				var error := ""
-				var cells := selection(start, hover, tool, int(tools_by_id.get(tool, {}).get("size", 1)), alternate)
+				var cells := _action_cells()
 				cells.reverse()
-				for cell in cells:
-					if cells.size() == 1 or core.preview(tool, cell).allowed:
-						error = core.apply(tool, cell)
-						if not error.is_empty():
-							break
-				_after_action(error)
+				_commit_build(tool, cells)
 			start = NO_CELL
 		else:
 			start = NO_CELL
 		_update_preview()
+
+func _commit_build(id: int, cells: Array[Vector2i]) -> void:
+	if id == -2:
+		var cost := 0
+		var confirm := false
+		for cell in cells:
+			var rule: Dictionary = core.preview(id, cell)
+			if rule.allowed:
+				cost += int(rule.cost)
+				confirm = confirm or int(state.tiles[cell.y * state.side + cell.x]) in CONFIRM_DEMOLITION
+		if confirm:
+			pending_demolition = cells
+			hud.demolition_dialog.dialog_text = "Der Abriss kostet %s $. Möchtest du fortfahren?" % hud._number(cost)
+			hud.demolition_dialog.popup_centered(Vector2i(410, 165))
+			return
+	_apply_build(id, cells)
+
+func _apply_build(id: int, cells: Array[Vector2i]) -> void:
+	var error := ""
+	for cell in cells:
+		if cells.size() == 1 or core.preview(id, cell).allowed:
+			error = core.apply(id, cell)
+			if not error.is_empty():
+				break
+	_after_action(error)
 
 func _point_at(screen: Vector2) -> void:
 	var target: Vector2i = camera.tile_at(screen)
@@ -235,6 +262,21 @@ func _point_at(screen: Vector2) -> void:
 	if target != hover:
 		hover = target
 		_update_preview()
+
+func _action_cells() -> Array[Vector2i]:
+	var fields := selection(start, hover, tool, int(tools_by_id.get(tool, {}).get("size", 1)), alternate)
+	if tool != -2:
+		return fields
+	var targets: Array[Vector2i] = []
+	var visited := {}
+	var side: int = state.side
+	for field in fields:
+		var index := field.y * side + field.x
+		var anchor := int(state.anchors[index]) if state.anchors[index] >= 0 else index
+		if not visited.has(anchor):
+			targets.append(Vector2i(anchor % side, floori(float(anchor) / side)))
+			visited[anchor] = true
+	return targets
 
 static func selection(first: Vector2i, last: Vector2i, id: int, footprint: int, turn: bool) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
@@ -301,7 +343,7 @@ func _update_preview() -> void:
 		return
 	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	var amount := 0
-	var cells := selection(start, hover, tool, int(tools_by_id.get(tool, {}).get("size", 1)), alternate)
+	var cells := _action_cells()
 	var reason := ""
 	for cell in cells:
 		var rule: Dictionary = core.preview(tool, cell)
