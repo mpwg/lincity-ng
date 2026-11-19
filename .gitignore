@@ -1,2 +1,6 @@
 # Build Files
 /build/
+
+# Godot editor cache and compiled native extension
+/godot/.godot/
+/godot/bin/

@@ -86,6 +86,7 @@ pub mod ffi {
         fn tick(engine: &mut Engine) -> Result<()>;
         fn animate(engine: &mut Engine, millis: u64) -> Result<()>;
         fn set_traffic(engine: &mut Engine, traffic: Traffic) -> Result<()>;
+        fn factory_operating(engine: &Engine, point: Point) -> bool;
         fn side(engine: &Engine) -> i32;
         fn focus(engine: &Engine) -> Point;
         fn set_focus(engine: &mut Engine, point: Point);
@@ -192,6 +193,13 @@ fn set_traffic(engine: &mut Engine, traffic: ffi::Traffic) -> io::Result<()> {
     });
     Ok(())
 }
+fn factory_operating(engine: &Engine, point: ffi::Point) -> bool {
+    engine
+        .city
+        .building_state(point.into())
+        .is_some_and(|b| b.industrial_output_today > 0)
+}
+
 fn side(engine: &Engine) -> i32 {
     engine.city.side()
 }

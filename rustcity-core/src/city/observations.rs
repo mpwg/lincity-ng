@@ -24,6 +24,8 @@ pub struct BuildingState<'city> {
     pub kind: BuildingKind,
     pub never_evacuate: bool,
     pub occupants: i32,
+    /// Goods or steel produced by this factory in the most recent tick.
+    pub industrial_output_today: i32,
     pub fire_age: Option<(i32, i32)>,
     pub evacuating: bool,
     pub ready_to_launch: bool,
@@ -168,6 +170,11 @@ impl City {
             never_evacuate: b.never_evacuate,
             occupants: match &b.operation {
                 Operation::Civic(c) => c.occupants(),
+                _ => 0,
+            },
+            industrial_output_today: match &b.operation {
+                Operation::Industry(industry::IndustryOperation::Light(m)) => m.goods_today,
+                Operation::Industry(industry::IndustryOperation::Heavy(m)) => m.steel_today,
                 _ => 0,
             },
             fire_age: match &b.operation {

@@ -21,7 +21,7 @@ pub struct LightIndustry {
     pub tech: i32,
     pub busy: i32,
     goods_this_month: i32,
-    goods_today: i32,
+    pub(crate) goods_today: i32,
     next_animation: u64,
     pub resource: &'static str,
     pub smoke: [i32; 2],
@@ -129,6 +129,7 @@ pub struct HeavyIndustry {
     pub tech: i32,
     pub busy: i32,
     steel_this_month: i32,
+    pub(crate) steel_today: i32,
     next_animation: u64,
     pub frame: i32,
     pub resource: &'static str,
@@ -140,12 +141,14 @@ impl HeavyIndustry {
             tech,
             busy: 0,
             steel_this_month: 0,
+            steel_today: 0,
             next_animation: 0,
             frame: 0,
             resource: "IndustryHigh",
         }
     }
     pub fn update(&mut self, day: u32, stock: &mut Stock<'_>) -> i32 {
+        self.steel_today = 0;
         let mut pollution = 0;
         if stock[Labor] >= heavy::LABOR + LOAD_COAL
             && stock[Ore] >= heavy::BATCH_ORE
@@ -170,6 +173,7 @@ impl HeavyIndustry {
             stock.change(Labor, -heavy::LABOR);
             stock.change(Ore, -heavy::BATCH_ORE);
             stock.change(Steel, made);
+            self.steel_today = made;
             self.steel_this_month += made;
             pollution = emissions(
                 self.tech,

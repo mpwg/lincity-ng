@@ -1,9 +1,11 @@
 // Godot owns this façade. Each instance owns an independent simulation.
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/translation_server.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 
 #include "DesktopWorld.hpp"
@@ -13,7 +15,6 @@
 #include "lincity/modules/all_modules.hpp"
 
 #include <fmt/format.h>
-#include <sstream>
 
 namespace {
 using godot::Array;
@@ -26,6 +27,9 @@ using godot::String;
 using godot::Vector2i;
 
 String text(const std::string& value) { return String::utf8(value.c_str()); }
+String localized(const std::string& value) {
+  return godot::TranslationServer::get_singleton()->translate(text(value));
+}
 MapPoint point(Vector2i v) { return {v.x, v.y}; }
 std::filesystem::path file_path(const String& path) {
   auto absolute = godot::ProjectSettings::get_singleton()->globalize_path(path);
@@ -66,20 +70,21 @@ UserOperation operation(int id) {
 
 class Report final : public ConstructionReport {
 public:
-  std::ostringstream out;
-  void addBlank() override { out << '\n'; }
-  void addLabel(const std::string& label) override { out << label << '\n'; }
+  String out;
+  void row(const String& label, const String& value) { out += label + String("  ") + value + String("\n"); }
+  void addBlank() override { out += "\n"; }
+  void addLabel(const std::string& label) override { out += localized(label) + "\n"; }
   void addLabeledText(const std::string& label, const std::string& value) override {
-    out << label << "  " << value << '\n';
+    row(localized(label), localized(value));
   }
-  void addInteger(const std::string& label, int value) override { addLabeledText(label, std::to_string(value)); }
-  void addDecimal(const std::string& label, double value) override { addLabeledText(label, fmt::format("{:.1f}", value)); }
-  void addPercentage(const std::string& label, double value) override { addLabeledText(label, fmt::format("{:.1f}%", value)); }
+  void addInteger(const std::string& label, int value) override { row(localized(label), String::num_int64(value)); }
+  void addDecimal(const std::string& label, double value) override { row(localized(label), text(fmt::format("{:.1f}", value))); }
+  void addPercentage(const std::string& label, double value) override { row(localized(label), text(fmt::format("{:.1f}%", value))); }
   void addQuantity(const std::string& label, int value, int capacity) override {
-    addLabeledText(label, fmt::format("{} / {}", value, capacity));
+    row(localized(label), text(fmt::format("{} / {}", value, capacity)));
   }
   void addPrefixedQuantity(const std::string& prefix, const std::string& label, int value, int capacity) override {
-    addQuantity(prefix + " " + label, value, capacity);
+    row(text(prefix) + " " + localized(label), text(fmt::format("{} / {}", value, capacity)));
   }
 };
 
@@ -126,7 +131,9 @@ public:
     });
   }
   String load_city(String path) { return run([&] { city = DesktopWorld::load(file_path(path)); }); }
-  String save_city(String path) const { return run([&] { world().save(file_path(path)); }); }
+  String save_city(String path) const {
+    return run([&] { world().save(file_path(path)); });
+  }
   String step() { return run([&] { world().do_time_step(); }); }
 
   Dictionary snapshot() const {
@@ -138,25 +145,35 @@ public:
     tiles.resize(int64_t(side) * side);
     anchors.resize(tiles.size());
     pollution.resize(tiles.size());
+    godot::PackedByteArray operating;
+    operating.resize(tiles.size());
+    auto* production = operating.ptrw();
     auto* groups = tiles.ptrw();
     auto* roots = anchors.ptrw();
     auto* emissions = pollution.ptrw();
+    int64_t population = city->people_pool;
     for(const auto& t : map) {
       const auto* building = t.getReportingConstruction();
       const auto anchor = building ? building->point : t.point;
+      if(t.getConstruction() && t.is_residence())
+        population += static_cast<const Residence*>(building)->local_population;
       const auto index = t.point.y * side + t.point.x;
       groups[index] = t.getGroup();
       roots[index] = anchor.y * side + anchor.x;
       emissions[index] = t.pollution;
+      production[index] = 0;
+      if(t.getConstruction() && (groups[index] == GROUP_INDUSTRY_L || groups[index] == GROUP_INDUSTRY_H))
+        production[index] = rustcity::factory_operating(city->engine(), {anchor.x, anchor.y});
     }
     result["tiles"] = tiles;
+    result["operating"] = operating;
     result["anchors"] = anchors;
     result["pollution"] = pollution;
     result["side"] = side;
     result["time"] = city->total_time;
     result["money"] = city->total_money;
     const auto& pop = city->stats.population;
-    result["population"] = pop.population_m / NUMOF_DAYS_IN_MONTH;
+    result["population"] = population;
     result["homeless"] = city->people_pool;
     result["tech"] = city->tech_level;
     result["unemployment"] = pop.unemployed_m / NUMOF_DAYS_IN_MONTH;
@@ -227,7 +244,7 @@ public:
     append(water, "Water", 1);
     for(int id = 0; id < NUM_OF_GROUPS; ++id) {
       auto op = operation(id);
-      if(auto* g = op.constructionGroup) append(id, text(g->getName()), g->size);
+      if(auto* g = op.constructionGroup) append(id, localized(g->name), g->size);
     }
     return list;
   }
@@ -262,11 +279,7 @@ public:
     if(!t) return {};
     Report report;
     if(const auto* building = t->getReportingConstruction()) {
-#ifdef LINCITY_RUST_BACKEND
       renderRustReport(city->engine(), building->point, production, report);
-#else
-      building->report(report, production);
-#endif
     } else {
       report.addLabel(t->getTileConstructionGroup()->getName());
       report.addInteger("Höhe", t->ground.altitude);
@@ -274,7 +287,7 @@ public:
       if(city->coal_survey_done) report.addInteger("Kohle", t->coal_reserve);
     }
     report.addInteger("Luftverschmutzung", t->pollution);
-    return text(report.out.str()).strip_edges();
+    return report.out.strip_edges();
   }
   void set_focus(Vector2i v) {
     if(tile(v)) desktopFocus(*city, point(v));
@@ -301,7 +314,7 @@ public:
       if(!rules[i].maxload) continue;
       Dictionary item;
       item["id"] = i;
-      item["name"] = String::utf8(commodityName(static_cast<Commodity>(i)));
+      item["name"] = localized(commodityName(static_cast<Commodity>(i)));
       item["buy"] = rules[i].take;
       item["sell"] = rules[i].give;
       result.append(item);
