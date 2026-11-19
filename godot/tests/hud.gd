@@ -17,20 +17,15 @@ func key(code: Key) -> InputEventKey:
 	return event
 
 func _test() -> void:
-	var hud = preload("res://ui/hud.gd").new()
-	var game = preload("res://city.gd").new()
-	game.hud = hud
-	game.state = {"time": 1}
-	game.camera = preload("res://orbit_camera.gd").new()
-	root.add_child(hud)
-	var core: Object = ClassDB.instantiate("CityWorld")
-	var error: String = core.load_city(ProjectSettings.globalize_path("res://scenarios/am_fluss.scn.gz"))
-	check(error.is_empty(), "Referenzstadt konnte nicht geladen werden.")
-	if not error.is_empty():
+	var game = preload("res://city.tscn").instantiate()
+	root.add_child(game)
+	game.set_process(false)
+	var hud = game.hud
+	if game.state.is_empty():
+		printerr("Referenzstadt konnte nicht geladen werden.")
 		quit(1)
 		return
-	hud.setup(core.tools())
-	hud.update_city(core.snapshot())
+	var core: Object = game.core
 	await process_frame
 	game._process(0.01)
 	check(is_equal_approx(game.elapsed, 0.01), "Die Simulation steht trotz geschlossenem Dialog.")
@@ -55,8 +50,9 @@ func _test() -> void:
 	root.push_input(key(KEY_B))
 	await process_frame
 	check(root.get_last_exclusive_window() == hud.catalog_dialog, "Baukatalog ist nicht modal.")
+	var before: float = game.elapsed
 	game._process(0.01)
-	check(is_equal_approx(game.elapsed, 0.01), "Die Simulation läuft bei geöffnetem Dialog.")
+	check(is_equal_approx(game.elapsed, before), "Die Simulation läuft bei geöffnetem Dialog.")
 	var bearing: float = game.camera.azimuth
 	game._unhandled_input(key(KEY_Q))
 	check(game.camera.azimuth == bearing, "Die Kamera dreht sich hinter dem Dialog.")
@@ -100,6 +96,5 @@ func _test() -> void:
 		check(not bounds.intersects(hud.map.get_global_rect()), "Bauleiste überlappt die Minikarte bei %s." % pixels)
 	if errors == 0:
 		print("OK: Bauleiste, vollständiger Katalog, Zeitsteuerung, exklusive Dialoge, Tastatur, Minikarte und HUD-Größen.")
-	game.camera.free()
 	game.free()
 	quit(1 if errors else 0)
