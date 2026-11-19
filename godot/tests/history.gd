@@ -43,8 +43,10 @@ func _test() -> void:
 	check(advanced.last_month == 3 and advanced.series.tech[1] == 0.75, "Ein neuer Monat wurde nicht an der richtigen Stelle ergänzt.")
 	check(is_finite(advanced.series.population[0]) and is_nan(advanced.series.population[1]), "Alte Diagrammindizes wurden als nachträgliche Messwerte übernommen.")
 	check(advanced.series.births[0] == 0.0 and is_nan(advanced.series.births[1]), "Eine neue echte Null oder die alte Lücke ging verloren.")
-	var saved := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity-history", "gz")
-	check(core.save_city(saved.get_path_absolute()) == "" and core.load_city(saved.get_path_absolute()) == "", "Der Verlauf konnte nicht erneut geladen werden.")
+	var saved := "user://lincity-history-%d.gz" % Time.get_ticks_usec()
+	check(core.save_city(saved) == "" and core.load_city(saved) == "", "Der Verlauf konnte nicht erneut geladen werden.")
+	if FileAccess.file_exists(saved):
+		DirAccess.remove_absolute(saved)
 	var reloaded: Dictionary = core.call("history")
 	check(reloaded.series.births[0] == 0.0 and is_nan(reloaded.series.births[1]), "Der Speicherzyklus verwechselte einen fehlenden Wert mit Null.")
 	await _test_dialog(data)

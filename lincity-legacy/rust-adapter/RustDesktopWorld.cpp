@@ -6,6 +6,11 @@ namespace {
 rustcity::Point toRust(MapPoint p) { return {p.x, p.y}; }
 MapPoint fromRust(rustcity::Point p) { return {p.x, p.y}; }
 
+std::string pathUtf8(const std::filesystem::path& path) {
+  const auto utf8 = path.u8string();
+  return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+}
+
 rustcity::ActionKind kind(const UserOperation& op) {
   using K = rustcity::ActionKind;
   switch(op.action) {
@@ -77,11 +82,11 @@ DesktopWorld::DesktopWorld(rust::Box<rustcity::Engine> e)
 }
 
 std::unique_ptr<DesktopWorld> DesktopWorld::load(const std::filesystem::path& path) {
-  return std::make_unique<DesktopWorld>(rustcity::load(path.string()));
+  return std::make_unique<DesktopWorld>(rustcity::load(pathUtf8(path)));
 }
 
 void DesktopWorld::save(const std::filesystem::path& path) const {
-  rustcity::save(engine(), path.string());
+  rustcity::save(engine(), pathUtf8(path));
 }
 
 std::unique_ptr<DesktopWorld> generateDesktopCity(DesktopClimate climate, city_settings* settings, int side) {
