@@ -44,8 +44,9 @@ cmake --build build --parallel --target package
 See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
 configuration options.
 
-The freely rotatable 3D desktop opens on the market street of a playable riverside
-town. It uses Godot 4.5 and the RustCity simulation, with both victory conditions,
+The freely rotatable 3D desktop opens at the main menu. Start a new city, choose
+the riverside scenario, load a save, or continue your last session. It uses
+Godot 4.5 and the RustCity simulation, with both victory conditions,
 historical charts, the original music and sound effects, and persistent settings.
 [3D desktop build and controls](docs/GODOT_DESKTOP.md)
 

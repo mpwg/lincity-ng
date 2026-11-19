@@ -18,6 +18,7 @@ signal modal_opened
 signal modal_closed
 signal quit_requested
 signal history_requested
+signal pause_requested
 
 const Catalog = preload("res://ui/catalog.gd")
 const Minimap = preload("res://ui/minimap.gd")
@@ -66,6 +67,8 @@ var history_dialog := preload("res://ui/history.gd").new()
 var settings_dialog := preload("res://ui/settings_dialog.gd").new()
 var settings: RefCounted
 var surface := Control.new()
+var game_surface := Control.new()
+var session_menu := preload("res://ui/session_menu.gd").new()
 var treasury := Label.new()
 var inhabitants := Label.new()
 var date := Label.new()
@@ -116,12 +119,16 @@ func _ready() -> void:
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	surface.theme = _theme()
+	surface.add_child(game_surface)
+	game_surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_top_bar()
 	_palette()
 	_overview()
 	_footer()
 	_dialogs()
 	_refresh_categories()
+	surface.add_child(session_menu)
 
 func _box(color: Color, padding_x: int, padding_y: int, radius: int = 5) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -161,7 +168,7 @@ func _theme() -> Theme:
 
 func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
 	var panel := PanelContainer.new()
-	surface.add_child(panel)
+	game_surface.add_child(panel)
 	panel.set_anchors_and_offsets_preset(preset)
 	panel.offset_left = bounds.position.x
 	panel.offset_top = bounds.position.y
@@ -236,6 +243,8 @@ func _top_bar() -> void:
 	menu.flat = false
 	clock.add_child(menu)
 	var popup := menu.get_popup()
+	popup.add_item(tr("Pausenmenü (Esc)"), 15)
+	popup.add_separator()
 	popup.add_item("Neue Stadt oder Szenario …", 0)
 	popup.add_item("Spielstand laden …", 1)
 	popup.add_item("Spielstand speichern …", 2)
@@ -493,6 +502,7 @@ func _menu_action(id: int) -> void:
 				show_info("Es gibt noch keine Schnellspeicherung.")
 		13: save_requested.emit(QUICK_SAVE)
 		14: quit_dialog.popup_centered(Vector2i(380, 155))
+		15: pause_requested.emit()
 		4, 5, 6:
 			current_report = id
 			_refresh_report()
@@ -586,9 +596,22 @@ func has_modal() -> bool:
 	var active := get_window().get_last_exclusive_window()
 	return active != null and active != get_window()
 
+func open_session_menu(in_game: bool, has_save: bool) -> void:
+	game_surface.hide()
+	session_menu.open(in_game, has_save)
+
+func close_session_menu() -> void:
+	session_menu.hide()
+	game_surface.show()
+
 func _shortcut_input(event: InputEvent) -> void:
 	if has_modal() or not event is InputEventKey: return
 	if not event.pressed or event.echo: return
+	if session_menu.visible:
+		if event.keycode == KEY_ESCAPE and session_menu.in_game:
+			session_menu.action_requested.emit(&"resume")
+			get_viewport().set_input_as_handled()
+		return
 	match event.keycode:
 		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
 			_select_tool(QUICK_TOOLS[event.keycode - KEY_1][0])
@@ -598,7 +621,7 @@ func _shortcut_input(event: InputEvent) -> void:
 		KEY_F12: _menu_action(13)
 		KEY_ESCAPE:
 			if inspector.visible: _close_inspection()
-			else: _select_tool(-1)
+			else: pause_requested.emit()
 		_: return
 	get_viewport().set_input_as_handled()
 

@@ -4,6 +4,7 @@ const GameSettings = preload("res://ui/settings.gd")
 const GameAudio = preload("res://audio/game_audio.gd")
 const NO_CELL := Vector2i(-1, -1)
 const OPENING := "res://scenarios/am_fluss.scn.gz"
+const SESSION_SAVE := "user://Fortsetzung.scn.gz"
 const TRANSPORT := [7, 9, 11]
 const CONFIRM_DEMOLITION := [21, 25, 33]
 const BUILD_COLOR := Color(0.25, 1.0, 0.67, 0.9)
@@ -12,6 +13,7 @@ const INVALID_COLOR := Color(1, 0.28, 0.18, 0.95)
 @onready var camera = $Camera
 @onready var view = $World
 @onready var hud = $HUD
+@export var start_in_menu := false
 var core: Object
 var settings := GameSettings.new()
 var audio := GameAudio.new()
@@ -47,6 +49,8 @@ func _ready() -> void:
 	hud.modal_opened.connect(audio.play_effect.bind(&"WindowOpen"))
 	hud.modal_closed.connect(audio.play_effect.bind(&"WindowClose"))
 	hud.quit_requested.connect(_quit)
+	hud.pause_requested.connect(_open_pause)
+	hud.session_menu.action_requested.connect(_session_action)
 	hud.history_requested.connect(func():
 		hud.history_dialog.set_history(core.history())
 		hud.history_dialog.popup_centered(Vector2i(760, 490)))
@@ -78,13 +82,42 @@ func _ready() -> void:
 	hud.report_requested.connect(func(value: bool): production = value; _inspect())
 	camera.moved.connect(_camera_moved)
 	get_window().focus_exited.connect(_cancel_pointer)
-	var opening := OPENING
-	for arg in OS.get_cmdline_user_args():
+	var args := OS.get_cmdline_user_args()
+	var opening := "" if start_in_menu and "--bridge-view" not in args else OPENING
+	for arg in args:
 		if arg.begins_with("--city="):
 			opening = arg.trim_prefix("--city=")
-	_load_city(opening)
-	if opening == OPENING and not state.is_empty():
-		camera.riverside_view("--bridge-view" in OS.get_cmdline_user_args())
+	if start_in_menu:
+		_open_main_menu()
+	if not opening.is_empty():
+		_load_city(opening)
+
+func _open_main_menu() -> void:
+	hide()
+	hud.open_session_menu(false, FileAccess.file_exists(SESSION_SAVE))
+
+func _open_pause() -> void:
+	if state.is_empty():
+		return
+	_cancel_pointer()
+	hud.open_session_menu(true, false)
+
+func _session_action(action: StringName) -> void:
+	match action:
+		&"resume":
+			hud.close_session_menu()
+		&"main_menu":
+			if _save_session():
+				state = {}
+				_open_main_menu()
+		&"new_game": hud._menu_action(0)
+		&"load_game": hud._menu_action(1)
+		&"save_game": hud._menu_action(2)
+		&"continue_game": _load_city(SESSION_SAVE)
+		&"settings": hud._menu_action(9)
+		&"help": hud._menu_action(3)
+		&"credits": hud._menu_action(8)
+		&"quit": hud._menu_action(14)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_node_ready():
@@ -92,6 +125,8 @@ func _notification(what: int) -> void:
 
 func _quit() -> void:
 	if quitting:
+		return
+	if not state.is_empty() and not _save_session():
 		return
 	quitting = true
 	if audio.is_inside_tree():
@@ -115,26 +150,55 @@ func _load_city(path: String) -> void:
 	if path.begins_with("res://"):
 		var bytes := FileAccess.get_file_as_bytes(path)
 		if bytes.is_empty():
-			hud.show_info("Das Szenario konnte nicht gelesen werden.")
+			_show_session_error(tr("Das Szenario konnte nicht gelesen werden."))
 			return
 		var temp := FileAccess.create_temp(FileAccess.WRITE_READ, "lincity", "gz")
 		if not temp or not temp.store_buffer(bytes):
-			hud.show_info("Das Szenario konnte nicht geöffnet werden.")
+			_show_session_error(tr("Das Szenario konnte nicht geöffnet werden."))
 			return
 		temp.flush()
-		_after_open(core.load_city(temp.get_path_absolute()))
+		var error: String = core.load_city(temp.get_path_absolute())
+		_after_open(error)
+		if error.is_empty() and path == OPENING:
+			camera.riverside_view("--bridge-view" in OS.get_cmdline_user_args())
 		return
 	_after_open(core.load_city(physical))
 
 func _save_city(path: String) -> void:
+	var error := _write_city(path)
+	_show_session_error(tr("Stadt gespeichert.") if error.is_empty() else error)
+
+func _write_city(path: String) -> String:
 	core.set_focus(Vector2i(floori(camera.focus.x), floori(camera.focus.z)))
-	var error: String = core.save_city(ProjectSettings.globalize_path(path))
-	hud.show_info("Stadt gespeichert." if error.is_empty() else error)
+	return core.save_city(ProjectSettings.globalize_path(path))
+
+func _save_session() -> bool:
+	var path := ProjectSettings.globalize_path(SESSION_SAVE)
+	var temporary := "%s.%d.tmp" % [path, OS.get_process_id()]
+	var error := _write_city(temporary)
+	if error.is_empty() and DirAccess.rename_absolute(temporary, path) != OK:
+		error = tr("Die Datei für den Fortsetzungsstand konnte nicht ersetzt werden.")
+	if error.is_empty():
+		return true
+	if FileAccess.file_exists(temporary):
+		DirAccess.remove_absolute(temporary)
+	if not hud.session_menu.visible:
+		_open_pause()
+	hud.session_menu.show_message(tr("Der Fortsetzungsstand konnte nicht gespeichert werden. %s") % error)
+	return false
+
+func _show_session_error(message: String) -> void:
+	if hud.session_menu.visible:
+		hud.session_menu.show_message(message)
+	else:
+		hud.show_info(message)
 
 func _after_open(error: String) -> void:
 	if not error.is_empty():
-		hud.show_info(error)
+		_show_session_error(error)
 		return
+	show()
+	hud.close_session_menu()
 	selected = NO_CELL
 	pending_demolition = []
 	hud.events.clear()
@@ -181,7 +245,7 @@ func _set_layer(id: int, product: int) -> void:
 		_refresh()
 
 func _process(delta: float) -> void:
-	if quitting or state.is_empty() or speed <= 0 or hud.has_modal():
+	if quitting or state.is_empty() or speed <= 0 or hud.has_modal() or hud.session_menu.visible:
 		return
 	view.advance_rockets(delta)
 	animation_time += delta
@@ -245,7 +309,7 @@ func _input(event: InputEvent) -> void:
 		_cancel_pointer()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if quitting or state.is_empty() or hud.has_modal():
+	if quitting or state.is_empty() or hud.has_modal() or hud.session_menu.visible:
 		return
 	if camera.input_camera(event):
 		get_viewport().set_input_as_handled()

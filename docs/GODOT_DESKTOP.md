@@ -1,6 +1,8 @@
 # LinCity-NG in 3D spielen
 
-Das Spiel startet am Markt des Flussviertels. Die Stadt lässt sich aus jedem Winkel betrachten und bearbeiten. Godot 4.5.1 zeichnet die Stadt mit OpenGL. RustCity verwaltet Simulation, Baukosten, Handel und Spielstände. Die Auswahl des SDL-Backends gilt nur für die klassische Oberfläche.
+Im Hauptmenü lässt sich eine neue Stadt anlegen, ein Szenario auswählen, ein Spielstand laden oder die zuletzt gesicherte Stadt fortsetzen. Das Flussviertel ist als „Kleinstadt am Fluss“ unter „Neues Spiel“ verfügbar. Godot 4.5.1 zeichnet die frei drehbare Stadt mit OpenGL. RustCity verwaltet Simulation, Baukosten, Handel und Spielstände.
+
+„Spiel → Pausenmenü“ hält die Simulation an. „Fortfahren“ setzt die laufende Stadt fort. Beim Wechsel zum Hauptmenü und beim regulären Beenden sichert das Spiel die Stadt für „Fortsetzen“. Ein Fehler beim Sichern wird im Pausenmenü angezeigt. Unter „Spiel laden“ lassen sich auch Spielstände der klassischen Oberfläche öffnen.
 
 ## Start aus den Quellen
 
@@ -13,7 +15,7 @@ godot --headless --path godot --import
 godot --path godot
 ```
 
-Mit `godot --path godot -- --bridge-view` öffnet sich dieselbe Stadt von der Flussseite. Mit `--city=/absoluter/pfad/stadt.gz` hinter dem doppelten Bindestrich lädt Godot einen anderen Spielstand.
+Mit `godot --path godot -- --bridge-view` startet das Flussviertel direkt von der Brückenseite. Mit `--city=/absoluter/pfad/stadt.gz` hinter dem doppelten Bindestrich startet Godot direkt in diesem Spielstand.
 
 | Aktion | Bedienung |
 |---|---|
@@ -57,6 +59,7 @@ Das Quellarchiv muss zur eingebundenen libxml++-Version passen. Die Paketierung 
 
 ```sh
 godot --headless --path godot -s res://tests/model_catalog.gd
+godot --headless --path godot -s res://tests/session.gd -- --mute
 godot --headless --path godot -s res://tests/hud.gd -- --mute
 godot --headless --path godot -s res://tests/acceptance.gd -- --mute
 godot --headless --path godot -s res://tests/outcomes.gd -- --mute
