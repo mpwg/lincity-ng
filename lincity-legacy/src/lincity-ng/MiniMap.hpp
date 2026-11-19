@@ -31,6 +31,7 @@
 #include "gui/Component.hpp"        // for Component
 #include "gui/Signal.hpp"
 #include "gui/Vector2.hpp"          // for Vector2
+#include "MapOverlay.hpp"
 #include "lincity/commodities.hpp"  // for Commodity
 
 class Button;
@@ -45,11 +46,9 @@ namespace xmlpp {
 class TextReader;
 }  // namespace xmlpp
 
-class MiniMap : public Component
+class MiniMap : public Component, public MapOverlay
 {
 public:
-    enum DisplayMode  {NORMAL,POLLUTION,UB40,STARVE,POWER,FIRE,CRICKET,HEALTH,COAL,TRAFFIC,COMMODITIES,MAX};
-
     MiniMap();
     ~MiniMap();
 

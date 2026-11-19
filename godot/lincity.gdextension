@@ -1,0 +1,8 @@
+[configuration]
+entry_symbol = "lincity_library_init"
+compatibility_minimum = "4.5"
+
+[libraries]
+linux = "res://bin/liblincity_godot.so"
+windows = "res://bin/liblincity_godot.dll"
+macos = "res://bin/liblincity_godot.dylib"

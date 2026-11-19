@@ -21,6 +21,8 @@ add_executable(lincity-ng
   MainLincity.hpp
   MainMenu.cpp
   MainMenu.hpp
+  MapOverlay.cpp
+  MapOverlay.hpp
   MiniMap.cpp
   MiniMap.hpp
   Mps.cpp
@@ -61,6 +63,5 @@ translate_target(lincity-ng lincity-ng.pot)
 
 
 if(LINCITY_CORE_BACKEND STREQUAL "rust")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../rust-adapter" rust-adapter)
   target_link_libraries(lincity-ng PRIVATE rustcity_desktop)
 endif()
