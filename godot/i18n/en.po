@@ -189,8 +189,8 @@ msgstr "The statistics file could not be written."
 msgid "Die aktuelle Stadt wird ersetzt."
 msgstr "This replaces the current city."
 
-msgid "Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen."
-msgstr "The native extension is missing. Build the lincity_godot CMake target."
+msgid "Die native Erweiterung fehlt. Bitte cargo godot-build ausführen."
+msgstr "The native extension is missing. Run cargo godot-build."
 
 msgid "Die relevanten Gebäude mit Feuerwehrschutz abdecken."
 msgstr "Provide fire coverage to the buildings that need it."

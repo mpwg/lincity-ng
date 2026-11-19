@@ -14,20 +14,19 @@ See the in-game help [F1] for how to play.
 
 ## Build and run
 
-The Godot 4.5.1 desktop uses RustCity for the simulation, city generation, and
-saved games. Its main menu can start a new city, choose a scenario, or continue
-a saved city. [Dependencies](docs/DEPENDENCIES.md) · [Build options](docs/BUILD_OPTIONS.md)
+The Godot 4.5.1 desktop loads RustCity through a Rust GDExtension. Cargo builds
+both in one workspace. From the main menu, start a city, choose a scenario, or
+continue a saved city. [Dependencies](docs/DEPENDENCIES.md) · [Build options](docs/BUILD_OPTIONS.md)
 
 Run these commands from the repository root.
 
 ```sh
-cmake -S . -B build/godot-editor -DCMAKE_BUILD_TYPE=Release
-cmake --build build/godot-editor --target lincity_godot --parallel
+cargo godot-build
 godot --headless --path godot --import
 godot --path godot
 ```
 
-Run the Rust tests with `cargo test --locked --manifest-path rustcity-core/Cargo.toml`.
+Run the Rust tests with `cargo test --workspace --locked`.
 [Desktop controls, tests, and release exports](docs/GODOT_DESKTOP.md)
 
 ## Saved games and the classic desktop

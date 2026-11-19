@@ -11,9 +11,9 @@ Die klassischen Werkzeugsymbole, Hilfeillustrationen, Hilfetexte, Szenarien und 
 Musik und Geräusche
 Die Original-Credits für Musik und Geräusche nennen Paulo Augusto, Robert van Herk und Pronobozo. „City Blues“ und „Architectural Contemplations“ stammen von Robert van Herk, „Lincity“ von Pronobozo. Es gelten die Lizenzbedingungen für Spieldaten.
 
-Godot Engine und godot-cpp
-Godot Engine und die C++-Anbindung stehen unter der MIT-Lizenz. Die Engine stellt die Originalnachweise und Lizenztexte ihrer mitgelieferten Drittkomponenten bereit.
+Godot Engine
+Godot Engine steht unter der MIT-Lizenz. Die Engine stellt die Originalnachweise und Lizenztexte ihrer mitgelieferten Drittkomponenten bereit.
 https://godotengine.org/license/
 
 Rust-Bibliotheken
-RustCity und die Anbindung an den Desktop verwenden die in „Rust-Abhängigkeiten“ aufgeführten Bibliotheken. Die Lizenz- und Urhebervermerke stammen aus deren Originalpaketen.
+RustCity und die Anbindung an den Desktop verwenden die in „Rust-Abhängigkeiten“ aufgeführten Bibliotheken. Die dort verlinkte Godot-Anbindung godot-rust steht unter der Mozilla Public License 2.0. Die Lizenz- und Urhebervermerke stammen aus den Originalpaketen und deren Quellcode.

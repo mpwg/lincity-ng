@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 from package_godot_linux import PROJECT, run
-from rust_notices import notices
+from rust_notices import check_notices
 
 MIN_MACOS = (15, 0)
 
@@ -53,42 +53,6 @@ def system_library(name):
     return name.startswith(("/usr/lib/", "/System/Library/"))
 
 
-def relocate(extension, frameworks, library_paths):
-    pending = [(extension, extension)]
-    copied = {}
-    while pending:
-        source, bundled = pending.pop()
-        for name in dependencies(bundled):
-            if system_library(name):
-                continue
-            if name.startswith("@rpath/"):
-                paths = [folder / name.removeprefix("@rpath/")
-                         for folder in [source.parent, *library_paths]]
-            elif name.startswith("@loader_path/"):
-                paths = [source.parent / name.removeprefix("@loader_path/")]
-            else:
-                paths = [Path(name)]
-            original = next((path.resolve() for path in paths if path.is_file()), None)
-            if original is None:
-                raise SystemExit(f"{source}: Bibliothek {name} fehlt.")
-            filename = Path(name).name
-            target = frameworks / filename
-            if filename in copied and copied[filename] != original:
-                raise SystemExit(f"Zwei verschiedene Bibliotheken heißen {filename}.")
-            if filename not in copied:
-                shutil.copyfile(original, target)
-                run(["chmod", "u+w", target])
-                run(["llvm-install-name-tool", "-id", f"@rpath/{filename}", target])
-                copied[filename] = original
-                pending.append((original, target))
-            run(["llvm-install-name-tool", "-change", name, f"@loader_path/{filename}", bundled])
-        load_commands = run(["llvm-otool", "-l", bundled])
-        for path in re.findall(r"cmd LC_RPATH\s+cmdsize \d+\s+path (.+) \(offset \d+\)", load_commands):
-            if path.startswith("/"):
-                run(["llvm-install-name-tool", "-delete_rpath", path, bundled])
-    return [frameworks / name for name in copied]
-
-
 def verify_binary(binary):
     archs = run(["llvm-lipo", "-archs", binary]).strip().split()
     if "arm64" not in archs:
@@ -127,13 +91,12 @@ def main():
     parser.add_argument("--godot", type=Path, required=True)
     parser.add_argument("--template", type=Path, required=True, help="macos.zip der Godot-Exportvorlagen")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--library-path", type=Path, action="append", default=[])
     parser.add_argument("--rcodesign", default="rcodesign")
-    parser.add_argument("--fmt-license", type=Path, required=True)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
         parser.error("Das Ziel muss neu sein.")
+    check_notices()
 
     output.mkdir(parents=True)
     app = output / "LinCity-NG.app"
@@ -143,24 +106,22 @@ def main():
     extension = frameworks / "liblincity_godot.release.dylib"
     if not extension.is_file():
         raise SystemExit("Das exportierte App-Bundle enthält die Rust-Anbindung nicht.")
+    run(["llvm-install-name-tool", "-id", f"@rpath/{extension.name}", extension])
     with (contents / "Info.plist").open("rb") as stream:
         executable = contents / "MacOS" / plistlib.load(stream)["CFBundleExecutable"]
     if run(["llvm-lipo", "-archs", executable]).strip() != "arm64":
         raise SystemExit("Die exportierte Anwendung ist kein reiner ARM64-Build.")
+    symbols = run(["llvm-nm", "--defined-only", "--extern-only", extension])
+    if not re.search(r"\b_lincity_library_init$", symbols, re.MULTILINE):
+        raise SystemExit("Die macOS-Bibliothek exportiert den Godot-Einstiegspunkt nicht.")
 
     licenses = output / "licenses"
     shutil.copytree(PROJECT / "licenses", licenses)
-    (licenses / "Rust-Bibliotheken.txt").write_text(notices("aarch64-apple-darwin"))
-    shutil.copyfile(args.fmt_license, licenses / "fmt-MIT.txt")
-    dylibs = relocate(extension, frameworks, args.library_path)
     for binary in [executable, *frameworks.glob("*.dylib")]:
         verify_binary(binary)
-    for binary in [extension, *dylibs]:
-        for name in dependencies(binary):
-            if system_library(name):
-                continue
-            if not name.startswith("@loader_path/") or not (frameworks / Path(name).name).is_file():
-                raise SystemExit(f"{binary.name} hat eine externe Abhängigkeit: {name}")
+    for name in dependencies(extension):
+        if not system_library(name):
+            raise SystemExit(f"{extension.name} hat eine externe Abhängigkeit: {name}")
     run([args.rcodesign, "sign", "--config-file", "/dev/null", app])
     for binary in [executable, *frameworks.glob("*.dylib")]:
         verify_signature(args.rcodesign, binary)

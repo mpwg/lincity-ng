@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from package_godot_linux import PROJECT, run
-from rust_notices import notices
+from rust_notices import check_notices
 
 PRESET = "Windows x64"
 EXE = "LinCity-NG.exe"
@@ -62,12 +62,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="Pfad des neuen ZIP-Archivs")
-    parser.add_argument("--dll-path", type=Path, action="append", required=True)
-    parser.add_argument("--license", type=Path, action="append", required=True)
+    parser.add_argument("--dll-path", type=Path, action="append", default=[])
+    parser.add_argument("--license", type=Path, action="append", default=[])
     args = parser.parse_args()
     target = args.output.resolve()
     if target.suffix.lower() != ".zip" or target.exists():
         parser.error("--output muss auf eine neue ZIP-Datei zeigen.")
+    check_notices()
     target.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=".lincity-windows-", dir=target.parent) as scratch:
         stage = Path(scratch) / "LinCity-NG-Windows-x64"
@@ -81,7 +82,6 @@ def main():
 
         licenses = stage / "licenses"
         shutil.copytree(PROJECT / "licenses", licenses)
-        (licenses / "Rust-Bibliotheken.txt").write_text(notices("x86_64-pc-windows-gnullvm"))
         for license_file in args.license:
             shutil.copyfile(license_file, licenses / license_file.name)
         (stage / "LIESMICH.txt").write_text(

@@ -1,15 +1,14 @@
 # Build-Optionen
 
-CMake baut die native Erweiterung `lincity_godot` und dabei den Rust-Simulationskern. Die Optionen werden beim Konfigurieren mit `-D` gesetzt.
+`cargo godot-build` baut die native Erweiterung `lincity_godot` mit dem Rust-Simulationskern und legt die Bibliothek in `godot/bin/` ab. Godot lädt sie beim Start des Editors oder des Spiels aus den Quellen. Standardmäßig verwendet der Build das optimierte Cargo-Profil `release`.
 
-- `CMAKE_BUILD_TYPE` wählt bei Generatoren wie Ninja und Unix Makefiles die Build-Konfiguration. Die Befehle in der Dokumentation verwenden `Release`. Für Debugging stehen auch `Debug` und `RelWithDebInfo` zur Verfügung.
-- `GODOTCPP_TARGET` wählt die Zielversion der Godot-Bindings. Der dokumentierte Editor-Build verwendet den Standard `template_debug`. Setze `template_release` in einem eigenen Build-Verzeichnis, wenn die Erweiterung für ein Release-Paket gebaut wird.
-- `LINCITY_GODOT_OUTPUT_DIR` setzt das Ausgabeverzeichnis der Erweiterung. Standardmäßig schreibt CMake nach `godot/bin/`, wo das Godot-Projekt und die Paketierskripte die Bibliothek erwarten.
-- `CMAKE_TOOLCHAIN_FILE` und `CMAKE_PREFIX_PATH` geben bei Bedarf die Toolchain und die Suchpfade für Bibliotheken der Zielplattform an.
+- `--export` legt die Bibliothek unter dem Dateinamen für Godots Release-Exportvorlagen ab. Der Editor-Build und der Export können nebeneinander in `godot/bin/` liegen.
+- `--debug` baut mit dem unoptimierten Cargo-Profil `dev` und erzeugt Debugsymbole.
+- `--target TRIPLE` gibt das Rust-Ziel für den Build der Erweiterung an. Den Linker und dessen Optionen für Cross-Builds kannst du über Cargo konfigurieren.
 
 [Beispielbefehle für Editor und Release-Exporte](GODOT_DESKTOP.md)
 
-Die Rust-Tests benötigen keine CMake-Konfiguration. Führe sie vom Stammverzeichnis mit `cargo test --locked --manifest-path rustcity-core/Cargo.toml` aus.
+`cargo test --workspace --locked` führt alle Rust-Tests aus. Den Simulationskern kannst du mit `cargo test --locked -p rustcity-core` separat prüfen.
 
 ## Vergleich mit dem archivierten C++-Kern
 
@@ -23,5 +22,5 @@ cmake --build "$archive/build" --target core_replay core_generation_reference
 RUSTCITY_CPP_ARCHIVE="$archive" \
   RUSTCITY_CPP_REPLAY="$archive/build/tests/core_replay" \
   RUSTCITY_CPP_GENERATOR="$archive/build/parity/core_generation_reference" \
-  cargo test --locked --manifest-path rustcity-core/Cargo.toml -- --ignored --skip generated_village_wins_a_sustainable_economy
+  cargo test --locked -p rustcity-core -- --ignored --skip generated_village_wins_a_sustainable_economy
 ```

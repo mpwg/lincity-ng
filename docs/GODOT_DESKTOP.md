@@ -6,11 +6,10 @@ Im Hauptmenü lässt sich eine neue Stadt anlegen, ein Szenario auswählen, ein 
 
 ## Start aus den Quellen
 
-Für den Linux-Build werden ein C++20-Compiler für die Godot-Anbindung, CMake, Git, Cargo und fmt benötigt. CMake verwendet die im Projekt festgelegte Version von godot-cpp. Die vorbereiteten GLB-Dateien sind im Repository enthalten. Zum Spielen genügt der Godot-Editor mit der passenden Erweiterung. [Abhängigkeiten](DEPENDENCIES.md)
+Cargo baut die native Erweiterung für den Godot-Editor. Die vorbereiteten GLB-Dateien sind im Repository enthalten. [Abhängigkeiten](DEPENDENCIES.md)
 
 ```sh
-cmake -S . -B build/godot-editor -DCMAKE_BUILD_TYPE=Release
-cmake --build build/godot-editor --target lincity_godot --parallel
+cargo godot-build
 godot --headless --path godot --import
 godot --path godot
 ```
@@ -56,8 +55,7 @@ godot --headless --path godot -s ../tooling/art/build_riverside.gd
 Die Linux-Releasevorlage muss zur installierten Godot-Version passen. Der Editor und das exportierte Spiel erhalten jeweils die passende native Bibliothek. Zusätzlich zum Editor-Build die Release-Erweiterung bauen und das Paket in einem neuen Zielverzeichnis erstellen.
 
 ```sh
-cmake -S . -B build/godot-template-release -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release
-cmake --build build/godot-template-release --target lincity_godot --parallel
+cargo godot-build --export
 python3 tooling/release/package_godot_linux.py --godot godot --output build/godot-linux-final --graphics
 ```
 
@@ -121,7 +119,7 @@ Die Kampagne beginnt in einem neu erzeugten 100 × 100 großen Sumpfgebiet mit S
 Der Godot-Test öffnet den unveränderten Startstand über das Hauptmenü und spielt dieselben Bauaktionen über Bauleiste und Zeigereingaben ab. Er verwendet den regulären Simulationsschritt und überspringt das Zeichnen der Zwischenbilder. Im frisch entpackten Linux-Export erschien der Nachhaltigkeitssieg an Tag 297.600 bei 6.686 Einwohnern. Nach dem Schließen des Dialogs lief die Stadt weiter. Ein neuer Zufallsverlauf nach dem Laden kann den Siegtermin verschieben.
 
 ```sh
-RUSTCITY_CAMPAIGN_ARTIFACTS="$PWD/build/sustainable-campaign" cargo test --locked --release --manifest-path rustcity-core/Cargo.toml --test sustainable_campaign -- --ignored --nocapture
+RUSTCITY_CAMPAIGN_ARTIFACTS="$PWD/build/sustainable-campaign" cargo test --locked --release -p rustcity-core --test sustainable_campaign -- --ignored --nocapture
 godot --path godot -s res://tests/sustainable_campaign.gd -- --mute "$PWD/build/sustainable-campaign/start.gz" "$PWD/rustcity-core/tests/fixtures/sustainable_campaign.tsv"
 ```
 
@@ -131,7 +129,19 @@ Das Testpaket für macOS 15 oder neuer enthält `LinCity-NG.app` mit der nativen
 
 Die Linux-Prüfung umfasst Architektur, Ladepfade, Signatur und Archivintegrität. Der Bedienlauf auf Apple Silicon steht aus.
 
-Der Cross-Build auf Linux verwendet Clang, LLD, das macOS-15.5-SDK und Rusts Ziel `aarch64-apple-darwin`. Für den Export benötigt [das Paketierskript](../tooling/release/package_godot_macos.py) die bereits gebaute Release-Erweiterung, Godot 4.5.1 und dessen `macos.zip`-Vorlage sowie LLVM-Werkzeuge und rcodesign. Das Skript extrahiert ARM64 aus der offiziellen Universalvorlage, übernimmt bei Bedarf die fmt-Bibliothek aus `--library-path`, prüft die Ladepfade und signiert die fertige App. `--fmt-license` gibt die Lizenzdatei von fmt an. Das SDK ist kein Bestandteil des Testpakets.
+Der Cross-Build auf Linux verwendet Clang, LLD, das macOS-15.5-SDK und Rusts Ziel `aarch64-apple-darwin`. Baue zuvor mit `cargo godot-build` die Erweiterung für den Editor auf dem Build-Rechner.
+
+```sh
+rustup target add aarch64-apple-darwin
+env SDKROOT=/pfad/MacOSX15.5.sdk MACOSX_DEPLOYMENT_TARGET=15.0 \
+  CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=clang \
+  CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS="-C link-arg=--target=arm64-apple-macos15.0 -C link-arg=-fuse-ld=lld" \
+  cargo godot-build --export --target aarch64-apple-darwin
+python3 tooling/release/package_godot_macos.py --godot /pfad/godot \
+  --template /pfad/macos.zip --output build/godot-macos-final
+```
+
+[Das Paketierskript](../tooling/release/package_godot_macos.py) benötigt Godot 4.5.1, dessen `macos.zip`-Vorlage, LLVM-Werkzeuge und rcodesign. Es extrahiert ARM64 aus der offiziellen Universalvorlage, prüft die Ladepfade und signiert die fertige App.
 
 ## Windows-x64-Testbuild
 
@@ -139,11 +149,15 @@ Das ZIP für Windows 10 und 11 auf x64 vollständig entpacken und `LinCity-NG.ex
 
 Das entpackte Paket wurde unter Wine auf Hauptmenü, Fortsetzen, Bauvorschau, HUD und Spielstand geprüft. Der Bedienlauf auf einem nativen Windows-System steht aus.
 
-Für den Cross-Build auf Linux LLVM-MinGW mit UCRT und das Rust-Ziel `x86_64-pc-windows-gnullvm` verwenden. Die Windows-Version von fmt muss im Zielpräfix liegen. Die CMake-Toolchain setzt `CMAKE_SYSTEM_NAME=Windows`, `CMAKE_SYSTEM_PROCESSOR=x86_64`, die x86_64-Compiler von LLVM-MinGW und den Suchpfad für Zielbibliotheken. Für Cargo verweist `CXX_x86_64_pc_windows_gnullvm` auf denselben C++-Compiler.
+Für den Cross-Build auf Linux LLVM-MinGW mit UCRT und das Rust-Ziel `x86_64-pc-windows-gnullvm` verwenden. Baue zuvor mit `cargo godot-build` die Erweiterung für den Editor auf dem Build-Rechner.
 
 ```sh
-cmake -S . -B build/godot-windows-x64 -DCMAKE_TOOLCHAIN_FILE=/pfad/windows.cmake -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release -DGODOTCPP_USE_STATIC_CPP=OFF
-cmake --build build/godot-windows-x64 --target lincity_godot --parallel
+rustup target add x86_64-pc-windows-gnullvm
+env CARGO_TARGET_X86_64_PC_WINDOWS_GNULLVM_LINKER=/pfad/llvm-mingw/bin/x86_64-w64-mingw32-clang \
+  cargo godot-build --export --target x86_64-pc-windows-gnullvm
+python3 tooling/release/package_godot_windows.py --godot /pfad/godot \
+  --output build/LinCity-NG-Windows-x64.zip \
+  --dll-path /pfad/llvm-mingw/x86_64-w64-mingw32/bin --license /pfad/llvm-mingw/LICENSE.TXT
 ```
 
-[Das Paketierskript](../tooling/release/package_godot_windows.py) verwendet Godot 4.5.1 mit der installierten Windows-x64-Exportvorlage und `llvm-objdump`. Mit `--dll-path` werden die Verzeichnisse für fmt und gegebenenfalls für die Laufzeitbibliotheken von LLVM-MinGW angegeben. Mit `--license` werden die zugehörigen Lizenzdateien mitgeliefert.
+[Das Paketierskript](../tooling/release/package_godot_windows.py) verwendet Godot 4.5.1 mit der installierten Windows-x64-Exportvorlage und `llvm-objdump`. Der LLVM-MinGW-Build benötigt `libunwind.dll`. Das Skript übernimmt diese DLL aus `--dll-path` und legt den Lizenztext aus `--license` bei.

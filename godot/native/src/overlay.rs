@@ -2,7 +2,6 @@
 // Copyright (C) 2005 David Kamphausen <david.kamphausen@web.de>
 // Copyright (C) 2024-2026 David Bears <dbear4q@gmail.com>
 
-use crate::Engine;
 use rustcity_core::{
     BuildingKind, BuildingState, COAL_DEPOSIT_CAPACITY, City, Commodity, TRANSPORT_QUANTA,
     TRANSPORT_RATE, Terrain, TileView,
@@ -56,7 +55,7 @@ impl Mode {
     ];
 }
 
-pub(crate) fn overlay(engine: &Engine, mode: i32, commodity: i32) -> Vec<u32> {
+pub(crate) fn overlay(city: &City, mode: i32, commodity: i32) -> Vec<u32> {
     let Some(&mode) = Mode::ALL.get(mode as usize) else {
         return Vec::new();
     };
@@ -64,7 +63,6 @@ pub(crate) fn overlay(engine: &Engine, mode: i32, commodity: i32) -> Vec<u32> {
         return Vec::new();
     };
 
-    let city = &engine.city;
     let side = city.side();
     let mut colours = Vec::with_capacity(side as usize * side as usize);
     colours.extend(
@@ -263,23 +261,22 @@ fn rgb([red, green, blue]: [u8; 3]) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::overlay;
-    use crate::Engine;
     use rustcity_core::{Action, BuildingKind, City, Point};
 
-    fn empty_residence() -> Engine {
+    fn empty_residence() -> City {
         let mut city = City::empty(12).unwrap();
         city.apply(
             Action::Build(BuildingKind::ResidenceLowLow),
             Point { x: 2, y: 5 },
         )
         .unwrap();
-        Engine { city }
+        city
     }
 
     #[test]
     fn map_colours_use_the_covering_building_in_row_order() {
-        let engine = empty_residence();
-        let colours = overlay(&engine, 0, 0);
+        let city = empty_residence();
+        let colours = overlay(&city, 0, 0);
         assert_eq!(colours.len(), 144);
         assert_eq!(colours[5 * 12 + 2], 0x00c0c0);
         assert_eq!(colours[7 * 12 + 4], 0x00c0c0);
@@ -288,7 +285,7 @@ mod tests {
 
     #[test]
     fn empty_residence_matches_legacy_stock_colours() {
-        let engine = empty_residence();
+        let city = empty_residence();
         for (mode, commodity, colour) in [
             (1, 0, 0x007f00),  // Pollution
             (2, 0, 0x808080),  // Unemployment
@@ -304,7 +301,7 @@ mod tests {
             (10, 6, 0x0000ff), // Waste
         ] {
             assert_eq!(
-                overlay(&engine, mode, commodity)[5 * 12 + 2],
+                overlay(&city, mode, commodity)[5 * 12 + 2],
                 colour,
                 "mode {mode}, commodity {commodity}"
             );
@@ -328,9 +325,7 @@ mod tests {
     <Construction group="34" map-x="8" map-y="5"><smoking_days>1</smoking_days></Construction>
   </map>
 </lc-game>"#;
-        let engine = Engine {
-            city: City::load(save.as_slice()).unwrap(),
-        };
+        let city = City::load(save.as_slice()).unwrap();
         for (mode, commodity, x, colour) in [
             (1, 0, 3, 0x3f3f00),  // Pollution uses local counters.
             (2, 0, 3, 0xff0000),  // Evacuation reports raw stock.
@@ -346,7 +341,7 @@ mod tests {
             (10, 0, 3, 0x808080), // Evacuation hides stock of one unit.
         ] {
             assert_eq!(
-                overlay(&engine, mode, commodity)[5 * 32 + x],
+                overlay(&city, mode, commodity)[5 * 32 + x],
                 colour,
                 "mode {mode}, commodity {commodity}, column {x}"
             );
@@ -355,11 +350,9 @@ mod tests {
 
     #[test]
     fn rejects_invalid_bridge_arguments() {
-        let engine = Engine {
-            city: City::empty(12).unwrap(),
-        };
+        let city = City::empty(12).unwrap();
         for (mode, commodity) in [(-1, 0), (11, 0), (0, -1), (0, 10)] {
-            assert!(overlay(&engine, mode, commodity).is_empty());
+            assert!(overlay(&city, mode, commodity).is_empty());
         }
     }
 }

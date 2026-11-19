@@ -1,0 +1,16 @@
+[package]
+name = "rustcity-godot"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "GPL-2.0-or-later"
+description = "RustCity GDExtension for the LinCity-NG Godot desktop"
+
+[lib]
+name = "lincity_godot"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+godot = { version = "=0.5.5", features = ["api-4-5"] }
+rustcity-core = { path = "../../rustcity-core" }
+tempfile = "3.27.0"

@@ -1,0 +1,2 @@
+[alias]
+godot-build = "run --locked --quiet --package xtask --"

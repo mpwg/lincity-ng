@@ -45,11 +45,11 @@ We just want to ensure that the project maintains the highest quality possible
 
 ### Directory Map
 
-- `godot/` contains the 3D game, its assets, and the native GDExtension in `godot/native/`.
-- `rustcity-core/` contains the city simulation, its native bindings, and its tests.
+- `godot/` contains the 3D game, its assets, and the Rust GDExtension in `godot/native/`.
+- `rustcity-core/` contains the city simulation and its tests.
 - `tooling/` contains art creation and release tools.
 - `docs/` contains project documentation, screenshots and unreleased changes.
-- `build/` holds local build artifacts.
+- `target/` holds Cargo build artifacts, and `build/` holds local exports.
 
 ### Changelog
 
@@ -137,8 +137,8 @@ the applicable licenses.
 
 #### Formatting
 
-Use `cargo fmt --manifest-path rustcity-core/Cargo.toml` for Rust code. Follow the
-existing formatting and naming in adjacent Godot scripts and C++ extension code.
+Use `cargo fmt --all` for Rust code. Follow the existing formatting and naming
+in adjacent Godot scripts.
 Run the Rust tests and the relevant Godot tests before opening a pull request.
 [Build and test commands](docs/GODOT_DESKTOP.md#prüfung)
 
@@ -148,7 +148,7 @@ You can contribute to LinCity-NG by testing it and reporting issues you find.
 Here are some pointers for testing effectively:
 
 - Test the latest `main` branch or the pull request you are reviewing.
-- Use `-DCMAKE_BUILD_TYPE=Debug` when you need debug symbols for the Godot extension.
+- Use `cargo godot-build --debug` when you need debug symbols for the Godot extension.
 - Run the game in gdb. This can help with reporting crashes.
 - When playing the game, make an effort to test a broad range of functionality.
   For example, test multiple kinds of starting scenarios, change settings in the

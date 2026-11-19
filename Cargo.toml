@@ -1,0 +1,3 @@
+[workspace]
+members = ["godot/native", "rustcity-core", "tooling/xtask"]
+resolver = "3"

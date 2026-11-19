@@ -6,7 +6,6 @@ const FILES := {
 	"LinCity-NG · GPL": "LinCity-GPL.txt",
 	"Spieldaten · GPL / CC BY-SA": "Spieldaten.txt",
 	"Godot Engine und Drittkomponenten": "",
-	"godot-cpp · MIT": "godot-cpp-MIT.txt",
 	"Rust-Abhängigkeiten": "Rust-Bibliotheken.txt",
 }
 var sections := OptionButton.new()

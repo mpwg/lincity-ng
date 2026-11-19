@@ -45,7 +45,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	add_child(audio)
 	if not ClassDB.class_exists("CityWorld"):
-		hud.show_info(tr("Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen."))
+		hud.show_info(tr("Die native Erweiterung fehlt. Bitte cargo godot-build ausführen."))
 		set_process(false)
 		return
 	core = ClassDB.instantiate("CityWorld")

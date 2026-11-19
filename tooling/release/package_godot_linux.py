@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-from rust_notices import ROOT, notices
+from rust_notices import ROOT, check_notices
 
 PROJECT = ROOT / "godot"
 PROGRAM = "LinCity-NG.x86_64"
@@ -88,8 +88,7 @@ def main():
     target = args.output.resolve()
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         parser.error("Das Ziel muss neu oder leer sein.")
-    if notices() != (PROJECT / "licenses/Rust-Bibliotheken.txt").read_text():
-        raise SystemExit("Die Lizenzliste ist veraltet. Bitte tooling/release/rust_notices.py ausführen.")
+    check_notices()
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".lincity-export-", dir=target.parent) as scratch:
         stage = Path(scratch) / "LinCity-NG"
