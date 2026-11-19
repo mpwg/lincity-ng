@@ -13,6 +13,23 @@ func _initialize() -> void:
 	if not city.load_city(SOURCE).is_empty():
 		quit(1)
 		return
+	# Broaden the natural bend into a river with two recognizable banks.
+	for y in range(19, 44):
+		var bank := roundi(88.0 - (y - 19) * .41)
+		var width := mini(4, mini(y - 18, 44 - y))
+		for x in range(bank, bank + width + 1):
+			var cell := Vector2i(x,y)
+			var state: Dictionary = city.snapshot()
+			var index: int = y * state.side + x
+			if state.tiles[index] == 21:
+				continue
+			if state.tiles[index] not in [0,35,42,43,44,45]:
+				city.apply(DEMOLISH, cell)
+			if city.snapshot().tiles[index] != 21:
+				var error: String = city.apply(-4, cell)
+				if not error.is_empty():
+					printerr("Flussbett %s: %s" % [cell, error])
+					failures += 1
 	# The transverse street crosses the existing course of the river.
 	for x in range(65, 90):
 		place(ROAD, Vector2i(x, 30), 1)

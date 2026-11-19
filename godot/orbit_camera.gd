@@ -83,13 +83,13 @@ func input_camera(event: InputEvent) -> bool:
 # Both views look into the same playable district, in map coordinates.
 func riverside_view(bridge: bool) -> void:
 	if bridge:
-		focus = Vector3(78.4, 0, 29.9)
-		azimuth = deg_to_rad(94)
+		focus = Vector3(80.65, 0, 30.25)
+		azimuth = deg_to_rad(75)
 		elevation = deg_to_rad(30)
-		distance = 14.0
+		distance = 10.8
 	else:
-		focus = Vector3(76.8, 0, 30.9)
+		focus = Vector3(76.85, 0, 29.95)
 		azimuth = deg_to_rad(-8)
 		elevation = deg_to_rad(31)
-		distance = 12.0
+		distance = 8.6
 	update_pose()
