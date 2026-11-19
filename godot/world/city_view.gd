@@ -1,6 +1,7 @@
 extends Node3D
 
 const Models = preload("model_catalog.gd")
+const RiverReflections = preload("river_reflections.gd")
 const SURFACE = preload("city_surface.gdshader")
 const CHUNK := 12
 const DIRS := [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
@@ -20,6 +21,7 @@ var _operating := PackedByteArray()
 var _smoke_mesh := QuadMesh.new()
 var _chunks: Dictionary = {}
 var _water_mask: ImageTexture
+var _mirror: RiverReflections
 
 class Chunk:
 	var root := Node3D.new()
@@ -38,10 +40,17 @@ class Batch:
 
 func _init() -> void:
 	_material.shader = SURFACE
+	_material.set_shader_parameter("wave_slopes",load("res://world/river_slopes.png"))
 	_material.set_shader_parameter("leaf_spray",load("res://art/city/leaf_spray.png"))
 	var smoke_material := ShaderMaterial.new()
 	smoke_material.shader = preload("smoke.gdshader")
 	_smoke_mesh.material = smoke_material
+
+func _ready() -> void:
+	if DisplayServer.get_name() == "headless": return
+	_mirror = RiverReflections.new()
+	add_child(_mirror)
+	_catalog.set_map_parameter("reflection_map",_mirror.get_texture(),_material)
 
 func update_city(snapshot: Dictionary, overlay: bool = false) -> void:
 	var new_side: int = snapshot.get("side", 0)
@@ -56,8 +65,9 @@ func update_city(snapshot: Dictionary, overlay: bool = false) -> void:
 	var smoke_dirty := {}
 	var operating: PackedByteArray = snapshot.get("operating",PackedByteArray())
 	if side != new_side:
-		for c: Chunk in _chunks.values():
-			c.root.free()
+		for id: Vector2i in _chunks:
+			_chunks[id].root.free()
+			if _mirror: _mirror.clear_district(id)
 		_chunks.clear()
 		for z in range(0, new_side, CHUNK):
 			for x in range(0, new_side, CHUNK):
@@ -68,6 +78,11 @@ func update_city(snapshot: Dictionary, overlay: bool = false) -> void:
 				continue
 			var x := i % side
 			var z := floori(i / float(side))
+			if (tiles[i] in [21,46,47,48]) != (groups[i] in [21,46,47,48]):
+				# The reflection district includes one tile beyond each corner.
+				for dx in [-1,1]:
+					for dz in [-1,1]:
+						if _inside(x+dx,z+dz): dirty[_chunk_id(x+dx,z+dz)] = true
 			dirty[_chunk_id(x,z)] = true
 			# Rebuild neighbours' road masks as well as the building anchor.
 			for r in [anchors[i], roots[i]]:
@@ -165,10 +180,17 @@ func _bank_direction(x: int,z: int) -> int:
 			return i
 	return -1
 
+func _near_water(start: Vector2i) -> bool:
+	for z in range(maxi(start.y-1,0),mini(side,start.y+CHUNK+1)):
+		for x in range(maxi(start.x-1,0),mini(side,start.x+CHUNK+1)):
+			if tiles[z*side+x] in [21,46,47,48]: return true
+	return false
+
 func _build_chunk(id: Vector2i) -> void:
 	if _chunks.has(id):
 		var old: Chunk = _chunks[id]
 		old.root.free()
+		if _mirror: _mirror.clear_district(id)
 	var chunk := Chunk.new()
 	_chunks[id] = chunk
 	chunk.root.name = "District_%d_%d" % [id.x,id.y]
@@ -200,6 +222,7 @@ func _build_chunk(id: Vector2i) -> void:
 				if not grouped.has(decoration_key): grouped[decoration_key]=[]
 				grouped[decoration_key].append(i)
 	var has_bounds := false
+	var river_district := _mirror != null and _near_water(start)
 	for key: int in grouped:
 		var group := floori(key/16.0)
 		var batch := Batch.new()
@@ -240,6 +263,8 @@ func _build_chunk(id: Vector2i) -> void:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk.root.add_child(node)
 		chunk.batches.append(batch)
+		if river_district and batch.asset.bounds.size.y > .21 and group != Models.SHORE:
+			_mirror.add_batch(id,batch.asset,batch.transforms,group in [19,43,44,45,50,Models.AVENUE])
 	chunk.root.add_child(chunk.smoke)
 	chunk.smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_update_smoke(chunk)
@@ -277,6 +302,8 @@ func _update_smoke(chunk: Chunk) -> void:
 func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if not camera: return
+	if _mirror and _mirror.sync(camera,not _overlay):
+		_catalog.set_map_parameter("reflection_active",_mirror.enabled,_material)
 	for chunk: Chunk in _chunks.values():
 		_set_detail(chunk,camera.global_position)
 

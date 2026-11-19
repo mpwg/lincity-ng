@@ -3,6 +3,9 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform sampler2D leaf_spray : filter_linear_mipmap, repeat_disable;
 uniform sampler2D water_mask : filter_linear, repeat_disable;
+uniform bool reflection_active = false;
+uniform sampler2D wave_slopes : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D reflection_map : filter_linear, repeat_disable;
 uniform float map_width = 1.0;
 varying vec3 world_pos;
 uniform bool bridge = false;
@@ -85,20 +88,37 @@ void fragment() {
 		float irregularity = noise2(world_pos.xz * 3.3);
 		shore += (irregularity - 0.5) * 0.13;
 		vec3 dry = style == 5 ? vec3(0.52,0.55,0.36) : color;
-		vec3 shallows = vec3(0.42,0.49,0.40);
-		vec3 deep = vec3(0.26,0.37,0.38);
-		float silt = noise2(world_pos.xz * 7.1);
-		dry = mix(dry,vec3(0.58,0.56,0.43)*(0.92+0.13*silt),smoothstep(0.28,0.52,shore));
-		vec3 water = mix(shallows,deep,smoothstep(0.48,0.97,shore));
-		vec2 flow = world_pos.xz * vec2(2.1,8.6);
-		float eddy = noise2(world_pos.xz*1.69);
-		float ripple = noise2(flow + vec2(TIME*.22, eddy*2.2-TIME*.38));
-		float reflection = noise2(world_pos.xz*.93+TIME*.025);
-		water += vec3(.11,.12,.11) * smoothstep(.58,.91,ripple) * (.22+.78*reflection);
-		water *= .92 + .13*reflection;
-		float wet = smoothstep(0.44,0.56,shore);
+		vec3 shallows = vec3(0.32,0.39,0.31);
+		vec3 deep = vec3(0.22,0.31,0.32);
+		float silt = noise2(world_pos.xz * 12.1);
+		dry = mix(dry,vec3(0.47,0.45,0.35)*(0.86+0.25*silt),smoothstep(0.27,0.54,shore));
+		vec3 water = mix(shallows,deep,smoothstep(0.48,0.90,shore));
+		float wet = smoothstep(0.475,0.52,shore);
+		if (wet > 0.0) {
+			vec2 p = world_pos.xz;
+			vec2 swell = texture(wave_slopes, p*.28+TIME*vec2(.016,.009)).rg*2.-1.;
+			mat2 cross_wind = mat2(vec2(.80,.60),vec2(-.60,.80));
+			vec2 capillary = cross_wind* (texture(wave_slopes,cross_wind*p*.73-TIME*vec2(.012,.023)).rg*2.-1.);
+			vec2 tilt = .68*swell + .32*capillary;
+			float fresnel = pow(1.0-abs(normalize(CAMERA_POSITION_WORLD-world_pos).y),2.1);
+			vec3 sky = vec3(.47,.54,.56);
+			water = mix(water,sky,.18+fresnel*.35);
+			if (reflection_active) {
+				vec2 distortion = tilt * vec2(.0045,.006);
+				vec4 reflected = texture(reflection_map,SCREEN_UV+distortion);
+				float distance_fade = 1.0-smoothstep(44.0,57.0,distance(CAMERA_POSITION_WORLD,world_pos));
+				water = mix(water,reflected.rgb*vec3(.80,.87,.88),reflected.a*(.66+fresnel*.28)*distance_fade);
+			}
+			// Tiny wave faces reflect sunlight over a limited range of view directions.
+			vec3 to_eye = normalize(CAMERA_POSITION_WORLD-world_pos);
+			vec3 half_light = normalize(to_eye + normalize(vec3(-.49,.77,.39)));
+			vec3 slope = normalize(vec3(tilt.x*.61,1.0,tilt.y*.62));
+			float glint = pow(max(dot(slope,half_light),0.0),112.0);
+			water += vec3(.51,.49,.43) * glint;
+			water += vec3(.042,.049,.051) * tilt.y;
+		}
 		color = mix(dry,water,wet);
-		ROUGHNESS = mix(0.92, 0.27, wet);
+		ROUGHNESS = mix(.94,.36,wet);
 	} else if (style == 11) {
 		vec4 leaves = texture(leaf_spray, UV);
 		if (leaves.a < 0.34) discard;
