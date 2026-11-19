@@ -63,7 +63,7 @@ func _new_city(climate := 0, side := 100, village := true, trees := true) -> voi
 func _load_city(path: String) -> void:
 	var physical := ProjectSettings.globalize_path(path)
 	# Native readers take filesystem paths. Built-in scenarios may also live in a PCK.
-	if path.begins_with("res://") and not FileAccess.file_exists(physical):
+	if path.begins_with("res://"):
 		var bytes := FileAccess.get_file_as_bytes(path)
 		if bytes.is_empty():
 			hud.show_info("Das Szenario konnte nicht gelesen werden.")

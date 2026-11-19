@@ -16,3 +16,8 @@ set_target_properties(lincity_godot PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "$<1:${LINCITY_GODOT_OUTPUT_DIR}>"
   PREFIX "lib"
   CXX_VISIBILITY_PRESET hidden)
+
+# The Godot 4.5 editor and release runtime use different allocator padding.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND GODOTCPP_TARGET STREQUAL "template_release")
+  set_target_properties(lincity_godot PROPERTIES OUTPUT_NAME "lincity_godot.release")
+endif()

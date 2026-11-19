@@ -1,0 +1,20 @@
+LinCity-NG
+
+Programm und Simulation
+LinCity, LinCity-NG und RustCity werden unter der GNU General Public License Version 2 oder einer späteren Version veröffentlicht. Die Mitwirkenden der Originalprojekte sind im Verzeichnis „Mitwirkende“ aufgeführt.
+Projekt und Quellcode: https://github.com/mpwg/lincity-ng
+Ursprüngliches Projekt: https://github.com/lincity-ng/lincity-ng
+
+Grafik und Spieldaten
+Die klassischen Werkzeugsymbole, Hilfeillustrationen, Hilfetexte, Szenarien und Übersetzungen stammen aus LinCity-NG. Die neuen Stadtgebäude, Personenwagen, Fabriklieferwagen, Texturatlanten und HUD-Symbole sind Originalbeiträge zum LinCity-NG-Projekt (2026). Die Gebäudemodelle und Materialtexturen wurden für dieses Projekt erstellt. Die Blender-Quelldatei und die Generatoren liegen im Quellcode unter tooling/art/architecture, godot/world/authoring und tooling/art. Für die Spieldaten gelten die GNU General Public License und Creative Commons Namensnennung – Weitergabe unter gleichen Bedingungen 2.0 entsprechend Spieldaten.txt.
+
+Godot Engine und godot-cpp
+Godot Engine und die C++-Anbindung stehen unter der MIT-Lizenz. Die Engine stellt die Originalnachweise und Lizenztexte ihrer mitgelieferten Drittkomponenten bereit.
+https://godotengine.org/license/
+
+Rust-Bibliotheken
+RustCity und die Anbindung an den Desktop verwenden die in „Rust-Abhängigkeiten“ aufgeführten Bibliotheken. Die Lizenz- und Urhebervermerke stammen aus deren Originalpaketen.
+
+libxml++
+Diese Ausgabe verwendet libxml++ (ABI 5.0), eine C++-Schnittstelle für libxml2, unter der GNU Lesser General Public License 2.1. Urheber sind unter anderem Ari Johnson, Stefan Seefeld und das libxml++-Entwicklungsteam. Zu den Betreuern gehören Murray Cumming und Kjell Ahlstedt. Die Linux-Ausgabe lädt die austauschbare Bibliothek aus dem Unterverzeichnis lib. Ihr zugehöriger Quellcode liegt im Verzeichnis sources des Pakets.
+https://libxmlplusplus.github.io/libxmlplusplus/

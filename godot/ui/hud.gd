@@ -82,6 +82,7 @@ var climate := OptionButton.new()
 var extent := SpinBox.new()
 var village := CheckBox.new()
 var trees := CheckBox.new()
+var credits_dialog := preload("res://ui/credits.gd").new()
 var help_dialog := preload("res://ui/help_book.gd").new()
 var catalog := {}
 var categories := {}
@@ -223,6 +224,7 @@ func _top_bar() -> void:
 	popup.add_item("Kohlevorkommen erkunden …", 7)
 	popup.add_separator()
 	popup.add_item("Spielhilfe", 3)
+	popup.add_item("Mitwirkende und Lizenzen …", 8)
 	popup.id_pressed.connect(_menu_action)
 
 func _palette() -> void:
@@ -397,6 +399,7 @@ func _dialogs() -> void:
 		else:
 			load_requested.emit(str(scenarios.get_selected_metadata())))
 	surface.add_child(help_dialog)
+	surface.add_child(credits_dialog)
 	surface.add_child(report_dialog)
 	report_dialog.add_child(report_body)
 	report_body.selection_enabled = true
@@ -418,7 +421,7 @@ func _dialogs() -> void:
 	launch_dialog.ok_button_text = "Starten"
 	launch_dialog.cancel_button_text = "Abbrechen"
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
-	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, trade_dialog, survey_dialog, launch_dialog]:
+	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog]:
 		dialog.theme = surface.theme
 		dialog.transient = true
 		dialog.exclusive = true
@@ -430,6 +433,7 @@ func _menu_action(id: int) -> void:
 		1: load_dialog.popup_centered_ratio(0.75)
 		2: save_dialog.popup_centered_ratio(0.75)
 		3: help_dialog.popup_centered(Vector2i(660, 540))
+		8: credits_dialog.popup_centered(Vector2i(710, 550))
 		4, 5, 6:
 			current_report = id
 			_refresh_report()

@@ -32,8 +32,8 @@ func _test() -> void:
 	hud.setup(core.tools())
 	hud.update_city(core.snapshot())
 	await process_frame
-	game._process(0.1)
-	check(is_equal_approx(game.elapsed, 0.1), "Die Simulation steht trotz geschlossenem Dialog.")
+	game._process(0.01)
+	check(is_equal_approx(game.elapsed, 0.01), "Die Simulation steht trotz geschlossenem Dialog.")
 	var all := {}
 	for index in hud.category_picker.item_count:
 		hud.category_picker.select(index)
@@ -55,8 +55,8 @@ func _test() -> void:
 	root.push_input(key(KEY_B))
 	await process_frame
 	check(root.get_last_exclusive_window() == hud.catalog_dialog, "Baukatalog ist nicht modal.")
-	game._process(0.1)
-	check(is_equal_approx(game.elapsed, 0.1), "Die Simulation läuft bei geöffnetem Dialog.")
+	game._process(0.01)
+	check(is_equal_approx(game.elapsed, 0.01), "Die Simulation läuft bei geöffnetem Dialog.")
 	var bearing: float = game.camera.azimuth
 	game._unhandled_input(key(KEY_Q))
 	check(game.camera.azimuth == bearing, "Die Kamera dreht sich hinter dem Dialog.")
