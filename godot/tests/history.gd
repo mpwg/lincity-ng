@@ -11,6 +11,7 @@ func _initialize() -> void:
 	call_deferred("_test")
 
 func _test() -> void:
+	TranslationServer.set_locale("de")
 	var core := CityWorld.new()
 	if not core.has_method("history"):
 		check(false, "CityWorld liefert keinen Statistikverlauf.")

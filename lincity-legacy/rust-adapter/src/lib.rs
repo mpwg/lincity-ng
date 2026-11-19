@@ -63,6 +63,11 @@ pub mod ffi {
         current_tech: i32,
         required_tech: i32,
     }
+    struct BatchActionResult {
+        action: ActionResult,
+        anchor: Point,
+        size: u16,
+    }
     enum EventKind {
         None,
         RocketFailed,
@@ -117,6 +122,18 @@ pub mod ffi {
         fn quote(engine: &Engine, kind: ActionKind, group: u16, point: Point) -> ActionResult;
         fn preview(engine: &Engine, kind: ActionKind, group: u16, point: Point) -> ActionResult;
         fn apply(engine: &mut Engine, kind: ActionKind, group: u16, point: Point) -> ActionResult;
+        fn preview_batch(
+            engine: &Engine,
+            kind: ActionKind,
+            group: u16,
+            points: &[Point],
+        ) -> Vec<BatchActionResult>;
+        fn apply_batch(
+            engine: &mut Engine,
+            kind: ActionKind,
+            group: u16,
+            points: &[Point],
+        ) -> Vec<BatchActionResult>;
         fn can_build(engine: &Engine, group: u16) -> ActionResult;
         fn pop_event(engine: &mut Engine) -> Event;
     }
@@ -321,34 +338,36 @@ impl ffi::ActionResult {
     }
 }
 
+fn parse_action(kind: ffi::ActionKind, group: u16) -> Option<core::Action> {
+    use core::Action as A;
+    use ffi::ActionKind as K;
+    match kind {
+        K::Build => core::BuildingKind::from_id(group).map(A::Build),
+        K::Query => Some(A::Query),
+        K::Bulldoze => Some(A::Bulldoze),
+        K::Evacuate => Some(A::Evacuate),
+        K::Flood => Some(A::Flood),
+        _ => None,
+    }
+}
+
 fn command(
     city: &core::City,
     kind: ffi::ActionKind,
     group: u16,
     point: ffi::Point,
 ) -> Result<(core::Action, ffi::ActionResult), ffi::ActionResult> {
-    use core::Action as A;
-    use ffi::ActionKind as K;
     let mut result = ffi::ActionResult::new(group, point);
-    let action = match kind {
-        K::Build => core::BuildingKind::from_id(group).map(|requested| {
-            let actual = city.building_kind_at_site(requested, point.into());
-            result.group = actual.id();
-            result.current_tech = city.report().tech_level;
-            result.required_tech = actual.metadata().required_tech;
-            A::Build(requested)
-        }),
-        K::Query => Some(A::Query),
-        K::Bulldoze => Some(A::Bulldoze),
-        K::Evacuate => Some(A::Evacuate),
-        K::Flood => Some(A::Flood),
-        _ => None,
-    };
-    let Some(action) = action else {
+    let Some(action) = parse_action(kind, group) else {
         result.error = ffi::Failure::InvalidAction;
         return Err(result);
     };
-    if kind != K::Build {
+    if let core::Action::Build(requested) = action {
+        let actual = city.building_kind_at_site(requested, point.into());
+        result.group = actual.id();
+        result.current_tech = city.report().tech_level;
+        result.required_tech = actual.metadata().required_tech;
+    } else {
         result.group = city
             .building_at(point.into())
             .map_or(0, |(kind, _)| kind.id());
@@ -400,6 +419,82 @@ fn apply(
         Err(error) => error,
     }
 }
+
+fn batch_results(
+    kind: ffi::ActionKind,
+    group: u16,
+    points: &[ffi::Point],
+    current_tech: i32,
+    run: impl FnOnce(core::Action, &[core::Point]) -> Vec<core::ActionQuote>,
+) -> Vec<ffi::BatchActionResult> {
+    let Some(action) = parse_action(kind, group) else {
+        return points
+            .iter()
+            .map(|&point| {
+                let mut action = ffi::ActionResult::new(group, point);
+                action.error = ffi::Failure::InvalidAction;
+                ffi::BatchActionResult {
+                    action,
+                    anchor: point,
+                    size: 1,
+                }
+            })
+            .collect();
+    };
+    let targets: Vec<_> = points.iter().copied().map(Into::into).collect();
+    run(action, &targets)
+        .into_iter()
+        .zip(points)
+        .map(|(quote, &point)| {
+            let mut action = ffi::ActionResult::new(quote.group, point);
+            action.cost = quote.cost;
+            action.current_tech = current_tech;
+            if let Err(error) = quote.status {
+                if error == core::ActionError::BuildDenied(core::BuildDenial::NotEnoughTech) {
+                    action.required_tech = core::BuildingKind::from_id(quote.group)
+                        .map_or(0, |kind| kind.metadata().required_tech);
+                }
+                action = action.failed(error);
+            }
+            ffi::BatchActionResult {
+                action,
+                anchor: quote.anchor.into(),
+                size: quote.size,
+            }
+        })
+        .collect()
+}
+
+fn preview_batch(
+    engine: &Engine,
+    kind: ffi::ActionKind,
+    group: u16,
+    points: &[ffi::Point],
+) -> Vec<ffi::BatchActionResult> {
+    batch_results(
+        kind,
+        group,
+        points,
+        engine.city.report().tech_level,
+        |action, targets| engine.city.preview_batch(action, targets),
+    )
+}
+
+fn apply_batch(
+    engine: &mut Engine,
+    kind: ffi::ActionKind,
+    group: u16,
+    points: &[ffi::Point],
+) -> Vec<ffi::BatchActionResult> {
+    batch_results(
+        kind,
+        group,
+        points,
+        engine.city.report().tech_level,
+        |action, targets| engine.city.apply_batch(action, targets),
+    )
+}
+
 fn can_build(engine: &Engine, group: u16) -> ffi::ActionResult {
     let mut result = ffi::ActionResult::new(group, ffi::Point { x: -1, y: -1 });
     let Some(kind) = core::BuildingKind::from_id(group) else {

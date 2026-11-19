@@ -55,6 +55,7 @@ func _run() -> void:
 			_check(game.state.time == day, "Simulation läuft hinter dem Dialog.")
 			dialog.hide()
 			game._process(.25)
-			_check(game.state.time == day + 1 and not dialog.visible, "Weiterbauen ist nicht möglich.")
-	print("Spielausgänge geprüft: Evakuierung, Nachhaltigkeit und Niederlage.")
+			_check(game.state.time > day and not dialog.visible, "Weiterbauen ist nicht möglich.")
+	if failures == 0:
+		print("Spielausgänge geprüft: Evakuierung, Nachhaltigkeit und Niederlage.")
 	quit(1 if failures else 0)

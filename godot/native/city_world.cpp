@@ -8,6 +8,7 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_float64_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 
 #include "DesktopWorld.hpp"
 #include "lincity/ConstructionReport.hpp"
@@ -20,8 +21,10 @@
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 namespace {
 using godot::Array;
@@ -30,11 +33,79 @@ using godot::D_METHOD;
 using godot::Dictionary;
 using godot::PackedInt32Array;
 using godot::String;
+using godot::TypedArray;
 using godot::Vector2i;
 
 String text(const std::string& value) { return String::utf8(value.c_str()); }
 String localized(const std::string& value) {
   return godot::TranslationServer::get_singleton()->translate(text(value));
+}
+
+template<class... Args>
+String localized_format(const std::string& key, const Args&... args) {
+  const auto format = localized(key).utf8();
+  return text(fmt::format(fmt::runtime(format.get_data()), args...));
+}
+
+String message_text(const Message::ptr& message) {
+  if(auto build = dynamic_message_cast<CannotBuildMessage>(message)) {
+    const auto name = localized(build->getGroup().name).utf8();
+    auto headline = localized_format(dynamic_message_cast<CannotBuildHereMessage>(message)
+      ? "Cannot build a {} here." : "Cannot build a {}.", name.get_data());
+    if(auto reason = build->getReason()) headline += " " + message_text(reason);
+    return headline;
+  }
+  if(dynamic_message_cast<CannotBulldozeNonemptyTipMessage>(message))
+    return localized("You cannot bulldoze this land fill because it is full of waste.");
+  if(dynamic_message_cast<CannotBulldozeIncompleteMonumentMessage>(message))
+    return localized("You cannot bulldoze this monument because it is still under construction.");
+  if(auto bulldoze = dynamic_message_cast<CannotBulldozeThisMessage>(message)) {
+    const auto name = localized(bulldoze->getGroup().name).utf8();
+    return localized_format("Cannot bulldoze this {}.", name.get_data());
+  }
+  if(auto evacuate = dynamic_message_cast<CannotEvacuateThisMessage>(message)) {
+    const auto name = localized(evacuate->getGroup().name).utf8();
+    return localized_format("Cannot evacuate {}.", name.get_data());
+  }
+  if(dynamic_message_cast<CannotEvacuateNothingMessage>(message))
+    return localized("There is nothing to evacuate here.");
+  if(auto fire = dynamic_message_cast<FireStartedMessage>(message)) {
+    const auto name = localized(fire->getGroup().name).utf8();
+    return localized_format("A fire has started: {} {}.", name.get_data(), fire->getPoint());
+  }
+  if(auto money = dynamic_message_cast<OutOfMoneyMessage>(message))
+    return localized(money->isOutOfCredit() ? "Out of Credit" : "Out of Money");
+  if(dynamic_message_cast<NoOreMessage>(message))
+    return localized("There are no ore reserves left here.");
+  if(dynamic_message_cast<DesertHereMessage>(message))
+    return localized("This space is desert and has no water.");
+  if(dynamic_message_cast<PortRequiresRiverMessage>(message))
+    return localized("A port requires a river along the east side.");
+  if(dynamic_message_cast<NotEnoughStudentsMessage>(message))
+    return localized("There are not enough students. Build more schools first.");
+  if(dynamic_message_cast<OutsideMapMessage>(message))
+    return localized("This space is outside the map.");
+  if(auto tech = dynamic_message_cast<NotEnoughTechMessage>(message))
+    return localized_format("Technology required: {:.1f}%. Current level: {:.1f}%.",
+      tech->getRequiredTech() * 100.0 / MAX_TECH_LEVEL, tech->getCurrentTech() * 100.0 / MAX_TECH_LEVEL);
+  if(dynamic_message_cast<SpaceOccupiedMessage>(message))
+    return localized("This space is occupied.");
+  if(dynamic_message_cast<SustainableEconomyMessage>(message))
+    return localized("The economy is sustainable.");
+  if(dynamic_message_cast<NoPeopleLeftMessage>(message))
+    return localized("The city has lost all its inhabitants.");
+  if(dynamic_message_cast<RocketReadyMessage>(message))
+    return localized("A rocket is ready to launch.");
+  if(auto rocket = dynamic_message_cast<RocketResultMessage>(message)) {
+    using Result = RocketResultMessage::LaunchResult;
+    switch(rocket->getResult()) {
+      case Result::FAIL: return localized("The rocket crashed.");
+      case Result::SUCCESS: return localized("The rocket launched successfully.");
+      case Result::EVAC: return localized("1,000 people were evacuated.");
+      case Result::EVAC_WIN: return localized("Everyone has been evacuated from the city.");
+    }
+  }
+  return localized(message->str());
 }
 MapPoint point(Vector2i v) { return {v.x, v.y}; }
 std::filesystem::path file_path(const String& path) {
@@ -42,14 +113,16 @@ std::filesystem::path file_path(const String& path) {
   return std::filesystem::u8path(absolute.utf8().get_data());
 }
 
-template<class Command> String run(Command command) {
+template<class Command> String run(Command command, World* warning_world = nullptr) {
   try {
     command();
     return {};
   } catch(const Message::Exception& error) {
-    return String::utf8(error.what());
+    if(warning_world && dynamic_message_cast<OutOfMoneyMessage>(error.getMessage()))
+      warning_world->pushMessage(error.getMessage());
+    return message_text(error.getMessage());
   } catch(const std::exception& error) {
-    return String::utf8(error.what());
+    return localized(error.what());
   }
 }
 
@@ -99,7 +172,7 @@ class CityWorld final : public godot::RefCounted {
 
   std::unique_ptr<DesktopWorld> city;
   DesktopWorld& world() const {
-    if(!city) throw std::runtime_error("Keine Stadt geladen.");
+    if(!city) throw std::runtime_error("No city loaded.");
     return *city;
   }
   const MapTile* tile(Vector2i v) const {
@@ -113,12 +186,15 @@ protected:
     ClassDB::bind_method(D_METHOD("load_city", "path"), &CityWorld::load_city);
     ClassDB::bind_method(D_METHOD("save_city", "path"), &CityWorld::save_city);
     ClassDB::bind_method(D_METHOD("step"), &CityWorld::step);
+    ClassDB::bind_method(D_METHOD("set_vehicle_traffic", "mode"), &CityWorld::set_vehicle_traffic);
     ClassDB::bind_method(D_METHOD("advance_animation", "millis"), &CityWorld::advance_animation);
     ClassDB::bind_method(D_METHOD("advance_traffic", "millis"), &CityWorld::advance_animation);
     ClassDB::bind_method(D_METHOD("snapshot"), &CityWorld::snapshot);
     ClassDB::bind_method(D_METHOD("tools"), &CityWorld::tools);
     ClassDB::bind_method(D_METHOD("preview", "id", "position"), &CityWorld::preview);
     ClassDB::bind_method(D_METHOD("apply", "id", "position"), &CityWorld::apply);
+    ClassDB::bind_method(D_METHOD("preview_batch", "id", "positions"), &CityWorld::preview_batch);
+    ClassDB::bind_method(D_METHOD("apply_batch", "id", "positions"), &CityWorld::apply_batch);
     ClassDB::bind_method(D_METHOD("inspect_tile", "position", "production"), &CityWorld::inspect_tile, DEFVAL(false));
     ClassDB::bind_method(D_METHOD("set_focus", "position"), &CityWorld::set_focus);
     ClassDB::bind_method(D_METHOD("survey_coal"), &CityWorld::survey_coal);
@@ -135,16 +211,39 @@ protected:
 public:
   String new_city(int climate, int side, bool village, bool trees) {
     return run([&] {
-      if(climate < 0 || climate > 3) throw std::invalid_argument("Unbekanntes Klima.");
+      if(climate < 0 || climate > 3) throw std::invalid_argument("Unknown climate.");
       city_settings settings{village, !trees};
       city = generateDesktopCity(static_cast<DesktopClimate>(climate), &settings, side);
     });
   }
-  String load_city(String path) { return run([&] { city = DesktopWorld::load(file_path(path)); }); }
+  String load_city(String path) {
+    return run([&] {
+      try {
+        city = DesktopWorld::load(file_path(path));
+      } catch(const std::exception& error) {
+        ERR_PRINT(text(error.what()));
+        throw std::runtime_error("The city could not be loaded.");
+      }
+    });
+  }
   String save_city(String path) const {
-    return run([&] { world().save(file_path(path)); });
+    if(!city) return localized("No city loaded.");
+    return run([&] {
+      try {
+        world().save(file_path(path));
+      } catch(const std::exception& error) {
+        ERR_PRINT(text(error.what()));
+        throw std::runtime_error("The city could not be saved.");
+      }
+    });
   }
   String step() { return run([&] { world().do_time_step(); }); }
+
+  void set_vehicle_traffic(int mode) {
+    if(!city) return;
+    using Traffic = World::VehicleTraffic;
+    city->vehicleTraffic = mode == 2 ? Traffic::Normal : mode == 1 ? Traffic::Reduced : Traffic::Disabled;
+  }
 
   godot::PackedVector3Array advance_animation(int64_t millis) {
     godot::PackedVector3Array poses;
@@ -177,11 +276,18 @@ public:
     auto* roots = anchors.ptrw();
     auto* emissions = pollution.ptrw();
     int64_t population = city->people_pool;
+    std::array<Stats::Inventory<int64_t>, STUFF_COUNT> inventory{};
     for(const auto& t : map) {
       const auto* building = t.getReportingConstruction();
       const auto anchor = building ? building->point : t.point;
-      if(t.getConstruction() && t.is_residence())
-        population += static_cast<const Residence*>(building)->local_population;
+      if(const auto* root = t.getConstruction()) {
+        if(t.is_residence()) population += static_cast<const Residence*>(root)->local_population;
+        for(auto commodity = STUFF_INIT; commodity < STUFF_COUNT; ++commodity) {
+          auto& stock = inventory[commodity];
+          stock.amount += root->commodityCount[commodity];
+          stock.capacity += root->getConstructionGroup()->commodityRuleCount[commodity].maxload;
+        }
+      }
       const auto index = t.point.y * side + t.point.x;
       groups[index] = t.getGroup();
       roots[index] = anchor.y * side + anchor.x;
@@ -204,10 +310,31 @@ public:
     result["population"] = population;
     result["homeless"] = city->people_pool;
     result["tech"] = city->tech_level;
+    result["tech_percent"] = city->tech_level * 100.0 / MAX_TECH_LEVEL;
+    result["highest_tech_percent"] = city->stats.highest_tech_level * 100.0 / MAX_TECH_LEVEL;
+    result["scenario"] = text(city->given_scene);
     result["unemployment"] = pop.unemployed_m / NUMOF_DAYS_IN_MONTH;
+    result["population_record"] = pop.max_pop_ever;
+    result["evacuated"] = pop.evacuated_t;
     result["births"] = pop.births_t;
     result["deaths"] = pop.starve_deaths_t + pop.pollution_deaths_t;
+    result["starvation_deaths"] = pop.starve_deaths_t;
+    result["pollution_deaths"] = pop.pollution_deaths_t;
+    result["unemployment_years"] = static_cast<double>(pop.unemployed_days_t) / NUMOF_DAYS_IN_YEAR;
     result["rockets"] = city->rockets_launched;
+    result["successful_rockets"] = city->rockets_launched_success;
+    PackedInt32Array counts;
+    counts.resize(city->stats.groupCount.size());
+    std::copy(city->stats.groupCount.begin(), city->stats.groupCount.end(), counts.ptrw());
+    result["building_counts"] = counts;
+    Array stocks;
+    for(const auto& stock : inventory) {
+      Dictionary entry;
+      entry["amount"] = stock.amount;
+      entry["capacity"] = stock.capacity;
+      stocks.append(entry);
+    }
+    result["inventory"] = stocks;
     result["sustainable"] = city->stats.sustainability.sustainable;
     result["coal_survey_done"] = bool(city->coal_survey_done);
     result["focus"] = Vector2i(map.recentPoint.x, map.recentPoint.y);
@@ -304,17 +431,17 @@ public:
     Array criteria;
     const auto criterion = [&](const char* name, int years, int goal) {
       Dictionary progress;
-      progress["name"] = String::utf8(name);
+      progress["name"] = localized(name);
       progress["years"] = years;
       progress["goal"] = goal;
       criteria.append(progress);
     };
-    criterion("Kohle- und Erzabbau", sustain.mining_years, SUST_ORE_COAL_YEARS_NEEDED);
-    criterion("Handel über den Hafen", sustain.trade_years, SUST_PORT_YEARS_NEEDED);
-    criterion("Stadtfinanzen", sustain.money_years, SUST_MONEY_YEARS_NEEDED);
-    criterion("Bevölkerung", sustain.population_years, SUST_POP_YEARS_NEEDED);
-    criterion("Technologie", sustain.tech_years, SUST_TECH_YEARS_NEEDED);
-    criterion("Brandschutz", sustain.fire_years, SUST_FIRE_YEARS_NEEDED);
+    criterion("Coal and ore mining", sustain.mining_years, SUST_ORE_COAL_YEARS_NEEDED);
+    criterion("Port trade", sustain.trade_years, SUST_PORT_YEARS_NEEDED);
+    criterion("City finances", sustain.money_years, SUST_MONEY_YEARS_NEEDED);
+    criterion("Population", sustain.population_years, SUST_POP_YEARS_NEEDED);
+    criterion("Technology", sustain.tech_years, SUST_TECH_YEARS_NEEDED);
+    criterion("Fire protection", sustain.fire_years, SUST_FIRE_YEARS_NEEDED);
     Dictionary result;
     result["last_month"] = completed_months - 1;
     result["series"] = series;
@@ -326,20 +453,22 @@ public:
   Array tools() const {
     initializeModules();
     Array list;
-    auto append = [&](int id, String name, int size) {
+    auto append = [&](int id, String name, int size, int base_cost = 0, int required_tech = 0) {
       Dictionary item;
       item["id"] = id;
       item["name"] = name;
       item["size"] = size;
+      item["base_cost"] = base_cost;
+      item["required_tech"] = required_tech;
       list.append(item);
     };
-    append(inspect, "Inspect", 1);
-    append(demolish, "Bulldoze", 1);
-    append(evacuate, "Evacuate", 1);
-    append(water, "Water", 1);
+    append(inspect, localized("Inspect"), 1);
+    append(demolish, localized("Bulldoze"), 1);
+    append(evacuate, localized("Evacuate"), 1);
+    append(water, localized("Water"), 1, GROUP_WATER_COST);
     for(int id = 0; id < NUM_OF_GROUPS; ++id) {
       auto op = operation(id);
-      if(auto* g = op.constructionGroup) append(id, localized(g->name), g->size);
+      if(auto* g = op.constructionGroup) append(id, localized(g->name), g->size, g->cost, g->tech);
     }
     return list;
   }
@@ -353,7 +482,7 @@ public:
     Message::ptr why;
     result["allowed"] = desktopPreview(*city, op, point(v), why);
     result["cost"] = desktopCost(*city, op, point(v));
-    if(why) result["reason"] = text(why->str());
+    if(why) result["reason"] = message_text(why);
     return result;
   }
   String apply(int id, Vector2i v) {
@@ -361,14 +490,64 @@ public:
       auto& w = world();
       auto op = operation(id);
       Message::ptr why;
-      if(op.action == UserOperation::ACTION_UNKNOWN) throw std::invalid_argument("Unbekanntes Werkzeug.");
+      if(op.action == UserOperation::ACTION_UNKNOWN) throw std::invalid_argument("Unknown tool.");
       if(!desktopPreview(w, op, point(v), why)) {
         if(why) why->throwEx();
-        throw std::runtime_error("Diese Aktion ist hier nicht möglich.");
+        throw std::runtime_error("This action is not possible here.");
       }
       desktopApply(w, op, point(v));
-    });
+    }, city.get());
   }
+  Array preview_batch(int id, const TypedArray<Vector2i>& positions) const {
+    return action_batch(id, positions, false);
+  }
+  Array apply_batch(int id, const TypedArray<Vector2i>& positions) {
+    return action_batch(id, positions, true);
+  }
+private:
+  Array action_batch(int id, const TypedArray<Vector2i>& positions, bool apply) const {
+    Array results;
+    auto op = operation(id);
+    if(!city || op.action == UserOperation::ACTION_UNKNOWN) {
+      for(int64_t i = 0; i < positions.size(); ++i) {
+        Dictionary entry;
+        entry["allowed"] = false;
+        entry["cost"] = 0;
+        entry["size"] = 1;
+        entry["group"] = 0;
+        entry["anchor"] = positions[i];
+        entry["reason"] = localized(city ? "Unknown tool." : "No city loaded.");
+        results.append(entry);
+      }
+      return results;
+    }
+    std::vector<rustcity::Point> targets;
+    targets.reserve(positions.size());
+    for(int64_t i = 0; i < positions.size(); ++i) {
+      const Vector2i v = positions[i];
+      targets.push_back({v.x, v.y});
+    }
+    const rust::Slice<const rustcity::Point> points(targets.data(), targets.size());
+    const auto batch = apply ? desktopApplyBatch(*city, op, points) : desktopPreviewBatch(*city, op, points);
+    using F = rustcity::Failure;
+    for(const auto& result : batch) {
+      Dictionary entry;
+      entry["allowed"] = result.action.error == F::None;
+      entry["cost"] = result.action.cost;
+      entry["size"] = result.size;
+      entry["group"] = result.action.group;
+      entry["anchor"] = Vector2i(result.anchor.x, result.anchor.y);
+      if(result.action.error == F::DecisionTrace)
+        entry["reason"] = localized("This action is not possible here.");
+      else if(auto why = desktopActionMessage(result.action))
+        entry["reason"] = message_text(why);
+      if(result.action.error == F::NoCredit) entry["warning"] = "out_of_credit";
+      if(result.action.error == F::OutOfMoney) entry["warning"] = "out_of_money";
+      results.append(entry);
+    }
+    return results;
+  }
+public:
   String inspect_tile(Vector2i v, bool production) const {
     const auto* t = tile(v);
     if(!t) return {};
@@ -376,24 +555,24 @@ public:
     if(const auto* building = t->getReportingConstruction()) {
       renderRustReport(city->engine(), building->point, production, report);
     } else {
-      report.addLabel(t->getTileConstructionGroup()->getName());
-      report.addInteger("Höhe", t->ground.altitude);
-      report.addInteger("Erz", t->ore_reserve);
-      if(city->coal_survey_done) report.addInteger("Kohle", t->coal_reserve);
+      report.addLabel(t->getTileConstructionGroup()->name);
+      report.addInteger("Elevation", t->ground.altitude);
+      report.addInteger("Ore", t->ore_reserve);
+      if(city->coal_survey_done) report.addInteger("Coal", t->coal_reserve);
     }
-    report.addInteger("Luftverschmutzung", t->pollution);
+    report.addInteger("Air pollution", t->pollution);
     return report.out.strip_edges();
   }
   void set_focus(Vector2i v) {
     if(tile(v)) desktopFocus(*city, point(v));
   }
-  String survey_coal() { return run([&] { world().do_coal_survey(); }); }
+  String survey_coal() { return run([&] { world().do_coal_survey(); }, city.get()); }
   String launch_rocket(Vector2i v) {
     return run([&] {
       const auto* t = tile(v);
       const auto* building = t ? t->getReportingConstruction() : nullptr;
       if(!building || !world().launchRocket(building->point))
-        throw std::runtime_error("Hier ist keine Rakete startbereit.");
+        throw std::runtime_error("No rocket is ready to launch here.");
     });
   }
   Array trade_rules(Vector2i v) const {
@@ -419,10 +598,10 @@ public:
   String set_trade(Vector2i v, int id, bool buy, bool sell) {
     return run([&] {
       auto& w = world();
-      if(id < STUFF_INIT || id >= STUFF_COUNT) throw std::invalid_argument("Unbekannte Ware.");
+      if(id < STUFF_INIT || id >= STUFF_COUNT) throw std::invalid_argument("Unknown commodity.");
       const auto commodity = static_cast<Commodity>(id);
       if(!w.setMarketTrade(point(v), commodity, buy, sell) && !w.setPortTrade(point(v), commodity, buy, sell))
-        throw std::runtime_error("Für dieses Gebäude oder diese Ware ist kein Handel möglich.");
+        throw std::runtime_error("This building cannot trade this commodity.");
     });
   }
   String tile_resource(Vector2i v) const {
@@ -438,13 +617,20 @@ public:
     if(!city) return result;
     while(auto message = city->popMessage()) {
       Dictionary event;
-      event["text"] = text(message->str());
+      event["text"] = message_text(message);
       if(dynamic_message_cast<SustainableEconomyMessage>(message))
         event["kind"] = "economy";
       else if(dynamic_message_cast<NoPeopleLeftMessage>(message))
         event["kind"] = "loss";
       else if(dynamic_message_cast<RocketReadyMessage>(message))
         event["kind"] = "rocket_ready";
+      else if(auto fire = dynamic_message_cast<FireStartedMessage>(message)) {
+        const auto cell = fire->getPoint();
+        event["kind"] = "fire";
+        event["cell"] = Vector2i(cell.x, cell.y);
+        event["group"] = fire->getGroup().group;
+      } else if(auto money = dynamic_message_cast<OutOfMoneyMessage>(message))
+        event["kind"] = money->isOutOfCredit() ? "out_of_credit" : "out_of_money";
       else if(auto rocket = dynamic_message_cast<RocketResultMessage>(message)) {
         using Result = RocketResultMessage::LaunchResult;
         switch(rocket->getResult()) {

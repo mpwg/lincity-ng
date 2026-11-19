@@ -94,12 +94,15 @@ def test_package(stage, args):
         display = [] if args.graphics else ["--headless"]
         result = run([program, *display, "--rendering-method", "gl_compatibility",
                       "--script", Path(__file__).with_name("check_godot_package.gd").resolve(),
-                      "--", stage / "licenses"], cwd=scratch, env=clean_env, timeout=120)
+                      "--", stage / "licenses", "--mute"], cwd=scratch, env=clean_env, timeout=120)
         if not (stage / "licenses/Godot.txt").is_file():
             raise SystemExit(f"Paketprüfung wurde nicht vollständig ausgeführt.\n{result}")
-        run([program, *display, "--rendering-method", "gl_compatibility", "--quit-after", "12"],
+        run([program, *display, "--rendering-method", "gl_compatibility",
+             "--script", Path(__file__).with_name("check_godot_package.gd").resolve(),
+             "--", "--continue", "--mute"], cwd=scratch, env=clean_env, timeout=120)
+        run([program, *display, "--rendering-method", "gl_compatibility", "--quit-after", "12", "--", "--mute"],
             cwd=scratch, env=clean_env, timeout=120)
-        print("Linux-Paket mit Spielstand und Credits geprüft.")
+        print("Linux-Paket mit Hauptmenü, Spielstand, Neustart und Credits geprüft.")
 
 
 def main():

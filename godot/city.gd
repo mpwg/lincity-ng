@@ -9,6 +9,9 @@ const TRANSPORT := [7, 9, 11]
 const CONFIRM_DEMOLITION := [21, 25, 33]
 const BUILD_COLOR := Color(0.25, 1.0, 0.67, 0.9)
 const INVALID_COLOR := Color(1, 0.28, 0.18, 0.95)
+const STEP_SECONDS := {1: 0.06, 2: 0.02}
+const MAX_STEPS_PER_FRAME := 8
+const MAX_DRAG_CELLS := 4096
 
 @onready var camera = $Camera
 @onready var view = $World
@@ -35,14 +38,17 @@ var restoring_camera := false
 var quitting := false
 var pending_demolition: Array[Vector2i] = []
 
+func _enter_tree() -> void:
+	settings.load_from_disk()
+	settings.apply_language()
+
 func _ready() -> void:
 	add_child(audio)
 	if not ClassDB.class_exists("CityWorld"):
-		hud.show_info("Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen.")
+		hud.show_info(tr("Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen."))
 		set_process(false)
 		return
 	core = ClassDB.instantiate("CityWorld")
-	settings.load_from_disk()
 	hud.settings = settings
 	hud.settings_dialog.setup(settings, audio)
 	hud.settings_dialog.settings_applied.connect(_apply_settings.bind(false))
@@ -66,7 +72,7 @@ func _ready() -> void:
 		pending_demolition = []
 		_apply_build(-2, cells))
 	hud.demolition_dialog.canceled.connect(func(): pending_demolition = [])
-	hud.speed_changed.connect(func(value: int): speed = value; elapsed = 0)
+	hud.speed_changed.connect(_set_speed)
 	hud.layer_selected.connect(_set_layer)
 	hud.focus_requested.connect(camera.center_on)
 	hud.save_requested.connect(_save_city)
@@ -139,6 +145,18 @@ func _apply_settings(on_start: bool) -> void:
 	$Sun.shadow_enabled = settings.values.shadows
 	view.reflections_enabled = settings.values.reflections
 	audio.apply_settings(settings.values)
+	_update_traffic()
+
+func _set_speed(value: int) -> void:
+	speed = value
+	elapsed = 0.0
+	_update_traffic()
+
+func _update_traffic() -> void:
+	if state.is_empty():
+		return
+	core.set_vehicle_traffic(0 if not settings.values.vehicles or speed == 4 else 1 if speed == 2 else 2)
+	$Traffic.visible = settings.values.vehicles and speed != 4
 
 func _new_city(climate := 0, side := 100, village := true, trees := true) -> void:
 	var error: String = core.new_city(climate, side, village, trees)
@@ -218,6 +236,7 @@ func _after_open(error: String) -> void:
 	restoring_camera = false
 	camera.side = state.side
 	camera.center_on(state.focus)
+	_update_traffic()
 	hud.show_info("")
 
 func _refresh() -> void:
@@ -250,20 +269,28 @@ func _process(delta: float) -> void:
 	view.advance_rockets(delta)
 	animation_time += delta
 	animation_sample += delta
-	if animation_sample >= 0.1:
+	if animation_sample >= 0.1 and $Traffic.visible:
 		$Traffic.update_commuters(core.advance_animation(int(animation_time * 1000)))
 		animation_sample = fmod(animation_sample, 0.1)
-	elapsed += delta * speed
-	if elapsed < 0.25:
+	var steps := MAX_STEPS_PER_FRAME
+	if speed != 4:
+		var interval: float = STEP_SECONDS[speed]
+		elapsed += delta
+		steps = mini(steps, floori(elapsed / interval))
+		elapsed = maxf(0.0, elapsed - steps * interval)
+	if steps == 0:
 		return
-	elapsed = fmod(elapsed, 0.25)
-	var error: String = core.step()
-	if not error.is_empty():
-		speed = 0
-		hud.set_speed(0)
-		hud.show_info(error)
-	else:
-		_refresh()
+	var started := Time.get_ticks_usec()
+	for index in steps:
+		var error: String = core.step()
+		if not error.is_empty():
+			_set_speed(0)
+			hud.set_speed(0)
+			_after_action(error)
+			return
+		if speed == 4 and Time.get_ticks_usec() - started >= 4000:
+			break
+	_refresh()
 
 func _after_action(error: String) -> void:
 	_refresh()
@@ -298,6 +325,7 @@ func _camera_moved() -> void:
 
 func _cancel_pointer() -> void:
 	start = NO_CELL
+	alternate = false
 	camera.panning = false
 	camera.orbiting = false
 	hover = NO_CELL
@@ -318,8 +346,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		alternate = event.pressed
 		_update_preview()
 	if event is InputEventMouseMotion:
+		alternate = event.ctrl_pressed
 		_point_at(event.position)
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and hud.catalog_panel.visible:
+			hud.close_catalog()
+			_cancel_pointer()
+			return
+		alternate = event.ctrl_pressed
 		_point_at(event.position)
 		if event.pressed:
 			start = hover
@@ -330,41 +364,44 @@ func _unhandled_input(event: InputEvent) -> void:
 				production = false
 				_inspect()
 			else:
-				var cells := _action_cells()
-				cells.reverse()
-				_commit_build(tool, cells)
+				_commit_build(tool, _action_cells())
 			start = NO_CELL
 		else:
 			start = NO_CELL
 		_update_preview()
 
 func _commit_build(id: int, cells: Array[Vector2i]) -> void:
+	if cells.is_empty():
+		hud.show_info(tr("Die Auswahl ist zu groß. Teile sie in kleinere Abschnitte."))
+		return
 	if id == -2:
 		var cost := 0
 		var confirm := false
-		for cell in cells:
-			var rule: Dictionary = core.preview(id, cell)
+		for rule: Dictionary in core.preview_batch(id, cells):
 			if rule.allowed:
 				cost += int(rule.cost)
-				confirm = confirm or int(state.tiles[cell.y * state.side + cell.x]) in CONFIRM_DEMOLITION
+				confirm = confirm or int(rule.group) in CONFIRM_DEMOLITION
 		if confirm:
 			pending_demolition = cells
-			hud.demolition_dialog.dialog_text = "Der Abriss kostet %s $. Möchtest du fortfahren?" % hud._number(cost)
+			hud.demolition_dialog.dialog_text = tr("Der Abriss kostet %s $. Möchtest du fortfahren?") % hud._number(cost)
 			hud.demolition_dialog.popup_centered(Vector2i(410, 165))
 			return
 	_apply_build(id, cells)
 
 func _apply_build(id: int, cells: Array[Vector2i]) -> void:
 	var error := ""
-	var last := NO_CELL
-	for cell in cells:
-		if cells.size() == 1 or core.preview(id, cell).allowed:
-			error = core.apply(id, cell)
-			if not error.is_empty():
-				break
-			last = cell
+	var applied := false
+	var warning := ""
+	for rule: Dictionary in core.apply_batch(id, cells):
+		if rule.allowed:
+			applied = true
+		else:
+			if error.is_empty(): error = str(rule.get("reason", ""))
+			if warning.is_empty(): warning = str(rule.get("warning", ""))
 	_after_action(error)
-	if last != NO_CELL:
+	if not warning.is_empty():
+		hud.show_event({"kind": warning})
+	if applied:
 		if id == -2:
 			audio.play_effect(&"Raze")
 		else:
@@ -383,6 +420,7 @@ func _point_at(screen: Vector2) -> void:
 func _action_cells() -> Array[Vector2i]:
 	var fields := selection(start, hover, tool, int(tools_by_id.get(tool, {}).get("size", 1)), alternate)
 	if tool != -2:
+		fields.reverse()
 		return fields
 	var targets: Array[Vector2i] = []
 	var visited := {}
@@ -393,12 +431,17 @@ func _action_cells() -> Array[Vector2i]:
 		if not visited.has(anchor):
 			targets.append(Vector2i(anchor % side, floori(float(anchor) / side)))
 			visited[anchor] = true
+	targets.reverse()
 	return targets
 
 static func selection(first: Vector2i, last: Vector2i, id: int, footprint: int, turn: bool) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
-	if footprint != 1 or id in [-1, -3] or first == NO_CELL:
+	if footprint != 1 or id in [-1, -3] or first == NO_CELL or (id == -2 and not turn):
 		cells.append(last)
+		return cells
+	var span := (last - first).abs()
+	var cell_count := span.x + span.y + 1 if id in TRANSPORT else (span.x + 1) * (span.y + 1)
+	if cell_count > MAX_DRAG_CELLS:
 		return cells
 	var dir := (last - first).sign()
 	if id in TRANSPORT:
@@ -411,8 +454,6 @@ static func selection(first: Vector2i, last: Vector2i, id: int, footprint: int, 
 		while current != last:
 			current += (last - current).sign()
 			cells.append(current)
-	elif id == -2 and not turn:
-		cells.append(last)
 	else:
 		for y in range(absi(last.y - first.y) + 1):
 			for x in range(absi(last.x - first.x) + 1):
@@ -458,24 +499,24 @@ func _update_preview() -> void:
 	if hover == NO_CELL:
 		hud.show_preview("")
 		return
-	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	var amount := 0
 	var cells := _action_cells()
+	if cells.is_empty():
+		hud.show_preview(tr("Die Auswahl ist zu groß. Teile sie in kleinere Abschnitte."))
+		return
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	var reason := ""
-	for cell in cells:
-		var rule: Dictionary = core.preview(tool, cell)
-		var extent := float(rule.size)
-		var anchor := cell
-		if tool in [-2, -3]:
-			var index: int = state.anchors[cell.y * state.side + cell.x]
-			if index >= 0:
-				anchor = Vector2i(index % int(state.side), floori(float(index) / state.side))
-				extent = float(view.Models.SIZE[state.tiles[index]])
+	var invalid := 0
+	for rule: Dictionary in core.preview_batch(tool, cells):
 		if rule.allowed:
 			amount += int(rule.cost)
 		else:
-			reason = str(rule.get("reason", "Hier nicht möglich."))
-		_outline(mesh, anchor, extent, BUILD_COLOR if rule.allowed else INVALID_COLOR)
+			invalid += 1
+			if reason.is_empty(): reason = str(rule.get("reason", tr("Hier nicht möglich.")))
+		_outline(mesh, rule.anchor, float(rule.size), BUILD_COLOR if rule.allowed else INVALID_COLOR)
 	mesh.surface_end()
 	$Preview.mesh = mesh
-	hud.show_preview(reason if cells.size() == 1 and not reason.is_empty() else "Kosten  %s $" % amount)
+	var label := tr("Kosten  %s $") % hud._number(amount)
+	if invalid > 0:
+		label = reason if cells.size() == 1 else tr("%s · %d nicht baubar") % [label, invalid]
+	hud.show_preview(label)

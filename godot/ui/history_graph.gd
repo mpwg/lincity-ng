@@ -25,17 +25,20 @@ func update_series(series: Array[Dictionary], first: int, last: int, selected: i
 
 static func month_text(month: int) -> String:
 	@warning_ignore("integer_division")
-	return "%s %d" % [MONTHS[month % 12], month / 12]
+	return "%s %d" % [TranslationServer.translate(MONTHS[month % 12]), month / 12]
 
 static func number_text(value: float) -> String:
 	var magnitude := absf(value)
 	var format := "%.10f" if magnitude < 0.01 else "%.2f"
 	var parts := (format % magnitude).split(".")
 	var digits := parts[0]
+	var german := TranslationServer.get_locale().begins_with("de")
+	var grouping := "." if german else ","
+	var decimal := "," if german else "."
 	for i in range(digits.length() - 3, 0, -3):
-		digits = digits.insert(i, ".")
+		digits = digits.insert(i, grouping)
 	var fraction := parts[1].rstrip("0")
-	return ("−" if value < 0.0 else "") + digits + ("," + fraction if fraction != "" else "")
+	return ("−" if value < 0.0 else "") + digits + (decimal + fraction if fraction != "" else "")
 
 static func sample(series: Dictionary, index: int) -> float:
 	var values: PackedFloat64Array = series["values"]
@@ -74,7 +77,7 @@ func _draw() -> void:
 				minimum = minf(minimum, value)
 				maximum = maxf(maximum, value)
 	if not found:
-		var message := "Keine Messwerte für diesen Zeitraum"
+		var message := tr("Keine Messwerte für diesen Zeitraum")
 		var width := font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		draw_string(font, Vector2((size.x - width) * 0.5, size.y * 0.5), message, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, AXIS)
 		return

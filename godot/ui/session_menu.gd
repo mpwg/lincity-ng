@@ -53,7 +53,7 @@ func _ready() -> void:
 		for action: StringName in actions:
 			var button := Button.new()
 			button.name = action
-			button.text = actions[action]
+			button.text = tr(actions[action])
 			button.custom_minimum_size.y = 30
 			button.pressed.connect(action_requested.emit.bind(action))
 			buttons[action] = button

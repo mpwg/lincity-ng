@@ -1,0 +1,108 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LinCity-NG 3D\n"
+"PO-Revision-Date: 2026-11-19 00:00+0000\n"
+"Last-Translator: LinCity-NG contributors\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "1,000 people were evacuated."
+msgstr "1.000 Menschen wurden evakuiert."
+
+#, c++-format
+msgid "A fire has started: {} {}."
+msgstr "Ein Feuer ist ausgebrochen: {} {}."
+
+msgid "A port requires a river along the east side."
+msgstr "Ein Hafen braucht einen Fluss an seiner Ostseite."
+
+msgid "A rocket is ready to launch."
+msgstr "Eine Rakete ist startbereit."
+
+msgid "Air pollution"
+msgstr "Luftverschmutzung"
+
+msgid "Bulldoze"
+msgstr "Abreißen"
+
+msgid "City finances"
+msgstr "Stadtfinanzen"
+
+msgid "Coal and ore mining"
+msgstr "Kohle- und Erzabbau"
+
+msgid "Elevation"
+msgstr "Höhe"
+
+msgid "Everyone has been evacuated from the city."
+msgstr "Die Stadt wurde vollständig evakuiert."
+
+msgid "Fire protection"
+msgstr "Brandschutz"
+
+msgid "Inspect"
+msgstr "Untersuchen"
+
+msgid "No city loaded."
+msgstr "Keine Stadt geladen."
+
+msgid "No rocket is ready to launch here."
+msgstr "Hier ist keine Rakete startbereit."
+
+msgid "Port trade"
+msgstr "Handel über den Hafen"
+
+msgid "Technology"
+msgstr "Technologie"
+
+#, c++-format
+msgid "Technology required: {:.1f}%. Current level: {:.1f}%."
+msgstr "Technologie benötigt: {:.1f} %. Aktueller Stand: {:.1f} %."
+
+msgid "The city could not be loaded."
+msgstr "Die Stadt konnte nicht geladen werden."
+
+msgid "The city could not be saved."
+msgstr "Die Stadt konnte nicht gespeichert werden."
+
+msgid "The city has lost all its inhabitants."
+msgstr "Die Stadt hat alle ihre Einwohner verloren."
+
+msgid "The economy is sustainable."
+msgstr "Die Wirtschaft ist nachhaltig."
+
+msgid "The rocket crashed."
+msgstr "Die Rakete ist abgestürzt."
+
+msgid "The rocket launched successfully."
+msgstr "Die Rakete ist erfolgreich gestartet."
+
+msgid "There are not enough students. Build more schools first."
+msgstr "Es gibt zu wenige Schüler. Baue zuerst mehr Schulen."
+
+msgid "There is nothing to evacuate here."
+msgstr "Hier gibt es nichts zu räumen."
+
+msgid "This action is not possible here."
+msgstr "Diese Aktion ist hier nicht möglich."
+
+msgid "This building cannot trade this commodity."
+msgstr "Für dieses Gebäude oder diese Ware ist kein Handel möglich."
+
+msgid "This space is desert and has no water."
+msgstr "Dieses Feld ist Wüste und führt kein Wasser."
+
+msgid "This space is outside the map."
+msgstr "Dieses Feld liegt außerhalb der Karte."
+
+msgid "Unknown climate."
+msgstr "Unbekanntes Klima."
+
+msgid "Unknown commodity."
+msgstr "Unbekannte Ware."
+
+msgid "Unknown tool."
+msgstr "Unbekanntes Werkzeug."

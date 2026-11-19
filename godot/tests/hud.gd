@@ -29,44 +29,43 @@ func _test() -> void:
 	await process_frame
 	game._process(0.01)
 	check(is_equal_approx(game.elapsed, 0.01), "Die Simulation steht trotz geschlossenem Dialog.")
-	var all := {}
-	for index in hud.category_picker.item_count:
-		hud.category_picker.select(index)
-		hud.category_picker.item_selected.emit(index)
-		for button: Button in hud.tool_list.get_children():
-			var id: int = button.get_meta("tool_id")
-			check(not all.has(id), "Doppelter Katalogeintrag %d." % id)
-			all[id] = true
-	for tool: Dictionary in core.tools():
-		check(all.has(int(tool.id)), "Werkzeug fehlt im Katalog %s." % tool.name)
 	var speed_log: Array[int] = []
 	hud.speed_changed.connect(func(value: int): speed_log.append(value))
 	for speed: int in [0, 1, 2, 4]:
 		hud.speed_buttons[speed].pressed.emit()
 	check(speed_log == [0, 1, 2, 4], "Fehlerhafte Zuordnung der Zeitsteuerung.")
-	for i in hud.QUICK_TOOLS.size():
-		root.push_input(key(KEY_1 + i))
-		check(hud.chosen_tool == hud.QUICK_TOOLS[i][0], "Falsches Werkzeug für Taste %d." % (i + 1))
+	check(game.selection(Vector2i(1, 1), Vector2i(98, 98), -2, 1, true).is_empty(),
+		"Ein sehr großer Abriss wird ohne Begrenzung vorbereitet.")
+	for shortcut: Key in [KEY_1, KEY_7, KEY_QUOTELEFT]:
+		root.push_input(key(shortcut))
+		check(hud.layers.selected == {KEY_1: 3, KEY_7: 9, KEY_QUOTELEFT: 0}[shortcut],
+			"Die klassische Kartenebene fehlt für Taste %d." % shortcut)
 	root.push_input(key(KEY_B))
-	await process_frame
-	check(root.get_last_exclusive_window() == hud.catalog_dialog, "Baukatalog ist nicht modal.")
-	var before: float = game.elapsed
-	game._process(0.01)
-	check(is_equal_approx(game.elapsed, before), "Die Simulation läuft bei geöffnetem Dialog.")
-	var bearing: float = game.camera.azimuth
-	game._unhandled_input(key(KEY_Q))
-	check(game.camera.azimuth == bearing, "Die Kamera dreht sich hinter dem Dialog.")
-	var click_world := InputEventMouseButton.new()
-	click_world.button_index = MOUSE_BUTTON_LEFT
-	click_world.pressed = true
-	game._unhandled_input(click_world)
-	check(game.start == game.NO_CELL, "Klick im Dialog beginnt einen Bauvorgang.")
-	hud._shortcut_input(key(KEY_1))
-	check(hud.chosen_tool == -2, "Werkzeugwechsel hinter offenem Dialog.")
+	check(hud.chosen_tool == -2, "B schaltet das Abrisswerkzeug nicht ein.")
+	root.push_input(key(KEY_B))
+	check(hud.chosen_tool == -1, "B schaltet das Abrisswerkzeug nicht aus.")
+	check(hud.get("category_buttons") != null, "Direkte Baukategorien fehlen.")
+	if hud.get("category_buttons") == null:
+		quit(1)
+		return
+	var all := {}
+	for category: String in hud.categories:
+		hud.category_buttons[category].pressed.emit()
+		check(hud.catalog_panel.visible and not hud.has_modal(), "Baukategorie blockiert das Spiel.")
+		check(hud.tool_list.get_child_count() == hud.categories[category].size(),
+			"Direkte Baukategorie zeigt falsche Einträge.")
+		for button: Button in hud.tool_list.get_children():
+			var tool_id: int = button.get_meta("tool_id")
+			check(not all.has(tool_id), "Doppelter Katalogeintrag %d." % tool_id)
+			all[tool_id] = true
+			check(button.text.contains("Felder") and button.text.contains("Technologie"),
+				"Angaben zum Werkzeug fehlen.")
+	for tool: Dictionary in core.tools():
+		check(all.has(int(tool.id)), "Werkzeug fehlt im Katalog %s." % tool.name)
 	var option: Button = hud.tool_list.get_child(0)
 	var id: int = option.get_meta("tool_id")
 	option.pressed.emit()
-	check(hud.chosen_tool == id and not hud.catalog_dialog.visible, "Katalogauswahl wurde nicht übernommen.")
+	check(hud.chosen_tool == id and not hud.catalog_panel.visible, "Katalogauswahl wurde nicht übernommen.")
 	root.push_input(key(KEY_F1))
 	check(hud.help_dialog.visible, "F1 öffnet die Hilfe nicht.")
 	hud.help_dialog.hide()
@@ -87,7 +86,7 @@ func _test() -> void:
 	hud.set_focus(Vector2i(middle, middle), 0.0)
 	hud.map._gui_input(key(KEY_LEFT))
 	check(target.back() == Vector2i(middle - 1, middle), "Pfeiltaste navigiert nicht auf der Minikarte.")
-	for pixels in [Vector2i(1440, 900), Vector2i(1920, 1080)]:
+	for pixels in [Vector2i(640, 480), Vector2i(1440, 900), Vector2i(1920, 1080)]:
 		root.size = pixels
 		await process_frame
 		await process_frame

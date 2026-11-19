@@ -1,0 +1,1073 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LinCity-NG 3D\n"
+"PO-Revision-Date: 2026-11-19 00:00+0000\n"
+"Last-Translator: LinCity-NG contributors\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "%.1f %% Technologie"
+msgstr "%.1f %% technology"
+
+msgid "%d / %d Jahre"
+msgstr "%d / %d years"
+
+msgid "%d × %d Felder"
+msgstr "%d × %d tiles"
+
+msgid "%s (Umschalt+%d)"
+msgstr "%s (Shift+%d)"
+
+msgid "%s · %d nicht baubar"
+msgstr "%s · %d unavailable tiles"
+
+msgid "1.000 Menschen wurden evakuiert."
+msgstr "1,000 people were evacuated."
+
+msgid "Abbrechen"
+msgstr "Cancel"
+
+msgid "Abfall"
+msgstr "Waste"
+
+msgid "Abgeben"
+msgstr "Supply"
+
+msgid "Abgeschlossener Monat"
+msgstr "Completed month"
+
+msgid "Abreißen"
+msgstr "Bulldoze"
+
+msgid "Abriss"
+msgstr "Bulldoze"
+
+msgid "Alle Bauwerkzeuge (B)"
+msgstr "All building tools (B)"
+
+msgid "Allgemein"
+msgstr "General"
+
+msgid "Am Strand"
+msgstr "At the Beach"
+
+msgid "Annehmen"
+msgstr "Accept"
+
+msgid "Arbeitskräfte"
+msgstr "Labor"
+
+msgid "Arbeitslose"
+msgstr "Unemployed"
+
+msgid "Arbeitslosenhilfe"
+msgstr "Unemployment benefits"
+
+msgid "Arbeitslosigkeit in Personenjahren"
+msgstr "Unemployment in person-years"
+
+msgid "Arbeitsmarkt"
+msgstr "Employment"
+
+msgid "Aus"
+msgstr "Off"
+
+msgid "Ausgaben"
+msgstr "Expenses"
+
+msgid "Ausgangslage wählen"
+msgstr "Choose a starting point"
+
+msgid "Ausgangsszenario"
+msgstr "Starting scenario"
+
+msgid "Bauernhof"
+msgstr "Farm"
+
+msgid "Bauernhöfe"
+msgstr "Farms"
+
+msgid "Bauvorhaben"
+msgstr "Construction"
+
+msgid "Bauwerke und Verkehrswege"
+msgstr "Buildings and transport infrastructure"
+
+msgid "Beenden"
+msgstr "Quit"
+
+msgid "Beenden …"
+msgstr "Quit …"
+
+msgid "Behelfsunterkunft"
+msgstr "Shanty"
+
+msgid "Behelfsunterkünfte"
+msgstr "Shanties"
+
+msgid "Belegung des Wohnraums (%)"
+msgstr "Housing occupancy (%)"
+
+msgid "Bestand / Kapazität"
+msgstr "Inventory / Capacity"
+
+msgid "Bevölkerung"
+msgstr "Population"
+
+msgid "Bisher sind keine Ereignisse eingegangen."
+msgstr "There are no events yet."
+
+msgid "Brunnen"
+msgstr "Well"
+
+msgid "Das Szenario konnte nicht gelesen werden."
+msgstr "The scenario could not be read."
+
+msgid "Das Szenario konnte nicht geöffnet werden."
+msgstr "The scenario could not be opened."
+
+msgid "Das verfügbare Kreditlimit reicht nicht aus."
+msgstr "The city has reached its credit limit."
+
+msgid "Davon unnatürlich"
+msgstr "Of which unnatural"
+
+msgid "Deine Stadt hat alle Nachhaltigkeitsziele erreicht. Ihre Wirtschaft kann auf Dauer bestehen."
+msgstr "Your city has met every sustainability goal. Its economy can now sustain itself."
+
+msgid "Den Kassenstand von Jahr zu Jahr halten oder steigern."
+msgstr "Maintain or increase the cash balance each year."
+
+msgid "Denkmal"
+msgstr "Monument"
+
+msgid "Denkmäler"
+msgstr "Monuments"
+
+msgid "Der Abriss kostet %s $. Möchtest du fortfahren?"
+msgstr "Demolition costs $%s. Do you want to proceed?"
+
+msgid "Der Fortsetzungsstand konnte nicht gespeichert werden. %s"
+msgstr "The city could not be saved for resuming. %s"
+
+msgid "Der Testflug war erfolgreich."
+msgstr "The test flight succeeded."
+
+msgid "Dezember"
+msgstr "December"
+
+msgid "Die Bevölkerung deiner Stadt ist gestorben."
+msgstr "The inhabitants of your city have died."
+
+msgid "Die Datei für den Fortsetzungsstand konnte nicht ersetzt werden."
+msgstr "The file for resuming this city could not be replaced."
+
+msgid "Die Einstellungen konnten nicht gespeichert werden."
+msgstr "Settings could not be saved."
+
+msgid "Die Erkundung kostet 1.000.000 $. Danach zeigt die Kohlekarte die Lagerstätten."
+msgstr "The survey costs $1,000,000. The coal map will then show the deposits."
+
+msgid "Die Kohlevorkommen sind bereits erkundet. Wähle die Kartenebene „Kohlevorräte“."
+msgstr "The coal reserves have already been surveyed. Select the Coal reserves map layer."
+
+msgid "Die Rakete ist abgestürzt."
+msgstr "The rocket crashed."
+
+msgid "Die Sprache ändert sich beim nächsten Programmstart."
+msgstr "The language changes the next time you start the game."
+
+msgid "Die Stadtkasse ist leer."
+msgstr "The treasury is empty."
+
+msgid "Die Statistikdatei konnte nicht geschrieben werden."
+msgstr "The statistics file could not be written."
+
+msgid "Die aktuelle Stadt wird ersetzt."
+msgstr "This replaces the current city."
+
+msgid "Die native Erweiterung fehlt. Bitte das CMake-Ziel lincity_godot bauen."
+msgstr "The native extension is missing. Build the lincity_godot CMake target."
+
+msgid "Die relevanten Gebäude mit Feuerwehrschutz abdecken."
+msgstr "Provide fire coverage to the buildings that need it."
+
+msgid "Dieser Artikel ist nicht verfügbar."
+msgstr "This article is unavailable."
+
+msgid "Dokument auswählen"
+msgstr "Select a document"
+
+msgid "Du hast die letzten Einwohnerinnen und Einwohner erfolgreich ins All evakuiert."
+msgstr "You successfully evacuated the last inhabitants into space."
+
+msgid "Ein ausreichend hohes Technologieniveau weitgehend halten oder steigern."
+msgstr "Maintain or increase technology above the minimum level."
+
+msgid "Eine Rakete ist startbereit."
+msgstr "A rocket is ready to launch."
+
+msgid "Eine ausreichend große Bevölkerung stabil halten."
+msgstr "Maintain a stable population above the minimum level."
+
+msgid "Einfach · dicht"
+msgstr "Basic · high density"
+
+msgid "Einfach · locker"
+msgstr "Basic · low density"
+
+msgid "Einfach · mittel"
+msgstr "Basic · medium density"
+
+msgid "Einkommensteuer"
+msgstr "Income tax"
+
+msgid "Einnahmen"
+msgstr "Income"
+
+msgid "Einstellungen"
+msgstr "Settings"
+
+msgid "Einstellungen …"
+msgstr "Settings …"
+
+msgid "Einwohner"
+msgstr "Inhabitants"
+
+msgid "Eisenbahn"
+msgstr "Railway"
+
+msgid "Eisenbahnbrücke"
+msgstr "Railway bridge"
+
+msgid "Energie"
+msgstr "Energy"
+
+msgid "Ereignisse"
+msgstr "Events"
+
+msgid "Erfolgreiche Starts"
+msgstr "Successful launches"
+
+msgid "Erkunden"
+msgstr "Survey"
+
+msgid "Ernährung"
+msgstr "Food supply"
+
+msgid "Erz"
+msgstr "Ore"
+
+msgid "Erzbergwerk"
+msgstr "Ore mine"
+
+msgid "Erzbergwerke"
+msgstr "Ore mines"
+
+msgid "Es gibt noch keine Schnellspeicherung."
+msgstr "There is no quicksave yet."
+
+msgid "Evakuieren"
+msgstr "Evacuate"
+
+msgid "Evakuierte"
+msgstr "Evacuees"
+
+msgid "Exporte"
+msgstr "Exports"
+
+msgid "Fahrzeugverkehr"
+msgstr "Vehicle traffic"
+
+msgid "Februar"
+msgstr "February"
+
+msgid "Feldbericht"
+msgstr "Tile report"
+
+msgid "Feldbericht schließen (Esc)"
+msgstr "Close tile report (Esc)"
+
+msgid "Feldweg"
+msgstr "Track"
+
+msgid "Feldwegbrücke"
+msgstr "Track bridge"
+
+msgid "Feldwege und Feldwegbrücken"
+msgstr "Tracks and track bridges"
+
+msgid "Fenstergröße"
+msgstr "Window size"
+
+msgid "Feuchtgebiet"
+msgstr "Wetlands"
+
+msgid "Feuer bei Feld (%d, %d) · %s"
+msgstr "Fire at tile (%d, %d) · %s"
+
+msgid "Feuer bei Feld (%d, %d)."
+msgstr "Fire at tile (%d, %d)."
+
+msgid "Feuerwache"
+msgstr "Fire station"
+
+msgid "Feuerwachen"
+msgstr "Fire stations"
+
+msgid "Feuerwehr"
+msgstr "Fire coverage"
+
+msgid "Finanzen"
+msgstr "Finances"
+
+msgid "Flusslandschaft"
+msgstr "River landscape"
+
+msgid "Fortfahren"
+msgstr "Resume"
+
+msgid "Fortschritt zum Nachhaltigkeitssieg"
+msgstr "Progress toward a sustainable economy victory"
+
+msgid "Fortsetzen"
+msgstr "Continue"
+
+msgid "Für diese Stadt sind noch keine abgeschlossenen Monatswerte verfügbar."
+msgstr "This city has yet to complete a month with recorded data."
+
+msgid "Geburten"
+msgstr "Births"
+
+msgid "Geburten und Sterbefälle"
+msgstr "Births and deaths"
+
+msgid "Gemäßigte Zone"
+msgstr "Temperate"
+
+msgid "Geräusche"
+msgstr "Sound effects"
+
+msgid "Geräuschlautstärke"
+msgstr "Effects volume"
+
+msgid "Gesamter Verlauf"
+msgstr "Full history"
+
+msgid "Gestartete Raketen"
+msgstr "Rockets launched"
+
+msgid "Gesundheit"
+msgstr "Health"
+
+msgid "Gesundheitszentren"
+msgstr "Health centres"
+
+msgid "Gesundheitszentrum"
+msgstr "Health centre"
+
+msgid "Gleise und Eisenbahnbrücken"
+msgstr "Railways and railway bridges"
+
+msgid "Godot Engine und Drittkomponenten"
+msgstr "Godot Engine and third-party components"
+
+msgid "Grafik"
+msgstr "Graphics"
+
+msgid "Grundpreis %s $"
+msgstr "Base cost $%s"
+
+msgid "Gute Zeiten"
+msgstr "Good Times"
+
+msgid "Hafen"
+msgstr "Port"
+
+msgid "Handel einstellen …"
+msgstr "Configure trade …"
+
+msgid "Handelsregeln"
+msgstr "Trade rules"
+
+msgid "Hier nicht möglich."
+msgstr "This is not possible here."
+
+msgid "Hintergrundmusik"
+msgstr "Background music"
+
+msgid "Hochspannung"
+msgstr "High voltage"
+
+msgid "Hohes Tempo"
+msgstr "Fast speed"
+
+msgid "Hungernde"
+msgstr "People going hungry"
+
+msgid "Häfen"
+msgstr "Ports"
+
+msgid "Höchste Einwohnerzahl"
+msgstr "Peak population"
+
+msgid "Höchste Technologie"
+msgstr "Highest technology level"
+
+msgid "Importe"
+msgstr "Imports"
+
+msgid "Jahresabschluss"
+msgstr "Annual accounts"
+
+msgid "Jahresabschluss · Vorjahr"
+msgstr "Annual accounts · Previous year"
+
+msgid "Januar"
+msgstr "January"
+
+msgid "Juli"
+msgstr "July"
+
+msgid "Juni"
+msgstr "June"
+
+msgid "Kantenglättung"
+msgstr "Antialiasing"
+
+msgid "Kantenlänge in Feldern"
+msgstr "Side length in tiles"
+
+msgid "Kartenebene auswählen"
+msgstr "Select a map layer"
+
+msgid "Kassenstand"
+msgstr "Cash balance"
+
+msgid "Kassenstand zum Monatsende ($)"
+msgstr "Cash balance at month end ($)"
+
+msgid "Kein Musiktitel verfügbar"
+msgstr "No music track available"
+
+msgid "Keine Daten"
+msgstr "No data"
+
+msgid "Keine Messwerte für diesen Zeitraum"
+msgstr "No data for this period"
+
+msgid "Kennzahl"
+msgstr "Metric"
+
+msgid "Kleinstadt am Fluss"
+msgstr "Riverside Town"
+
+msgid "Kohle"
+msgstr "Coal"
+
+msgid "Kohle- und Erzvorkommen schonen."
+msgstr "Preserve coal and ore reserves."
+
+msgid "Kohlebergwerk"
+msgstr "Coal mine"
+
+msgid "Kohlebergwerke"
+msgstr "Coal mines"
+
+msgid "Kohleerkundung"
+msgstr "Coal survey"
+
+msgid "Kohlekraftwerk"
+msgstr "Coal power station"
+
+msgid "Kohlekraftwerke"
+msgstr "Coal power stations"
+
+msgid "Kohlesteuer"
+msgstr "Coal tax"
+
+msgid "Kohlevorkommen erkunden"
+msgstr "Survey coal reserves"
+
+msgid "Kohlevorkommen erkunden …"
+msgstr "Survey coal reserves …"
+
+msgid "Kohlevorräte"
+msgstr "Coal reserves"
+
+msgid "Kommune"
+msgstr "Commune"
+
+msgid "Kommunen"
+msgstr "Communes"
+
+msgid "Kosten  %s $"
+msgstr "Cost  $%s"
+
+msgid "Kostenlos"
+msgstr "Free"
+
+msgid "Lagerfüllgrad im Monatsmittel (%)"
+msgstr "Capacity used (monthly average, %)"
+
+msgid "Landschaft"
+msgstr "Terrain"
+
+msgid "Lebensmittel"
+msgstr "Food"
+
+msgid "Leichtindustrie"
+msgstr "Light industry"
+
+msgid "Letzte 12 Monate"
+msgstr "Last 12 months"
+
+msgid "Letzte 5 Jahre"
+msgstr "Last 5 years"
+
+msgid "LinCity-NG schließen?"
+msgstr "Quit LinCity-NG?"
+
+msgid "LinCity-Spielstände"
+msgstr "LinCity saved games"
+
+msgid "Lizenztext"
+msgstr "License text"
+
+msgid "Luftbelastung"
+msgstr "Air pollution"
+
+msgid "Luftverschmutzung"
+msgstr "Air pollution"
+
+msgid "Luftverschmutzung auf der gesamten Karte"
+msgstr "Air pollution across the map"
+
+msgid "Mai"
+msgstr "May"
+
+msgid "Markt"
+msgstr "Market"
+
+msgid "Meine Stadt.gz"
+msgstr "My City.gz"
+
+msgid "Mit Bäumen"
+msgstr "With trees"
+
+msgid "Mit Startdorf"
+msgstr "With a starting village"
+
+msgid "Mit „Untersuchen“ ein Feld auf der Karte auswählen."
+msgstr "Use Inspect to select a tile on the map."
+
+msgid "Mitwirkende"
+msgstr "Contributors"
+
+msgid "Mitwirkende und Lizenzen"
+msgstr "Credits and licenses"
+
+msgid "Mitwirkende und Lizenzen …"
+msgstr "Credits and licenses …"
+
+msgid "Modern · dicht"
+msgstr "Modern · high density"
+
+msgid "Modern · locker"
+msgstr "Modern · low density"
+
+msgid "Modern · mittel"
+msgstr "Modern · medium density"
+
+msgid "Monat"
+msgstr "Month"
+
+msgid "Monatsdiagramm"
+msgstr "Monthly chart"
+
+msgid "Musiklautstärke"
+msgstr "Music volume"
+
+msgid "Musiktitel"
+msgstr "Music track"
+
+msgid "Märkte"
+msgstr "Markets"
+
+msgid "März"
+msgstr "March"
+
+msgid "Mülldeponie"
+msgstr "Landfill"
+
+msgid "Mülldeponien"
+msgstr "Landfills"
+
+msgid "Nachhaltigkeit"
+msgstr "Sustainability"
+
+msgid "Nachhaltigkeitsziel erreicht"
+msgstr "Sustainability goal reached"
+
+msgid "Neue Landschaft"
+msgstr "New landscape"
+
+msgid "Neue Stadt"
+msgstr "New city"
+
+msgid "Neue Stadt oder Szenario …"
+msgstr "New city or scenario …"
+
+msgid "Neues Spiel"
+msgstr "New game"
+
+msgid "Niederspannung"
+msgstr "Low voltage"
+
+msgid "Normales Tempo"
+msgstr "Normal speed"
+
+msgid "Nächster Titel"
+msgstr "Next track"
+
+msgid "Ohne Hafenimporte und -exporte auskommen."
+msgstr "Do without imports or exports through ports."
+
+msgid "Oktober"
+msgstr "October"
+
+msgid "Park mit Teich"
+msgstr "Park with pond"
+
+msgid "Pause"
+msgstr "Pause"
+
+msgid "Pausenmenü (Esc)"
+msgstr "Pause menu (Esc)"
+
+msgid "Personen im Monatsmittel"
+msgstr "People (monthly average)"
+
+msgid "Personen pro Monat"
+msgstr "People per month"
+
+msgid "Preis je nach Feld"
+msgstr "Cost depends on the tile"
+
+msgid "Produktion"
+msgstr "Production"
+
+msgid "Projekt und Spieldaten"
+msgstr "Project and game data"
+
+msgid "Rakete starten …"
+msgstr "Launch rocket …"
+
+msgid "Raketen"
+msgstr "Rockets"
+
+msgid "Raketenprogramm"
+msgstr "Rocket Program"
+
+msgid "Raketenstart"
+msgstr "Rocket launch"
+
+msgid "Raketenstartplatz"
+msgstr "Rocket pad"
+
+msgid "Raketenstartplätze"
+msgstr "Rocket pads"
+
+msgid "Recyclinganlage"
+msgstr "Recycling centre"
+
+msgid "Recyclinganlagen"
+msgstr "Recycling centres"
+
+msgid "Rust-Abhängigkeiten"
+msgstr "Rust dependencies"
+
+msgid "Schatten"
+msgstr "Shadows"
+
+msgid "Schlechte Zeiten"
+msgstr "Bad Times"
+
+msgid "Schließen"
+msgstr "Close"
+
+msgid "Schmiede"
+msgstr "Blacksmith"
+
+msgid "Schmieden"
+msgstr "Blacksmiths"
+
+msgid "Schnellladen (F9)"
+msgstr "Quickload (F9)"
+
+msgid "Schnelllauf"
+msgstr "Fast forward"
+
+msgid "Schnellspeichern (F12)"
+msgstr "Quicksave (F12)"
+
+msgid "Schule"
+msgstr "School"
+
+msgid "Schulen"
+msgstr "Schools"
+
+msgid "Schwerindustrie"
+msgstr "Heavy industry"
+
+msgid "Sieg durch Evakuierung"
+msgstr "Evacuation victory"
+
+msgid "Sieg durch Nachhaltigkeit"
+msgstr "Sustainable economy victory"
+
+msgid "Solarkraftwerk"
+msgstr "Solar power station"
+
+msgid "Solarkraftwerke"
+msgstr "Solar power stations"
+
+msgid "Soll die vorbereitete Rakete starten?"
+msgstr "Launch the rocket now?"
+
+msgid "Spiel"
+msgstr "Game"
+
+msgid "Spiel beenden"
+msgstr "Quit game"
+
+msgid "Spiel laden"
+msgstr "Load game"
+
+msgid "Spiel pausiert"
+msgstr "Game paused"
+
+msgid "Spiel speichern"
+msgstr "Save game"
+
+msgid "Spieldaten · GPL / CC BY-SA"
+msgstr "Game data · GPL / CC BY-SA"
+
+msgid "Spielhilfe"
+msgstr "Game help"
+
+msgid "Spielstand laden …"
+msgstr "Load game …"
+
+msgid "Spielstand speichern …"
+msgstr "Save game …"
+
+msgid "Spielzeit"
+msgstr "Game date"
+
+msgid "Sport"
+msgstr "Sports"
+
+msgid "Sportplatz"
+msgstr "Sports ground"
+
+msgid "Sportplätze"
+msgstr "Sports grounds"
+
+msgid "Sprache"
+msgstr "Language"
+
+msgid "Stadt gespeichert."
+msgstr "City saved."
+
+msgid "Stadt laden"
+msgstr "Load city"
+
+msgid "Stadt speichern"
+msgstr "Save city"
+
+msgid "Stadt verloren"
+msgstr "City lost"
+
+msgid "Stadtkasse"
+msgstr "Treasury"
+
+msgid "Stadtplan"
+msgstr "City map"
+
+msgid "Stadtstatistik"
+msgstr "City statistics"
+
+msgid "Stadtstatistik exportieren"
+msgstr "Export city statistics"
+
+msgid "Stadtstatistik exportiert."
+msgstr "City statistics exported."
+
+msgid "Stadtstatistik.txt"
+msgstr "City statistics.txt"
+
+msgid "Stahl"
+msgstr "Steel"
+
+msgid "Starten"
+msgstr "Start"
+
+msgid "Statistik exportieren …"
+msgstr "Export statistics …"
+
+msgid "Sterbefälle"
+msgstr "Deaths"
+
+msgid "Steuerung"
+msgstr "Controls"
+
+msgid "Straße"
+msgstr "Road"
+
+msgid "Straßen und Straßenbrücken"
+msgstr "Roads and road bridges"
+
+msgid "Straßenbrücke"
+msgstr "Road bridge"
+
+msgid "Stromleitung"
+msgstr "Power line"
+
+msgid "Stromleitungen"
+msgstr "Power lines"
+
+msgid "Stromversorgung"
+msgstr "Power supply"
+
+msgid "Summe   %s $"
+msgstr "Total   %s $"
+
+msgid "Sumpfland"
+msgstr "Wetlands"
+
+msgid "Technologie"
+msgstr "Technology"
+
+msgid "Technologiestand"
+msgstr "Technology level"
+
+msgid "Technologiestand zum Monatsende (%)"
+msgstr "Technology level at month end (%)"
+
+msgid "Teuren Abriss bestätigen"
+msgstr "Confirm costly demolition"
+
+msgid "Textdateien"
+msgstr "Text files"
+
+msgid "Textilmühle"
+msgstr "Textile mill"
+
+msgid "Textilmühlen"
+msgstr "Textile mills"
+
+msgid "Themenverzeichnis"
+msgstr "Topic index"
+
+msgid "Ton"
+msgstr "Audio"
+
+msgid "Tote durch Hunger"
+msgstr "Deaths from hunger"
+
+msgid "Tote durch Umweltbelastung"
+msgstr "Deaths from pollution"
+
+msgid "Trockengebiet"
+msgstr "Arid Area"
+
+msgid "Töpferei"
+msgstr "Pottery"
+
+msgid "Töpfereien"
+msgstr "Potteries"
+
+msgid "Umspannwerk"
+msgstr "Substation"
+
+msgid "Umspannwerke"
+msgstr "Substations"
+
+msgid "Umwelt"
+msgstr "Environment"
+
+msgid "Universität"
+msgstr "University"
+
+msgid "Universitäten"
+msgstr "Universities"
+
+msgid "Unter Wayland änderst du die Größe am Fensterrand."
+msgstr "On Wayland, resize the window by dragging its edge."
+
+msgid "Untersuchen"
+msgstr "Inspect"
+
+msgid "Verkehr"
+msgstr "Transport"
+
+msgid "Verlauf und Nachhaltigkeit …"
+msgstr "History and sustainability …"
+
+msgid "Versorgung"
+msgstr "Utilities"
+
+msgid "Vollbild"
+msgstr "Fullscreen"
+
+msgid "Vorheriger Titel"
+msgstr "Previous track"
+
+msgid "Ware"
+msgstr "Commodity"
+
+msgid "Waren"
+msgstr "Goods"
+
+msgid "Warenbestand"
+msgstr "Inventory"
+
+msgid "Warensteuer"
+msgstr "Goods tax"
+
+msgid "Warenversorgung"
+msgstr "Inventory"
+
+msgid "Warnung schließen"
+msgstr "Dismiss warning"
+
+msgid "Wasser"
+msgstr "Water"
+
+msgid "Wasser anlegen"
+msgstr "Place water"
+
+msgid "Wasserspiegelungen"
+msgstr "Water reflections"
+
+msgid "Weiterbauen"
+msgstr "Keep building"
+
+msgid "Weitere"
+msgstr "Other"
+
+msgid "Werkzeuge"
+msgstr "Tools"
+
+msgid "Werkzeugkategorie"
+msgstr "Tool category"
+
+msgid "Windkraftanlage"
+msgstr "Wind turbine"
+
+msgid "Windkraftanlagen"
+msgstr "Wind turbines"
+
+msgid "Windmühle"
+msgstr "Windmill"
+
+msgid "Windmühlen"
+msgstr "Windmills"
+
+msgid "Wirtschaft"
+msgstr "Economy"
+
+msgid "Wohnen"
+msgstr "Housing"
+
+msgid "Wohnhäuser"
+msgstr "Homes"
+
+msgid "Wohnraum"
+msgstr "Housing"
+
+msgid "Wohnraumbelegung"
+msgstr "Housing occupancy"
+
+msgid "Wohnungslose"
+msgstr "People without housing"
+
+msgid "Wohnungssuchende"
+msgstr "People without housing"
+
+msgid "Wüste"
+msgstr "Desert"
+
+msgid "Zeitraum"
+msgstr "Period"
+
+msgid "Zinsen"
+msgstr "Interest"
+
+msgid "Zum Hauptmenü"
+msgstr "Return to main menu"
+
+msgid "Zum Ort"
+msgstr "Go to location"
+
+msgid "Zum Ziel klicken oder mit den Pfeiltasten navigieren"
+msgstr "Click a location or navigate with the arrow keys"
+
+msgid "Zurück"
+msgstr "Back"
+
+msgid ""
+"[font_size=24]Die Stadt verwalten[/font_size]\n"
+"\n"
+"Ein Markt verteilt Lebensmittel, Güter und Arbeitskräfte in seinem Einzugsgebiet. Platziere Wohngebiete, einen Bauernhof und einen Brunnen in der Nähe. Wege verbinden die Stadt mit weiteren Betrieben.\n"
+"\n"
+"[b]Bauen und untersuchen[/b]\n"
+"Umschalt+1 bis Umschalt+5 wählen Untersuchen, Straße, Wohnen, Markt und Abriss. Weitere Werkzeuge findest du in den Kategorien der Bauleiste. B wechselt zwischen Abriss und Untersuchen. Esc schließt einen offenen Bericht oder Baukatalog und öffnet andernfalls das Pausenmenü. Mit F1 öffnest du die Spielhilfe. F12 speichert schnell, F9 lädt diese Schnellspeicherung. Klicke zum Bauen auf ein Feld. Ziehe einen Feldweg, eine Straße oder eine Bahnlinie mit gedrückter linker Maustaste. Strg wechselt die Richtung der Kurve. Mit „Untersuchen“ öffnest du den Feldbericht und erhältst Zugang zu Produktion, Handelsregeln oder Raketenstart.\n"
+"\n"
+"[b]Kamera und Kartenebenen[/b]\n"
+"Drehe die Ansicht mit gedrückter rechter Maustaste oder mit Q und E. Verschiebe sie mit der mittleren Maustaste, WASD oder den Pfeiltasten. Das Mausrad zoomt. Ein Klick in die Minikarte springt zum Ziel. Unter der Minikarte wählst du die Kartenebene.\n"
+"\n"
+"[b]Statistik und Spielziele[/b]\n"
+"Unter „Spiel → Verlauf und Nachhaltigkeit“ findest du Monatsdiagramme und die sechs Kriterien für den Sieg durch eine nachhaltige Wirtschaft. Du kannst das Spiel auch durch die vollständige Evakuierung per Rakete gewinnen. Anzeige, Musik, Effekte und Vorgaben für neue Städte stehen unter „Spiel → Einstellungen“.\n"
+"\n"
+"[b]LinCity-Handbuch[/b]\n"
+"[url=tutorial-basics]Erste Schritte[/url]    [url=market]Märkte[/url]    [url=transport]Verkehr[/url]    [url=index]Alle Themen[/url]\n"
+"\n"
+"Die folgenden Originalartikel beschreiben auch die Bedienung der klassischen Oberfläche."
+msgstr ""
+"[font_size=24]Managing your city[/font_size]\n"
+"\n"
+"A market distributes food, goods and labor within its service area. Place housing, a farm and a well nearby. Use tracks to connect the city to other businesses.\n"
+"\n"
+"[b]Building and inspecting[/b]\n"
+"Shift+1 through Shift+5 select Inspect, Road, Housing, Market and Bulldoze. Find the other tools in the categories on the build bar. B toggles between Bulldoze and Inspect. Esc closes an open tile report or build catalog, or opens the pause menu. Press F1 for help, F12 to quicksave and F9 to quickload. Click a tile to build. Hold the left mouse button and drag to lay a track, road or railway. Ctrl changes the direction of the bend. Use Inspect to open the tile report and access production, trade rules or the rocket launch.\n"
+"\n"
+"[b]Camera and map layers[/b]\n"
+"Rotate the view with the right mouse button or Q and E. Pan with the middle mouse button, WASD or the arrow keys. Scroll to zoom. Click the minimap to jump to a location. Select a map layer below the minimap.\n"
+"\n"
+"[b]Statistics and goals[/b]\n"
+"Under Game → History and sustainability, you can find monthly charts and the six requirements for a sustainable economy victory. You can also win by evacuating the entire city by rocket. Open Settings to configure display, audio and defaults for new cities.\n"
+"\n"
+"[b]LinCity manual[/b]\n"
+"[url=tutorial-basics]Getting started[/url]    [url=market]Markets[/url]    [url=transport]Transport[/url]    [url=index]All topics[/url]\n"
+"\n"
+"The original articles below also describe how to use the classic interface."
+
+msgid "erreicht"
+msgstr "reached"
+
+msgid "offen"
+msgstr "in progress"
+
+msgid "Öffentliches"
+msgstr "Public services"
+
+msgid "Übernehmen"
+msgstr "Apply"
+
+msgid "Die Auswahl ist zu groß. Teile sie in kleinere Abschnitte."
+msgstr "The selection is too large. Split it into smaller sections."

@@ -27,6 +27,7 @@ const MUTED := Color("#c4c8c0")
 const ACCENT := Color("#e3c78a")
 const PANEL := Color("#202321ee")
 const EDGE := Color("#73766a")
+const SUPPLY_REPORT := 16
 const QUICK_TOOLS := [
 	[-1, "Untersuchen", "inspect"], [11, "Straße", "road"], [4, "Wohnen", "housing"],
 	[6, "Markt", "market"], [-2, "Abriss", "demolish"],
@@ -34,6 +35,8 @@ const QUICK_TOOLS := [
 const MONTHS := ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
 const LAYERS := ["Stadtplan", "Luftbelastung", "Arbeitsmarkt", "Ernährung", "Stromversorgung", "Feuerwehr", "Sport", "Gesundheit", "Kohlevorräte", "Verkehr", "Warenbestand"]
 const GOODS := ["Lebensmittel", "Arbeitskräfte", "Kohle", "Waren", "Erz", "Stahl", "Abfall", "Niederspannung", "Hochspannung", "Wasser"]
+const LAYER_KEYS := {KEY_QUOTELEFT: 0, KEY_1: 3, KEY_2: 2, KEY_3: 4, KEY_4: 5,
+	KEY_5: 6, KEY_6: 7, KEY_7: 9, KEY_8: 1, KEY_9: 8, KEY_0: 10}
 const ACCOUNTS := {
 	"Income tax": "Einkommensteuer", "Coal tax": "Kohlesteuer", "Goods tax": "Warensteuer", "Exports": "Exporte",
 	"Construction": "Bauvorhaben", "Coal survey": "Kohleerkundung", "Imports": "Importe", "Unemployment": "Arbeitslosenhilfe",
@@ -71,13 +74,21 @@ var game_surface := Control.new()
 var session_menu := preload("res://ui/session_menu.gd").new()
 var treasury := Label.new()
 var inhabitants := Label.new()
+var technology := Label.new()
+var supply_button: Button
+var warning_panel: PanelContainer
+var warning_text := Label.new()
+var warning_focus: Button
+var warning_cell := Vector2i(-1, -1)
 var date := Label.new()
 var speed_buttons := {}
 var quick_buttons := {}
-var catalog_button: Button
-var catalog_dialog := AcceptDialog.new()
+var catalog_panel: PanelContainer
+var category_row := HBoxContainer.new()
+var category_buttons := {}
+var active_category := ""
+var catalog_heading := Label.new()
 var preview_panel: PanelContainer
-var category_picker := OptionButton.new()
 var palette: PanelContainer
 var tool_list := GridContainer.new()
 var inspector: PanelContainer
@@ -94,6 +105,10 @@ var trade_dialog := AcceptDialog.new()
 var trade_list := VBoxContainer.new()
 var report_dialog := AcceptDialog.new()
 var report_body := RichTextLabel.new()
+var city_report := preload("res://ui/city_report.gd").new()
+var report_export: Button
+var report_save_dialog := FileDialog.new()
+var report_export_status := Label.new()
 var survey_dialog := ConfirmationDialog.new()
 var launch_dialog := ConfirmationDialog.new()
 var events := PackedStringArray()
@@ -184,14 +199,14 @@ func _panel(preset: Control.LayoutPreset, bounds: Rect2) -> PanelContainer:
 
 func _label(value: String, font_size: int, color: Color = PAPER) -> Label:
 	var label := Label.new()
-	label.text = value
+	label.text = tr(value)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	return label
 
 func _button(title: String, callback: Callable) -> Button:
 	var button := Button.new()
-	button.text = title
+	button.text = tr(title)
 	button.pressed.connect(callback)
 	return button
 
@@ -217,16 +232,25 @@ func _top_bar() -> void:
 	_metric(row, "Bevölkerung", inhabitants, "people")
 	row.add_child(VSeparator.new())
 	_metric(row, "Stadtkasse", treasury, "coins")
+	row.add_child(VSeparator.new())
+	row.add_child(_label("Technologie", 14, MUTED))
+	technology.text = "—"
+	row.add_child(technology)
+	supply_button = _button("Warenversorgung", _open_report.bind(SUPPLY_REPORT))
+	supply_button.tooltip_text = tr("Warenversorgung")
+	supply_button.accessibility_name = tr("Warenversorgung")
+	row.add_child(supply_button)
+	_warning_banner()
 	var controls := _panel(Control.PRESET_TOP_RIGHT, Rect2(-10, 9, 0, 36))
 	controls.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	var clock := HBoxContainer.new()
 	clock.add_theme_constant_override("separation", 4)
 	controls.add_child(clock)
 	var speeds := ButtonGroup.new()
-	for item in [[0, "Ⅱ", "Pause"], [1, "▶", "Einfaches Tempo"], [2, "▶▶", "Doppeltes Tempo"], [4, "▶▶▶", "Vierfaches Tempo"]]:
+	for item in [[0, "Ⅱ", "Pause"], [1, "▶", "Normales Tempo"], [2, "▶▶", "Hohes Tempo"], [4, "▶▶▶", "Schnelllauf"]]:
 		var speed: int = item[0]
 		var button := _button(item[1], speed_changed.emit.bind(speed))
-		button.tooltip_text = item[2]
+		button.tooltip_text = tr(item[2])
 		button.add_theme_font_size_override("font_size", 12)
 		button.button_group = speeds
 		button.toggle_mode = true
@@ -236,53 +260,69 @@ func _top_bar() -> void:
 	clock.add_child(VSeparator.new())
 	date.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	date.custom_minimum_size.x = 110
-	date.tooltip_text = "Spielzeit"
+	date.tooltip_text = tr("Spielzeit")
 	clock.add_child(date)
 	var menu := MenuButton.new()
-	menu.text = "Spiel"
+	menu.text = tr("Spiel")
 	menu.flat = false
 	clock.add_child(menu)
 	var popup := menu.get_popup()
 	popup.add_item(tr("Pausenmenü (Esc)"), 15)
 	popup.add_separator()
-	popup.add_item("Neue Stadt oder Szenario …", 0)
-	popup.add_item("Spielstand laden …", 1)
-	popup.add_item("Spielstand speichern …", 2)
-	popup.add_item("Schnellladen (F9)", 12)
-	popup.add_item("Schnellspeichern (F12)", 13)
+	popup.add_item(tr("Neue Stadt oder Szenario …"), 0)
+	popup.add_item(tr("Spielstand laden …"), 1)
+	popup.add_item(tr("Spielstand speichern …"), 2)
+	popup.add_item(tr("Schnellladen (F9)"), 12)
+	popup.add_item(tr("Schnellspeichern (F12)"), 13)
 	popup.add_separator()
-	popup.add_item("Stadtstatistik", 4)
-	popup.add_item("Jahresabschluss", 5)
-	popup.add_item("Verlauf und Nachhaltigkeit …", 10)
-	popup.add_item("Ereignisse", 6)
-	popup.add_item("Kohlevorkommen erkunden …", 7)
+	popup.add_item(tr("Stadtstatistik"), 4)
+	popup.add_item(tr("Jahresabschluss"), 5)
+	popup.add_item(tr("Verlauf und Nachhaltigkeit …"), 10)
+	popup.add_item(tr("Ereignisse"), 6)
+	popup.add_item(tr("Kohlevorkommen erkunden …"), 7)
 	popup.add_separator()
-	popup.add_item("Spielhilfe", 3)
-	popup.add_item("Mitwirkende und Lizenzen …", 8)
+	popup.add_item(tr("Spielhilfe"), 3)
+	popup.add_item(tr("Mitwirkende und Lizenzen …"), 8)
 	popup.add_separator()
-	popup.add_item("Einstellungen …", 9)
-	popup.add_item("Beenden …", 14)
+	popup.add_item(tr("Einstellungen …"), 9)
+	popup.add_item(tr("Beenden …"), 14)
 	popup.id_pressed.connect(_menu_action)
 
 func _palette() -> void:
-	palette = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -90, 0, 80))
+	palette = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -123, 0, 113))
 	palette.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	palette.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	var tools := VBoxContainer.new()
+	tools.add_theme_constant_override("separation", 5)
+	palette.add_child(tools)
 	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 4)
-	palette.add_child(row)
+	tools.add_child(row)
 	for item in QUICK_TOOLS:
 		var id: int = item[0]
 		var button := _dock_button(item[1], item[2], _select_tool.bind(id))
 		button.toggle_mode = true
-		button.tooltip_text = "%s (%d)" % [Catalog.tool_name(id), quick_buttons.size() + 1]
+		button.tooltip_text = tr("%s (Umschalt+%d)") % [Catalog.tool_name(id), quick_buttons.size() + 1]
 		row.add_child(button)
 		quick_buttons[id] = button
-	row.add_child(VSeparator.new())
-	catalog_button = _dock_button("Baukatalog", "catalog", _open_catalog)
-	catalog_button.tooltip_text = "Alle Bauwerkzeuge (B)"
-	row.add_child(catalog_button)
-	preview_panel = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -142, 0, 30))
+	category_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	category_row.add_theme_constant_override("separation", 4)
+	tools.add_child(category_row)
+	catalog_panel = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(-290, -367, 580, 235))
+	catalog_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	var catalog_layout := VBoxContainer.new()
+	catalog_panel.add_child(catalog_layout)
+	catalog_layout.add_child(catalog_heading)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	catalog_layout.add_child(scroll)
+	scroll.add_child(tool_list)
+	tool_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tool_list.columns = 3
+	catalog_panel.hide()
+	preview_panel = _panel(Control.PRESET_CENTER_BOTTOM, Rect2(0, -174, 0, 35))
 	preview_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	preview_panel.add_child(preview)
 	preview.add_theme_font_size_override("font_size", 13)
@@ -298,9 +338,20 @@ func _dock_button(caption: String, symbol: String, action: Callable) -> Button:
 	button.custom_minimum_size = Vector2(84, 64)
 	return button
 
-func _open_catalog() -> void:
-	catalog_dialog.popup_centered(Vector2i(560, 320))
-	category_picker.grab_focus()
+func _toggle_category(category: String) -> void:
+	if catalog_panel.visible and active_category == category:
+		close_catalog()
+		return
+	active_category = category
+	catalog_heading.text = tr(category)
+	_refresh_tools()
+	catalog_panel.show()
+	preview_panel.hide()
+	_sync_selection()
+
+func close_catalog() -> void:
+	catalog_panel.hide()
+	_sync_selection()
 
 func _overview() -> void:
 	var panel := _panel(Control.PRESET_BOTTOM_RIGHT, Rect2(-182, -212, 172, 202))
@@ -314,20 +365,23 @@ func _overview() -> void:
 	map.focus_entered.connect(map.queue_redraw)
 	map.focus_exited.connect(map.queue_redraw)
 	map.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	map.tooltip_text = "Zum Ziel klicken oder mit den Pfeiltasten navigieren"
+	map.tooltip_text = tr("Zum Ziel klicken oder mit den Pfeiltasten navigieren")
 	map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map.cell_selected.connect(func(cell: Vector2i): focus_requested.emit(cell))
-	for layer_name in LAYERS: layers.add_item(layer_name)
+	for layer_name in LAYERS: layers.add_item(tr(layer_name))
 	column.add_child(layers)
-	layers.tooltip_text = "Kartenebene auswählen"
-	for good in GOODS: commodities.add_item(good)
+	layers.tooltip_text = tr("Kartenebene auswählen")
+	for good in GOODS: commodities.add_item(tr(good))
 	column.add_child(commodities)
 	commodities.hide()
-	layers.item_selected.connect(func(id: int):
-		commodities.visible = id == 10
-		overlay_changed.emit(id == 1)
-		layer_selected.emit(id, commodities.selected))
+	layers.item_selected.connect(_activate_layer)
 	commodities.item_selected.connect(func(good: int): layer_selected.emit(layers.selected, good))
+
+func _activate_layer(id: int) -> void:
+	layers.select(id)
+	commodities.visible = id == 10
+	overlay_changed.emit(id == 1)
+	layer_selected.emit(id, commodities.selected)
 
 func _footer() -> void:
 	inspector = _panel(Control.PRESET_TOP_RIGHT, Rect2(-332, 61, 322, 276))
@@ -342,22 +396,22 @@ func _footer() -> void:
 	headings.add_child(spacer)
 	headings.add_child(production)
 	var close := _button("×", _close_inspection)
-	close.tooltip_text = "Feldbericht schließen (Esc)"
+	close.tooltip_text = tr("Feldbericht schließen (Esc)")
 	headings.add_child(close)
-	production.text = "Produktion"
+	production.text = tr("Produktion")
 	production.toggled.connect(func(active: bool): report_requested.emit(active))
 	column.add_child(details)
 	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	details.selection_enabled = true
 	details.add_theme_color_override("default_color", PAPER)
 	details.add_theme_font_size_override("normal_font_size", 14)
-	details.text = "Mit „Untersuchen“ ein Feld auf der Karte auswählen."
+	details.text = tr("Mit „Untersuchen“ ein Feld auf der Karte auswählen.")
 
 	column.add_child(trade_button)
-	trade_button.text = "Handel einstellen …"
+	trade_button.text = tr("Handel einstellen …")
 	trade_button.pressed.connect(_open_trade)
 	column.add_child(launch_button)
-	launch_button.text = "Rakete starten …"
+	launch_button.text = tr("Rakete starten …")
 	launch_button.pressed.connect(func(): launch_dialog.popup_centered())
 	set_inspection(-1, [])
 
@@ -369,74 +423,59 @@ func _dialogs() -> void:
 	surface.add_child(history_dialog)
 	surface.add_child(settings_dialog)
 	surface.add_child(outcome_dialog)
-	outcome_dialog.ok_button_text = "Weiterbauen"
+	outcome_dialog.ok_button_text = tr("Weiterbauen")
 	surface.add_child(demolition_dialog)
-	demolition_dialog.title = "Teuren Abriss bestätigen"
-	demolition_dialog.ok_button_text = "Abreißen"
-	demolition_dialog.cancel_button_text = "Abbrechen"
+	demolition_dialog.title = tr("Teuren Abriss bestätigen")
+	demolition_dialog.ok_button_text = tr("Abreißen")
+	demolition_dialog.cancel_button_text = tr("Abbrechen")
 	surface.add_child(quit_dialog)
-	quit_dialog.title = "Spiel beenden"
-	quit_dialog.dialog_text = "LinCity-NG schließen?"
-	quit_dialog.ok_button_text = "Beenden"
-	quit_dialog.cancel_button_text = "Abbrechen"
+	quit_dialog.title = tr("Spiel beenden")
+	quit_dialog.dialog_text = tr("LinCity-NG schließen?")
+	quit_dialog.ok_button_text = tr("Beenden")
+	quit_dialog.cancel_button_text = tr("Abbrechen")
 	quit_dialog.confirmed.connect(quit_requested.emit)
-	surface.add_child(catalog_dialog)
-	catalog_dialog.title = "Baukatalog"
-	catalog_dialog.ok_button_text = "Schließen"
-	var catalog_layout := VBoxContainer.new()
-	catalog_dialog.add_child(catalog_layout)
-	catalog_layout.add_child(category_picker)
-	category_picker.tooltip_text = "Werkzeugkategorie"
-	category_picker.item_selected.connect(func(_index: int): _refresh_tools())
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	catalog_layout.add_child(scroll)
-	scroll.add_child(tool_list)
-	tool_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tool_list.columns = 3
 	for dialog: FileDialog in [save_dialog, load_dialog]:
 		surface.add_child(dialog)
 		dialog.access = FileDialog.ACCESS_FILESYSTEM
 		dialog.transient = true
 		dialog.current_dir = ProjectSettings.globalize_path("user://")
-		dialog.add_filter("*.gz", "LinCity-Spielstände")
+		dialog.add_filter("*.gz", tr("LinCity-Spielstände"))
 	save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	save_dialog.title = "Stadt speichern"
+	save_dialog.title = tr("Stadt speichern")
 	save_dialog.current_file = "Meine Stadt.gz"
 	save_dialog.file_selected.connect(func(path: String): save_requested.emit(path))
 	load_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	load_dialog.title = "Stadt laden"
+	load_dialog.title = tr("Stadt laden")
 	load_dialog.file_selected.connect(func(path: String): load_requested.emit(path))
 	surface.add_child(new_dialog)
-	new_dialog.title = "Neue Stadt"
-	new_dialog.ok_button_text = "Starten"
-	new_dialog.cancel_button_text = "Abbrechen"
+	new_dialog.title = tr("Neue Stadt")
+	new_dialog.ok_button_text = tr("Starten")
+	new_dialog.cancel_button_text = tr("Abbrechen")
 	var content := VBoxContainer.new()
 	new_dialog.add_child(content)
 	content.add_child(_label("Ausgangslage wählen", 19))
 	content.add_child(scenarios)
-	scenarios.add_item("Neue Landschaft")
-	scenarios.add_item("Kleinstadt am Fluss")
+	scenarios.add_item(tr("Neue Landschaft"))
+	scenarios.add_item(tr("Kleinstadt am Fluss"))
 	scenarios.set_item_metadata(1, "res://scenarios/am_fluss.scn.gz")
 	for file: String in SCENARIOS:
-		scenarios.add_item(SCENARIOS[file])
+		scenarios.add_item(tr(SCENARIOS[file]))
 		scenarios.set_item_metadata(scenarios.item_count - 1, "res://opening/" + file)
 	var options := VBoxContainer.new()
 	content.add_child(options)
 	options.add_child(_label("Landschaft", 14, MUTED))
 	options.add_child(climate)
-	for region in ["Flusslandschaft", "Wüste", "Gemäßigte Zone", "Sumpfland"]: climate.add_item(region)
+	for region in ["Flusslandschaft", "Wüste", "Gemäßigte Zone", "Sumpfland"]: climate.add_item(tr(region))
 	options.add_child(_label("Kantenlänge in Feldern", 14, MUTED))
 	options.add_child(extent)
 	extent.min_value = 50
 	extent.max_value = 10000
 	extent.step = 25
 	extent.value = 100
-	village.text = "Mit Startdorf"
+	village.text = tr("Mit Startdorf")
 	village.button_pressed = true
 	options.add_child(village)
-	trees.text = "Mit Bäumen"
+	trees.text = tr("Mit Bäumen")
 	trees.button_pressed = true
 	options.add_child(trees)
 	scenarios.item_selected.connect(func(index: int): options.visible = index == 0)
@@ -452,27 +491,44 @@ func _dialogs() -> void:
 	surface.add_child(help_dialog)
 	surface.add_child(credits_dialog)
 	surface.add_child(report_dialog)
-	report_dialog.add_child(report_body)
+	var report_content := VBoxContainer.new()
+	report_dialog.add_child(report_content)
+	report_content.add_child(report_body)
+	report_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	report_body.selection_enabled = true
 	report_body.add_theme_font_size_override("normal_font_size", 16)
-	report_dialog.ok_button_text = "Schließen"
+	report_dialog.ok_button_text = tr("Schließen")
+	report_content.add_child(report_export_status)
+	report_export_status.hide()
+	report_export = report_dialog.add_button(tr("Statistik exportieren …"), true)
+	report_export.pressed.connect(func(): report_save_dialog.popup_centered_ratio(0.75))
+	report_dialog.add_child(report_save_dialog)
+	report_save_dialog.title = tr("Stadtstatistik exportieren")
+	report_save_dialog.theme = surface.theme
+	report_save_dialog.transient = true
+	report_save_dialog.exclusive = true
+	report_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	report_save_dialog.add_filter("*.txt", tr("Textdateien"))
+	report_save_dialog.current_file = tr("Stadtstatistik.txt")
+	report_save_dialog.file_selected.connect(_export_report)
 	surface.add_child(trade_dialog)
-	trade_dialog.title = "Handelsregeln"
-	trade_dialog.ok_button_text = "Schließen"
+	trade_dialog.title = tr("Handelsregeln")
+	trade_dialog.ok_button_text = tr("Schließen")
 	trade_dialog.add_child(trade_list)
 	surface.add_child(survey_dialog)
-	survey_dialog.title = "Kohlevorkommen erkunden"
-	survey_dialog.dialog_text = "Die Erkundung kostet 1.000.000 $. Danach zeigt die Kohlekarte die Lagerstätten."
-	survey_dialog.ok_button_text = "Erkunden"
-	survey_dialog.cancel_button_text = "Abbrechen"
+	survey_dialog.title = tr("Kohlevorkommen erkunden")
+	survey_dialog.dialog_text = tr("Die Erkundung kostet 1.000.000 $. Danach zeigt die Kohlekarte die Lagerstätten.")
+	survey_dialog.ok_button_text = tr("Erkunden")
+	survey_dialog.cancel_button_text = tr("Abbrechen")
 	survey_dialog.confirmed.connect(func(): survey_requested.emit())
 	surface.add_child(launch_dialog)
-	launch_dialog.title = "Raketenstart"
-	launch_dialog.dialog_text = "Soll die vorbereitete Rakete starten?"
-	launch_dialog.ok_button_text = "Starten"
-	launch_dialog.cancel_button_text = "Abbrechen"
+	launch_dialog.title = tr("Raketenstart")
+	launch_dialog.dialog_text = tr("Soll die vorbereitete Rakete starten?")
+	launch_dialog.ok_button_text = tr("Starten")
+	launch_dialog.cancel_button_text = tr("Abbrechen")
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
-	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog, demolition_dialog, quit_dialog, settings_dialog, history_dialog]:
+	for dialog: Window in [save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog, demolition_dialog, quit_dialog, settings_dialog, history_dialog]:
 		dialog.theme = surface.theme
 		dialog.transient = true
 		dialog.exclusive = true
@@ -483,6 +539,7 @@ func _dialogs() -> void:
 func _menu_action(id: int) -> void:
 	match id:
 		0:
+			new_dialog.dialog_text = "" if session_menu.visible and not session_menu.in_game else tr("Die aktuelle Stadt wird ersetzt.")
 			if settings:
 				climate.select(settings.values.map_climate)
 				extent.value = settings.values.map_side
@@ -499,23 +556,23 @@ func _menu_action(id: int) -> void:
 			if FileAccess.file_exists(QUICK_SAVE):
 				load_requested.emit(QUICK_SAVE)
 			else:
-				show_info("Es gibt noch keine Schnellspeicherung.")
+				show_info(tr("Es gibt noch keine Schnellspeicherung."))
 		13: save_requested.emit(QUICK_SAVE)
 		14: quit_dialog.popup_centered(Vector2i(380, 155))
 		15: pause_requested.emit()
 		4, 5, 6:
-			current_report = id
-			_refresh_report()
-			report_dialog.popup_centered(Vector2i(510, 450))
+			_open_report(id)
 		7:
 			if city.get("coal_survey_done", false):
-				show_info("Die Kohlevorkommen sind bereits erkundet. Wähle die Kartenebene „Kohlevorräte“.")
+				show_info(tr("Die Kohlevorkommen sind bereits erkundet. Wähle die Kartenebene „Kohlevorräte“."))
 			else:
 				survey_dialog.popup_centered()
 
 func setup(tools: Array) -> void:
 	chosen_tool = -1
 	events.clear()
+	if warning_panel:
+		warning_panel.hide()
 	production.set_pressed_no_signal(false)
 	set_inspection(-1, [])
 	catalog.clear()
@@ -540,25 +597,29 @@ func _refresh_categories() -> void:
 		if not listed.has(id):
 			if not categories.has("Weitere"): categories["Weitere"] = []
 			categories["Weitere"].append(id)
-	category_picker.clear()
+	close_catalog()
+	category_buttons.clear()
+	for child in category_row.get_children():
+		category_row.remove_child(child)
+		child.queue_free()
 	for category: String in categories:
-		category_picker.add_item(category)
+		var button := _button(category, _toggle_category.bind(category))
+		button.toggle_mode = true
+		category_buttons[category] = button
+		category_row.add_child(button)
 	for id: int in quick_buttons:
 		quick_buttons[id].disabled = not catalog.has(id)
 	_sync_selection()
-	_refresh_tools()
 
 func _refresh_tools() -> void:
 	for child in tool_list.get_children():
 		tool_list.remove_child(child)
 		child.queue_free()
-	if category_picker.selected < 0: return
-	var category := category_picker.get_item_text(category_picker.selected)
 	var group := ButtonGroup.new()
-	for id: int in categories[category]:
+	for id: int in categories[active_category]:
 		var tool: Dictionary = catalog[id]
-		var name_de := Catalog.tool_name(id, str(tool.get("name", id)))
-		var button := _button(name_de, _select_tool.bind(id))
+		var tool_name := Catalog.tool_name(id, str(tool.get("name", id)))
+		var button := _button(tool_name, _select_tool.bind(id))
 		if Catalog.TOOLS.has(id):
 			button.icon = load("res://ui/icons/%s.png" % Catalog.TOOLS[id][1])
 			button.add_theme_constant_override("icon_max_width", 26)
@@ -569,8 +630,18 @@ func _refresh_tools() -> void:
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		button.add_theme_font_size_override("font_size", 13)
-		button.custom_minimum_size.x = maxf(70, button.get_theme_font("font").get_string_size(name_de, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 24)
-		button.tooltip_text = "%s · %d × %d Felder" % [name_de, tool.get("size", 1), tool.get("size", 1)]
+		var footprint := int(tool.get("size", 1))
+		var tech := int(tool.get("required_tech", 0))
+		var cost := int(tool.get("base_cost", 0))
+		var footprint_label := tr("%d × %d Felder") % [footprint, footprint]
+		var cost_label := tr("Grundpreis %s $") % _number(cost) if cost > 0 else tr("Preis je nach Feld")
+		if id in [-1, -3]:
+			cost_label = tr("Kostenlos")
+		var tech_label := tr("%.1f %% Technologie") % (tech / 10000.0)
+		button.text = "%s\n%s · %s\n%s" % [tool_name, footprint_label, cost_label, tech_label]
+		button.tooltip_text = button.text
+		button.set_meta("required_tech", tech)
+		button.disabled = int(city.get("tech", 0)) < tech
 		tool_list.add_child(button)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.set_meta("tool_id", id)
@@ -580,13 +651,14 @@ func _sync_selection() -> void:
 		quick_buttons[id].set_pressed_no_signal(id == chosen_tool)
 	for button: Button in tool_list.get_children():
 		button.set_pressed_no_signal(button.get_meta("tool_id") == chosen_tool)
-	catalog_button.text = "Baukatalog" if chosen_tool in quick_buttons else Catalog.tool_name(chosen_tool, "Baukatalog")
-	catalog_button.icon = _symbol("catalog") if chosen_tool in quick_buttons or not Catalog.TOOLS.has(chosen_tool) else load("res://ui/icons/%s.png" % Catalog.TOOLS[chosen_tool][1])
+	for category: String in category_buttons:
+		var selected: bool = active_category == category if catalog_panel.visible else chosen_tool in categories[category] and not quick_buttons.has(chosen_tool)
+		category_buttons[category].set_pressed_no_signal(selected)
 
 func _select_tool(id: int) -> void:
 	if not catalog.has(id): return
 	chosen_tool = id
-	if catalog_dialog.visible: catalog_dialog.hide()
+	close_catalog()
 	if id != -1: _close_inspection()
 	_sync_selection()
 	show_preview("")
@@ -597,6 +669,7 @@ func has_modal() -> bool:
 	return active != null and active != get_window()
 
 func open_session_menu(in_game: bool, has_save: bool) -> void:
+	close_catalog()
 	game_surface.hide()
 	session_menu.open(in_game, has_save)
 
@@ -612,35 +685,55 @@ func _shortcut_input(event: InputEvent) -> void:
 			session_menu.action_requested.emit(&"resume")
 			get_viewport().set_input_as_handled()
 		return
+	var layer_key: Key = KEY_QUOTELEFT if event.physical_keycode == KEY_QUOTELEFT else event.keycode
+	if not event.shift_pressed and LAYER_KEYS.has(layer_key):
+		_activate_layer(LAYER_KEYS[layer_key])
+		get_viewport().set_input_as_handled()
+		return
 	match event.keycode:
 		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
+			if not event.shift_pressed: return
 			_select_tool(QUICK_TOOLS[event.keycode - KEY_1][0])
-		KEY_B: _open_catalog()
+		KEY_B: _select_tool(-1 if chosen_tool == -2 else -2)
 		KEY_F1: _menu_action(3)
 		KEY_F9: _menu_action(12)
 		KEY_F12: _menu_action(13)
 		KEY_ESCAPE:
-			if inspector.visible: _close_inspection()
+			if catalog_panel.visible: close_catalog()
+			elif inspector.visible: _close_inspection()
 			else: pause_requested.emit()
 		_: return
 	get_viewport().set_input_as_handled()
 
 func _number(value: int) -> String:
 	var digits := str(absi(value))
+	var separator := "." if TranslationServer.get_locale().begins_with("de") else ","
 	var i := digits.length() - 3
 	while i > 0:
-		digits = digits.insert(i, ".")
+		digits = digits.insert(i, separator)
 		i -= 3
 	return ("−" if value < 0 else "") + digits
 
 func update_city(snapshot: Dictionary) -> void:
+	if catalog_panel.visible and snapshot.get("tech", 0) != city.get("tech", 0):
+		for button: Button in tool_list.get_children():
+			button.disabled = int(snapshot.get("tech", 0)) < int(button.get_meta("required_tech"))
 	city = snapshot
 	var money := int(snapshot.get("money", 0))
 	treasury.text = "%s $" % _number(money)
 	treasury.add_theme_color_override("font_color", Color("#ffab95") if money < 0 else PAPER)
 	inhabitants.text = _number(int(snapshot.get("population", 0)))
+	technology.text = "%.2f %%" % float(snapshot.get("tech_percent", 0.0))
+	var inventory: Array = snapshot.get("inventory", [])
+	if inventory.size() == GOODS.size():
+		var essentials := PackedStringArray()
+		for i in [0, 9]:
+			var stock: Dictionary = inventory[i]
+			var fill := "—" if stock.capacity <= 0 else "%.0f %%" % (100.0 * stock.amount / stock.capacity)
+			essentials.append("%s %s" % [tr(GOODS[i]), fill])
+		supply_button.text = " · ".join(essentials)
 	var day := int(snapshot.get("time", 0))
-	date.text = "%s %d" % [MONTHS[(day / 100) % 12], day / 1200]
+	date.text = "%s %d" % [tr(MONTHS[(day / 100) % 12]), day / 1200]
 	map.update_map(snapshot)
 	if report_dialog.visible: _refresh_report()
 
@@ -653,7 +746,7 @@ func show_info(text: String) -> void:
 		details.text = text
 
 func show_preview(text: String) -> void:
-	preview_panel.visible = not text.is_empty()
+	preview_panel.visible = not text.is_empty() and not catalog_panel.visible
 	preview.text = text
 
 func set_speed(speed: int) -> void:
@@ -699,41 +792,94 @@ func _open_trade() -> void:
 func show_event(event: Dictionary) -> void:
 	var kind: String = event.get("kind", "")
 	var outcome: Array = OUTCOMES.get(kind, [])
-	var text: String = ROCKET_EVENTS.get(kind, event.get("text", ""))
+	var text := str(tr(ROCKET_EVENTS[kind])) if ROCKET_EVENTS.has(kind) else str(event.get("text", ""))
+	var warning := ""
+	var cell := Vector2i(-1, -1)
+	match kind:
+		"fire":
+			cell = event.get("cell", cell)
+			var building := Catalog.tool_name(int(event.get("group", -1)))
+			if building.is_empty():
+				warning = tr("Feuer bei Feld (%d, %d).") % [cell.x, cell.y]
+			else:
+				warning = tr("Feuer bei Feld (%d, %d) · %s") % [cell.x, cell.y, building]
+		"out_of_money":
+			warning = tr("Die Stadtkasse ist leer.")
+		"out_of_credit":
+			warning = tr("Das verfügbare Kreditlimit reicht nicht aus.")
 	if not outcome.is_empty():
-		outcome_dialog.title = outcome[0]
-		outcome_dialog.dialog_text = outcome[1]
+		outcome_dialog.title = tr(outcome[0])
+		outcome_dialog.dialog_text = tr(outcome[1])
 		outcome_dialog.popup_centered(Vector2i(460, 170))
-		text = "%s – %s" % [outcome[0], outcome[1]]
+		text = "%s – %s" % [outcome_dialog.title, outcome_dialog.dialog_text]
+	if not warning.is_empty():
+		text = warning
+		warning_cell = cell
+		warning_text.text = warning
+		warning_focus.visible = cell.x >= 0 and cell.y >= 0
+		warning_panel.show()
 	if text.is_empty(): return
 	events.append(text)
 	if events.size() > 256: events.remove_at(0)
-	show_info(text)
+	if warning.is_empty(): show_info(text)
 	if report_dialog.visible and current_report == 6: _refresh_report()
+
+func _warning_banner() -> void:
+	warning_panel = _panel(Control.PRESET_TOP_LEFT, Rect2(10, 57, 0, 38))
+	var skin := _box(Color("#3b241c"), 9, 5, 6)
+	skin.set_border_width_all(1)
+	skin.border_color = Color("#e79a75")
+	warning_panel.add_theme_stylebox_override("panel", skin)
+	var row := HBoxContainer.new()
+	warning_panel.add_child(row)
+	warning_text.add_theme_color_override("font_color", Color("#ffe4d6"))
+	row.add_child(warning_text)
+	warning_focus = _button("Zum Ort", func(): focus_requested.emit(warning_cell))
+	row.add_child(warning_focus)
+	var dismiss := _button("×", warning_panel.hide)
+	dismiss.tooltip_text = tr("Warnung schließen")
+	row.add_child(dismiss)
+	warning_panel.hide()
+
+func _open_report(id: int) -> void:
+	current_report = id
+	report_export_status.hide()
+	_refresh_report()
+	report_dialog.popup_centered(Vector2i(510, 450))
+
+func _export_report(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	var written := false
+	if file:
+		written = file.store_string(report_dialog.title + "\n\n" + report_body.text + "\n")
+		file.flush()
+		written = written and file.get_error() == OK
+	report_export_status.text = tr("Stadtstatistik exportiert.") if written else tr("Die Statistikdatei konnte nicht geschrieben werden.")
+	report_export_status.show()
 
 func _refresh_report() -> void:
 	var lines := PackedStringArray()
+	report_export.visible = current_report == 4
 	match current_report:
 		4:
-			report_dialog.title = "Stadtstatistik"
-			lines.append("Bevölkerung   %s" % inhabitants.text)
-			for pair in [["homeless", "Wohnungssuchende"], ["unemployment", "Arbeitslose"], ["births", "Geburten"], ["deaths", "Tote durch Hunger und Umweltbelastung"], ["rockets", "Gestartete Raketen"]]:
-				lines.append("%s   %s" % [pair[1], _number(int(city.get(pair[0], 0)))])
-			lines.append("Technologie   %.2f %%" % (float(city.get("tech", 0)) / 10000.0))
-			lines.append("Nachhaltigkeit   %s" % ("erreicht" if city.get("sustainable", false) else "offen"))
+			report_dialog.title = tr("Stadtstatistik")
+			lines = city_report.statistics(city, date.text, _number)
+		SUPPLY_REPORT:
+			report_dialog.title = tr("Warenversorgung")
+			lines = city_report.supply(city.get("inventory", []), GOODS, _number)
 		5:
-			report_dialog.title = "Jahresabschluss · Vorjahr"
+			report_dialog.title = tr("Jahresabschluss · Vorjahr")
 			var finances: Dictionary = city.get("finances", {})
 			for category: String in ["income", "expenses"]:
-				lines.append("Einnahmen" if category == "income" else "Ausgaben")
+				lines.append(tr("Einnahmen") if category == "income" else tr("Ausgaben"))
 				var total := 0
 				var accounts: Dictionary = finances.get(category, {})
 				for item: String in accounts:
 					total += int(accounts[item])
-					lines.append("    %s   %s $" % [ACCOUNTS.get(item, item), _number(accounts[item])])
-				lines.append("Summe   %s $\n" % _number(total))
+					lines.append("    %s   %s $" % [tr(ACCOUNTS.get(item, item)), _number(accounts[item])])
+				lines.append(tr("Summe   %s $") % _number(total) + "\n")
 		6:
-			report_dialog.title = "Ereignisse"
+			report_dialog.title = tr("Ereignisse")
 			for i in range(events.size() - 1, -1, -1): lines.append(events[i])
-			if lines.is_empty(): lines.append("Bisher sind keine Ereignisse eingegangen.")
+			if lines.is_empty(): lines.append(tr("Bisher sind keine Ereignisse eingegangen."))
 	report_body.text = "\n".join(lines)

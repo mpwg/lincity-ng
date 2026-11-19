@@ -37,4 +37,4 @@ const TOOLS = {
 }
 
 static func tool_name(id: int, fallback: String = "") -> String:
-	return TOOLS[id][0] if TOOLS.has(id) else fallback
+	return TranslationServer.translate(TOOLS[id][0] if TOOLS.has(id) else fallback)

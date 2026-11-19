@@ -12,11 +12,13 @@ const RESOLUTIONS := [
 
 var _settings: GameSettings
 var _audio
+var _language := OptionButton.new()
 var _fullscreen := CheckButton.new()
 var _resolution := OptionButton.new()
 var _msaa := OptionButton.new()
 var _shadows := CheckButton.new()
 var _reflections := CheckButton.new()
+var _vehicles := CheckButton.new()
 var _music := CheckButton.new()
 var _music_volume := HSlider.new()
 var _effects := CheckButton.new()
@@ -29,9 +31,9 @@ var _trees := CheckButton.new()
 var _save_error := Label.new()
 
 func _ready() -> void:
-	title = "Einstellungen"
-	ok_button_text = "Übernehmen"
-	cancel_button_text = "Abbrechen"
+	title = tr("Einstellungen")
+	ok_button_text = tr("Übernehmen")
+	cancel_button_text = tr("Abbrechen")
 	dialog_hide_on_ok = false
 	transient = true
 	exclusive = true
@@ -40,17 +42,29 @@ func _ready() -> void:
 	var tabs := TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(tabs)
+	var general := _tab(tabs, "Allgemein")
+	_row(general, "Sprache", _language, "Language")
+	_language.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	for locale: String in GameSettings.LANGUAGES:
+		_language.add_item(GameSettings.LANGUAGES[locale])
+		_language.set_item_metadata(_language.item_count - 1, locale)
+	var language_note := Label.new()
+	language_note.text = tr("Die Sprache ändert sich beim nächsten Programmstart.")
+	language_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	general.get_parent().add_child(language_note)
+
 	var display := _tab(tabs, "Grafik")
 	_row(display, "Vollbild", _fullscreen, "Fullscreen")
 	_row(display, "Fenstergröße", _resolution, "WindowSize")
 	if not GameSettings.can_set_window_size():
-		_resolution.tooltip_text = "Unter Wayland änderst du die Größe am Fensterrand."
+		_resolution.tooltip_text = tr("Unter Wayland änderst du die Größe am Fensterrand.")
 		_resolution.accessibility_description = _resolution.tooltip_text
 	_row(display, "Kantenglättung", _msaa, "Antialiasing")
 	for item: String in GameSettings.MSAA_MODES:
-		_msaa.add_item(item)
+		_msaa.add_item(tr(item))
 	_row(display, "Schatten", _shadows, "Shadows")
 	_row(display, "Wasserspiegelungen", _reflections, "Reflections")
+	_row(display, "Fahrzeugverkehr", _vehicles, "Vehicles")
 	_fullscreen.toggled.connect(_update_resolution_control)
 
 	var audio := _tab(tabs, "Ton")
@@ -76,7 +90,7 @@ func _ready() -> void:
 	var map := _tab(tabs, "Neue Stadt")
 	_row(map, "Landschaft", _climate, "MapClimate")
 	for item: String in GameSettings.CLIMATES:
-		_climate.add_item(item)
+		_climate.add_item(tr(item))
 	_row(map, "Kantenlänge in Feldern", _side, "MapSide")
 	_side.min_value = GameSettings.MAP_SIDE_MIN
 	_side.max_value = GameSettings.MAP_SIDE_MAX
@@ -99,25 +113,28 @@ func setup(settings: GameSettings, audio: Node) -> void:
 
 func _tab(tabs: TabContainer, caption: String) -> GridContainer:
 	var container := MarginContainer.new()
-	container.name = caption
 	for side: String in ["left", "right", "top", "bottom"]:
 		container.add_theme_constant_override("margin_" + side, 16)
 	tabs.add_child(container)
+	tabs.set_tab_title(tabs.get_tab_count() - 1, tr(caption))
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	container.add_child(layout)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 24)
 	grid.add_theme_constant_override("v_separation", 12)
-	container.add_child(grid)
+	layout.add_child(grid)
 	return grid
 
 func _row(grid: GridContainer, caption: String, widget: Control, id: String) -> void:
 	var label := Label.new()
-	label.text = caption
+	label.text = tr(caption)
 	label.custom_minimum_size.x = 150
 	grid.add_child(label)
 	grid.add_child(widget)
 	widget.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	widget.accessibility_name = caption
+	widget.accessibility_name = tr(caption)
 	widget.name = id
 	widget.owner = self
 	widget.unique_name_in_owner = true
@@ -127,7 +144,7 @@ func _volume_row(grid: GridContainer, caption: String, slider: HSlider, id: Stri
 	slider.max_value = 100
 	slider.step = 1
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.accessibility_name = caption
+	slider.accessibility_name = tr(caption)
 	meter.add_child(slider)
 	var percent := Label.new()
 	percent.custom_minimum_size.x = 42
@@ -143,8 +160,8 @@ func _volume_row(grid: GridContainer, caption: String, slider: HSlider, id: Stri
 func _track_button(glyph: String, caption: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = glyph
-	button.tooltip_text = caption
-	button.accessibility_name = caption
+	button.tooltip_text = tr(caption)
+	button.accessibility_name = tr(caption)
 	button.custom_minimum_size.x = 38
 	button.pressed.connect(action)
 	return button
@@ -158,19 +175,21 @@ func _skip_track(direction: int) -> void:
 		_audio.next_track()
 
 func _show_track(track: String) -> void:
-	_track.text = "Kein Musiktitel verfügbar" if track.is_empty() else track
+	_track.text = tr("Kein Musiktitel verfügbar") if track.is_empty() else track
 	_track.tooltip_text = track
 
 func _populate() -> void:
 	if _settings == null:
 		return
 	var options := _settings.values
+	_language.select(GameSettings.LANGUAGES.keys().find(options.language))
 	_fullscreen.set_pressed_no_signal(options.fullscreen)
 	_update_resolution_control(options.fullscreen)
 	_populate_resolutions(options.window_size)
 	_msaa.select(options.msaa)
 	_shadows.button_pressed = options.shadows
 	_reflections.button_pressed = options.reflections
+	_vehicles.button_pressed = options.vehicles
 	_music.button_pressed = options.music_enabled
 	_music_volume.value = options.music_volume * 100.0
 	_effects.button_pressed = options.effects_enabled
@@ -210,11 +229,13 @@ func _save() -> void:
 	if _settings == null:
 		return
 	var result := _settings.save_changes({
+		"language": _language.get_selected_metadata(),
 		"fullscreen": _fullscreen.button_pressed,
 		"window_size": _resolution.get_selected_metadata(),
 		"msaa": _msaa.selected,
 		"shadows": _shadows.button_pressed,
 		"reflections": _reflections.button_pressed,
+		"vehicles": _vehicles.button_pressed,
 		"music_enabled": _music.button_pressed,
 		"music_volume": _music_volume.value / 100.0,
 		"effects_enabled": _effects.button_pressed,
@@ -225,7 +246,7 @@ func _save() -> void:
 		"map_trees": _trees.button_pressed,
 	})
 	if result != OK:
-		_save_error.text = "Die Einstellungen konnten nicht gespeichert werden."
+		_save_error.text = tr("Die Einstellungen konnten nicht gespeichert werden.")
 		_save_error.show()
 		return
 	hide()

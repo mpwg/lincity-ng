@@ -7,7 +7,7 @@ const INTRO := """[font_size=24]Die Stadt verwalten[/font_size]
 Ein Markt verteilt Lebensmittel, Güter und Arbeitskräfte in seinem Einzugsgebiet. Platziere Wohngebiete, einen Bauernhof und einen Brunnen in der Nähe. Wege verbinden die Stadt mit weiteren Betrieben.
 
 [b]Bauen und untersuchen[/b]
-Die Tasten 1 bis 5 wählen Untersuchen, Straße, Wohnen, Markt und Abriss. Im Baukatalog (B) findest du alle Werkzeuge nach Kategorie. Esc schließt den Feldbericht oder wechselt zu „Untersuchen“. Mit F1 öffnest du die Spielhilfe. F12 speichert schnell, F9 lädt diese Schnellspeicherung. Klicke zum Bauen auf ein Feld. Ziehe einen Feldweg, eine Straße oder eine Bahnlinie mit gedrückter linker Maustaste. Strg wechselt die Richtung der Kurve. Mit „Untersuchen“ öffnest du den Feldbericht und erhältst Zugang zu Produktion, Handelsregeln oder Raketenstart.
+Umschalt+1 bis Umschalt+5 wählen Untersuchen, Straße, Wohnen, Markt und Abriss. Weitere Werkzeuge findest du in den Kategorien der Bauleiste. B wechselt zwischen Abriss und Untersuchen. Esc schließt einen offenen Bericht oder Baukatalog und öffnet andernfalls das Pausenmenü. Mit F1 öffnest du die Spielhilfe. F12 speichert schnell, F9 lädt diese Schnellspeicherung. Klicke zum Bauen auf ein Feld. Ziehe einen Feldweg, eine Straße oder eine Bahnlinie mit gedrückter linker Maustaste. Strg wechselt die Richtung der Kurve. Mit „Untersuchen“ öffnest du den Feldbericht und erhältst Zugang zu Produktion, Handelsregeln oder Raketenstart.
 
 [b]Kamera und Kartenebenen[/b]
 Drehe die Ansicht mit gedrückter rechter Maustaste oder mit Q und E. Verschiebe sie mit der mittleren Maustaste, WASD oder den Pfeiltasten. Das Mausrad zoomt. Ein Klick in die Minikarte springt zum Ziel. Unter der Minikarte wählst du die Kartenebene.
@@ -26,20 +26,20 @@ var current := ""
 var whitespace := RegEx.new()
 
 func _ready() -> void:
-	title = "Spielhilfe"
-	ok_button_text = "Schließen"
+	title = tr("Spielhilfe")
+	ok_button_text = tr("Schließen")
 	whitespace.compile("\\s+")
 	var layout := VBoxContainer.new()
 	add_child(layout)
 	var actions := HBoxContainer.new()
 	layout.add_child(actions)
-	back.text = "Zurück"
+	back.text = tr("Zurück")
 	actions.add_child(back)
 	back.pressed.connect(func(): _open(history.pop_back(), false))
 	for link in [["Steuerung", HOME], ["Themenverzeichnis", "index"]]:
 		var button := Button.new()
 		actions.add_child(button)
-		button.text = link[0]
+		button.text = tr(link[0])
 		button.pressed.connect(_open.bind(link[1]))
 	layout.add_child(article)
 	article.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -57,15 +57,17 @@ func _open(link: String, remember: bool = true) -> void:
 	back.disabled = history.is_empty()
 	article.clear()
 	if link == HOME:
-		article.append_text(INTRO)
+		article.append_text(tr(INTRO))
 	else:
 		_render_xml(link)
 	article.scroll_to_line(0)
 
 func _render_xml(link: String) -> void:
 	var parser := XMLParser.new()
-	if parser.open("res://ui/help_de/%s.xml" % link) != OK:
-		article.add_text("Dieser Artikel ist nicht verfügbar.")
+	var locale := TranslationServer.get_locale().get_slice("_", 0)
+	var directory := "help_en" if locale == "en" else "help_de"
+	if parser.open("res://ui/%s/%s.xml" % [directory, link]) != OK:
+		article.add_text(tr("Dieser Artikel ist nicht verfügbar."))
 		return
 	var style := ""
 	while parser.read() == OK:

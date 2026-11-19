@@ -67,6 +67,31 @@ fn typed_failures_keep_quotes_building_ids_and_points_available_to_the_ui() {
 }
 
 #[test]
+fn batch_uses_real_two_tool_outcomes_and_keeps_failure_details() {
+    let mut engine = Engine {
+        city: core::City::empty(16).unwrap(),
+    };
+    let kind = ffi::ActionKind::Flood;
+    let point = ffi::Point { x: 3, y: 3 };
+    let next = ffi::Point { x: 4, y: 3 };
+    let targets = [point, point, next];
+    let preview = preview_batch(&engine, kind, 0, &targets);
+    assert_eq!(preview[0].action.error, ffi::Failure::None);
+    assert_eq!(preview[1].action.error, ffi::Failure::SpaceOccupied);
+    assert_eq!(preview[1].action.group, core::Terrain::Water.group());
+    assert_eq!(preview[1].anchor, point);
+    assert_eq!(preview[2].action.error, ffi::Failure::None);
+    assert_eq!(preview[2].action.cost, 1_000_000);
+    assert_eq!(engine.city.balance(), 0);
+
+    let applied = apply_batch(&mut engine, kind, 0, &targets);
+    assert_eq!(applied[1].action.error, ffi::Failure::SpaceOccupied);
+    assert_eq!(applied[1].action.group, core::Terrain::Water.group());
+    assert_eq!(applied[2].action.error, ffi::Failure::None);
+    assert_eq!(engine.city.balance(), -2_000_000);
+}
+
+#[test]
 fn generated_city_supports_a_survey_history_and_animation() {
     let mut engine = generate(32, ffi::Climate::Temperate, true, true).unwrap();
     let initial = engine.city.balance();

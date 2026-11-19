@@ -22,5 +22,5 @@ lights_and_shadows/directional_shadow/size=2048
 environment/defaults/default_clear_color=Color(0.67, 0.77, 0.82, 1)
 
 [internationalization]
-locale/translations=PackedStringArray("res://i18n/de.po")
-locale/fallback="de"
+locale/translations=PackedStringArray("res://i18n/de.po", "res://i18n/desktop_de.po", "res://i18n/en.po")
+locale/fallback=""

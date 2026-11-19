@@ -53,6 +53,7 @@ func _test() -> void:
 	var restarted := GameSettings.new(path)
 	check(restarted.load_from_disk() == OK, "Die gespeicherte Konfiguration konnte nicht erneut geöffnet werden.")
 	check(restarted.values.fullscreen and not restarted.values.shadows and not restarted.values.reflections and restarted.values.msaa == 0, "Grafikeinstellungen wurden nicht wiederhergestellt.")
+	check(not restarted.values.vehicles, "Die Einstellung für Fahrzeugverkehr wurde nicht wiederhergestellt.")
 	check(restarted.values.map_climate == 2 and restarted.values.map_side == 225 and not restarted.values.map_village and not restarted.values.map_trees, "Vorgaben für neue Städte wurden nicht wiederhergestellt.")
 	check(not restarted.values.music_enabled and is_equal_approx(restarted.values.music_volume, 0.7) and not restarted.values.effects_enabled and is_equal_approx(restarted.values.effects_volume, 0.35), "Toneinstellungen wurden nicht wiederhergestellt.")
 	var was_minimized := root.mode == Window.MODE_MINIMIZED
@@ -94,6 +95,7 @@ func _test_city_menu(path: String, settings: GameSettings) -> void:
 	root.add_child(game)
 	game.set_process(false)
 	check(not game.get_node("Sun").shadow_enabled and not game.view.reflections_enabled, "Die Stadt hat die Grafikvorgaben beim Start nicht übernommen.")
+	check(not game.get_node("Traffic").visible, "Die Stadt zeigt Fahrzeuge trotz abgeschalteter Einstellung.")
 	var hud = game.hud
 	var game_menu: MenuButton = hud.find_children("*", "MenuButton", true, false).front()
 	var popup := game_menu.get_popup()
@@ -112,6 +114,7 @@ func _set_values(dialog: Window) -> void:
 	dialog.get_node("%Fullscreen").button_pressed = true
 	dialog.get_node("%Shadows").button_pressed = false
 	dialog.get_node("%Reflections").button_pressed = false
+	dialog.get_node("%Vehicles").button_pressed = false
 	dialog.get_node("%Antialiasing").select(0)
 	dialog.get_node("%MapClimate").select(2)
 	dialog.get_node("%MapSide").value = 225

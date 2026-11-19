@@ -34,5 +34,10 @@ ConstructionGroup* desktopBuildGroup(const DesktopWorld&, const UserOperation&);
 int desktopCost(const DesktopWorld&, const UserOperation&, MapPoint);
 int desktopCost(const DesktopWorld&, const UserOperation&);
 void desktopApply(DesktopWorld&, const UserOperation&, MapPoint);
+rust::Vec<rustcity::BatchActionResult> desktopPreviewBatch(
+  const DesktopWorld&, const UserOperation&, rust::Slice<const rustcity::Point>);
+rust::Vec<rustcity::BatchActionResult> desktopApplyBatch(
+  DesktopWorld&, const UserOperation&, rust::Slice<const rustcity::Point>);
+Message::ptr desktopActionMessage(const rustcity::ActionResult&);
 void desktopFocus(DesktopWorld&, MapPoint);
 void desktopHistory(DesktopWorld&, std::size_t);

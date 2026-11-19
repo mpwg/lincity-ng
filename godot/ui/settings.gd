@@ -8,12 +8,15 @@ const MAP_SIDE_MAX := 10000
 const MAP_SIDE_STEP := 25
 const CLIMATES := ["Flusslandschaft", "Wüste", "Gemäßigte Zone", "Sumpfland"]
 const MSAA_MODES := ["Aus", "2× MSAA", "4× MSAA", "8× MSAA"]
+const LANGUAGES := {"de": "Deutsch", "en": "English"}
 const DEFAULTS := {
+	"language": "de",
 	"fullscreen": false,
 	"window_size": Vector2i(1440, 900),
 	"msaa": Viewport.MSAA_2X,
 	"shadows": true,
 	"reflections": true,
+	"vehicles": true,
 	"music_enabled": true,
 	"music_volume": 0.5,
 	"effects_enabled": true,
@@ -24,7 +27,8 @@ const DEFAULTS := {
 	"map_trees": true,
 }
 const SECTIONS := {
-	"display": ["fullscreen", "window_size", "msaa", "shadows", "reflections"],
+	"general": ["language"],
+	"display": ["fullscreen", "window_size", "msaa", "shadows", "reflections", "vehicles"],
 	"audio": ["music_enabled", "music_volume", "effects_enabled", "effects_volume"],
 	"new_city": ["map_climate", "map_side", "map_village", "map_trees"],
 }
@@ -63,6 +67,9 @@ func save_changes(changes: Dictionary) -> Error:
 		DirAccess.remove_absolute(temporary)
 	return result
 
+func apply_language() -> void:
+	TranslationServer.set_locale(values.language)
+
 func apply_display(window: Window, respect_launch_options := false) -> void:
 	window.msaa_3d = values.msaa
 	if DisplayServer.get_name() == "headless":
@@ -96,6 +103,8 @@ static func _valid_value(key: String, raw: Variant) -> Variant:
 	if typeof(raw) != typeof(fallback):
 		return fallback
 	match key:
+		"language":
+			if not LANGUAGES.has(raw): return fallback
 		"window_size":
 			if raw != raw.clamp(MIN_WINDOW_SIZE, MAX_WINDOW_SIZE): return fallback
 		"msaa":

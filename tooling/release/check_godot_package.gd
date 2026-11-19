@@ -4,11 +4,34 @@ func _initialize() -> void:
 	call_deferred("_check")
 
 func _check() -> void:
-	var license_dir := OS.get_cmdline_user_args()[0]
-	var game = load("res://city.tscn").instantiate()
+	var args := OS.get_cmdline_user_args()
+	var scene := load(str(ProjectSettings.get_setting("application/run/main_scene"))) as PackedScene
+	var game := scene.instantiate()
 	root.add_child(game)
 	current_scene = game
 	game.speed = 0
+	await process_frame
+	await process_frame
+	if not game.hud.session_menu.visible or not game.state.is_empty():
+		printerr("Das Spielpaket startet ohne Hauptmenü.")
+		quit(1)
+		return
+	if "--continue" in args:
+		_press(game.hud.session_menu.buttons.continue_game)
+		var continued: bool = not game.hud.session_menu.visible and game.state.get("side") == 100
+		if not continued: printerr("Der fortgesetzte Spielstand fehlt nach dem Neustart.")
+		quit(0 if continued else 1)
+		return
+	var license_dir := args[0]
+	var new_game: Button = game.hud.session_menu.buttons.new_game
+	_press(new_game)
+	if not game.hud.new_dialog.visible:
+		printerr("Die Szenarioauswahl öffnet sich nicht.")
+		quit(1)
+		return
+	game.hud.scenarios.select(1)
+	game.hud.new_dialog.get_ok_button().pressed.emit()
+	await process_frame
 	if game.state.is_empty() or game.state.get("side", 0) < 1:
 		printerr("Die Startstadt fehlt im Spielpaket.")
 		quit(1)
@@ -35,16 +58,29 @@ func _check() -> void:
 		var after: Dictionary = game.core.snapshot()
 		ok = ok and after.tiles == before.tiles and after.money == before.money
 		ok = ok and game.core.step().is_empty()
+	game.hud._menu_action(15)
+	await process_frame
+	if game.hud.session_menu.in_game:
+		_press(game.hud.session_menu.buttons.main_menu)
+	ok = ok and game.state.is_empty() and not game.hud.session_menu.buttons.continue_game.disabled
 	if not ok: printerr("Spielstart, Lizenzen, Bedienung oder Spielstandprüfung fehlgeschlagen.")
 	else: print("Spielpaket geprüft.")
 	quit(0 if ok else 1)
+
+func _press(control: Control) -> void:
+	var position := control.get_global_rect().get_center()
+	var move := InputEventMouseMotion.new()
+	move.position = position
+	root.push_input(move, true)
+	_click(position, true)
+	_click(position, false)
 
 func _click(position: Vector2, down: bool) -> void:
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.position = position
 	click.pressed = down
-	root.push_input(click)
+	root.push_input(click, true)
 
 func _play(game) -> bool:
 	var side: int = game.state.side
@@ -82,9 +118,9 @@ func _play(game) -> bool:
 	var move := InputEventMouseMotion.new()
 	move.position = b
 	move.button_mask = MOUSE_BUTTON_MASK_LEFT
-	root.push_input(move)
-	if not game.hud.preview.text.contains(str(cost)):
-		printerr("Die Vorschau der gezogenen Straße zeigt falsche Kosten.")
+	root.push_input(move, true)
+	if not game.hud.preview.text.contains("%s $" % game.hud._number(cost)):
+		printerr("Die Vorschau der gezogenen Straße zeigt falsche Kosten: %s, erwartet %d." % [game.hud.preview.text, cost])
 		return false
 	_click(b, false)
 	var i := first.y * side + first.x

@@ -28,8 +28,8 @@ mod city;
 mod energy;
 pub mod stats;
 pub use city::{
-    Action, ActionError, City, CityEvent, CityReport, Climate, GenerationOptions, MapSizeError,
-    Point, Terrain, VehicleTraffic,
+    Action, ActionError, ActionQuote, City, CityEvent, CityReport, Climate, GenerationOptions,
+    MapSizeError, Point, Terrain, VehicleTraffic,
 };
 pub use city::{BuildingState, Landform, RocketStage, TileView, VehicleFrame};
 pub use city::{BuildingVisual, ReportMode, ReportRow, SpriteLayer};

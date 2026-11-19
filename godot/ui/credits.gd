@@ -14,24 +14,25 @@ var sections := OptionButton.new()
 var body := TextEdit.new()
 
 func _ready() -> void:
-	title = "Mitwirkende und Lizenzen"
-	ok_button_text = "Schließen"
+	title = tr("Mitwirkende und Lizenzen")
+	ok_button_text = tr("Schließen")
 	var layout := VBoxContainer.new()
 	add_child(layout)
 	layout.add_child(sections)
 	for section: String in FILES:
-		sections.add_item(section)
+		sections.add_item(tr(section))
+		sections.set_item_metadata(sections.item_count - 1, FILES[section])
 	sections.item_selected.connect(_show_section)
 	layout.add_child(body)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.editable = false
 	body.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	body.accessibility_name = "Lizenztext"
-	sections.accessibility_name = "Dokument auswählen"
+	body.accessibility_name = tr("Lizenztext")
+	sections.accessibility_name = tr("Dokument auswählen")
 	_show_section(0)
 
 func _show_section(index: int) -> void:
-	var file: String = FILES[sections.get_item_text(index)]
+	var file: String = sections.get_item_metadata(index)
 	match file:
 		"": body.text = engine_notices()
 		"creditslist.xml": body.text = contributors()

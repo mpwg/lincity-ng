@@ -94,16 +94,19 @@ impl Economy {
     }
 }
 
+pub(super) fn balance_after_expense(balance: i32, amount: i32) -> Option<i32> {
+    balance
+        .checked_sub(amount)
+        .filter(|value| *value >= crate::rules::CREDIT_LIMIT)
+}
+
 pub(super) fn expense(
     balance: &mut i32,
     account: &mut Stat,
     events: &mut std::collections::VecDeque<CityEvent>,
     amount: i32,
 ) -> bool {
-    let Some(new) = balance
-        .checked_sub(amount)
-        .filter(|value| *value >= crate::rules::CREDIT_LIMIT)
-    else {
+    let Some(new) = balance_after_expense(*balance, amount) else {
         return false;
     };
     if *balance > 0 && new <= 0 {

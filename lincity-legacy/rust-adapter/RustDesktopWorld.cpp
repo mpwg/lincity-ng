@@ -2,6 +2,8 @@
 #include "DesktopWorld.hpp"
 #include "lincity/lintypes.hpp"
 
+#include <algorithm>
+
 namespace {
 rustcity::Point toRust(MapPoint p) { return {p.x, p.y}; }
 MapPoint fromRust(rustcity::Point p) { return {p.x, p.y}; }
@@ -144,6 +146,23 @@ void desktopApply(DesktopWorld& w, const UserOperation& op, MapPoint p) {
   if(auto why = failure(rustcity::apply(w.engine(), kind(op), groupId(op), toRust(p))))
     why->throwEx();
   w.refresh(true);
+}
+rust::Vec<rustcity::BatchActionResult> desktopPreviewBatch(
+  const DesktopWorld& w, const UserOperation& op, rust::Slice<const rustcity::Point> points
+) {
+  return rustcity::preview_batch(w.engine(), kind(op), groupId(op), points);
+}
+rust::Vec<rustcity::BatchActionResult> desktopApplyBatch(
+  DesktopWorld& w, const UserOperation& op, rust::Slice<const rustcity::Point> points
+) {
+  auto results = rustcity::apply_batch(w.engine(), kind(op), groupId(op), points);
+  if(std::any_of(results.begin(), results.end(), [](const auto& result) {
+    return result.action.error == rustcity::Failure::None || result.action.error == rustcity::Failure::DecisionTrace;
+  })) w.refresh(true);
+  return results;
+}
+Message::ptr desktopActionMessage(const rustcity::ActionResult& result) {
+  return failure(result);
 }
 bool desktopPreview(const DesktopWorld& w, const UserOperation& op, MapPoint p, Message::ptr& why) {
   why = failure(rustcity::preview(w.engine(), kind(op), groupId(op), toRust(p)));

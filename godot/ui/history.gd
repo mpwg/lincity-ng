@@ -34,15 +34,15 @@ var _first := 0
 var _month := -1
 
 func _ready() -> void:
-	title = "Stadtstatistik"
-	ok_button_text = "Schließen"
+	title = tr("Stadtstatistik")
+	ok_button_text = tr("Schließen")
 	min_size = Vector2i(630, 430)
 	var layout := VBoxContainer.new()
 	add_child(layout)
 	_tabs.name = "HistoryTabs"
 	_tabs.focus_mode = Control.FOCUS_ALL
 	for tab in ["Bevölkerung", "Finanzen", "Technologie", "Umwelt", "Waren", "Nachhaltigkeit"]:
-		_tabs.add_tab(tab)
+		_tabs.add_tab(tr(tab))
 	_style_tabs()
 	layout.add_child(_tabs)
 	layout.add_child(_timeline)
@@ -50,27 +50,27 @@ func _ready() -> void:
 	var controls := HBoxContainer.new()
 	_timeline.add_child(controls)
 	controls.add_child(_metrics)
-	_metrics.accessibility_name = "Kennzahl"
+	_metrics.accessibility_name = tr("Kennzahl")
 	controls.add_child(_period)
-	_period.accessibility_name = "Zeitraum"
-	_period.add_item("Letzte 12 Monate", 12)
-	_period.add_item("Letzte 5 Jahre", 60)
-	_period.add_item("Gesamter Verlauf", 0)
+	_period.accessibility_name = tr("Zeitraum")
+	_period.add_item(tr("Letzte 12 Monate"), 12)
+	_period.add_item(tr("Letzte 5 Jahre"), 60)
+	_period.add_item(tr("Gesamter Verlauf"), 0)
 	_period.select(0)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls.add_child(spacer)
 	var month_label := Label.new()
-	month_label.text = "Monat"
+	month_label.text = tr("Monat")
 	controls.add_child(month_label)
 	_date.name = "HistoryMonths"
-	_date.accessibility_name = "Abgeschlossener Monat"
+	_date.accessibility_name = tr("Abgeschlossener Monat")
 	controls.add_child(_date)
 	_timeline.add_child(_axis)
 	_timeline.add_child(_graph)
 	_graph.custom_minimum_size = Vector2(0, 190)
 	_graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_graph.accessibility_name = "Monatsdiagramm"
+	_graph.accessibility_name = tr("Monatsdiagramm")
 	_timeline.add_child(_values)
 	_values.name = "HistoryValues"
 	_values.custom_minimum_size = Vector2(0, 43)
@@ -108,7 +108,7 @@ func _show_tab(_tab: int) -> void:
 	_metrics.visible = _tabs.current_tab in [0, 4]
 	if _tabs.current_tab == 0:
 		for label in ["Einwohner", "Geburten und Sterbefälle", "Wohnraum"]:
-			_metrics.add_item(label)
+			_metrics.add_item(tr(label))
 	elif _tabs.current_tab == 4:
 		for commodity: Dictionary in _data.get("commodities", []):
 			_metrics.add_item(commodity.name)
@@ -157,31 +157,31 @@ func _refresh() -> void:
 		0:
 			chart = ["people", "vital", "housing"][maxi(_metrics.selected, 0)]
 			unit = "%" if chart == "housing" else ""
-			_axis.text = {"people": "Personen im Monatsmittel", "vital": "Personen pro Monat", "housing": "Belegung des Wohnraums (%)"}[chart]
+			_axis.text = tr({"people": "Personen im Monatsmittel", "vital": "Personen pro Monat", "housing": "Belegung des Wohnraums (%)"}[chart])
 		1:
 			chart = "balance"
 			unit = "$"
-			_axis.text = "Kassenstand zum Monatsende ($)"
+			_axis.text = tr("Kassenstand zum Monatsende ($)")
 		2:
 			chart = "tech"
 			unit = "%"
-			_axis.text = "Technologiestand zum Monatsende (%)"
+			_axis.text = tr("Technologiestand zum Monatsende (%)")
 		3:
 			chart = "pollution"
-			_axis.text = "Luftverschmutzung auf der gesamten Karte"
+			_axis.text = tr("Luftverschmutzung auf der gesamten Karte")
 		4:
 			unit = "%"
-			_axis.text = "Lagerfüllgrad im Monatsmittel (%)"
+			_axis.text = tr("Lagerfüllgrad im Monatsmittel (%)")
 			if _metrics.selected >= 0:
 				var commodity: Dictionary = _data.commodities[_metrics.selected]
 				display.append({"label": commodity.name, "values": commodity["values"], "color": COLOURS[0]})
 	var available: Dictionary = _data.get("series", {})
 	for definition: Array in CHARTS.get(chart, []):
-		display.append({"label": definition[1], "values": available.get(definition[0], PackedFloat64Array()), "color": COLOURS[display.size()]})
+		display.append({"label": tr(definition[1]), "values": available.get(definition[0], PackedFloat64Array()), "color": COLOURS[display.size()]})
 	_graph.update_series(display, _first, _last, _month)
 	_values.clear()
 	if _month < 0:
-		_values.add_text("Für diese Stadt sind noch keine abgeschlossenen Monatswerte verfügbar.")
+		_values.add_text(tr("Für diese Stadt sind noch keine abgeschlossenen Monatswerte verfügbar."))
 		return
 	for index in display.size():
 		var series := display[index]
@@ -191,14 +191,14 @@ func _refresh() -> void:
 		_values.push_color(series.color)
 		_values.add_text(series.label + "  ")
 		_values.pop()
-		_values.add_text((Graph.number_text(sample) + (" " + unit if unit != "" else "")) if is_finite(sample) else "Keine Daten")
+		_values.add_text((Graph.number_text(sample) + (" " + unit if unit != "" else "")) if is_finite(sample) else tr("Keine Daten"))
 
 func _build_sustainability() -> void:
 	for row in _sustainability.get_children():
 		_sustainability.remove_child(row)
 		row.queue_free()
 	var status := Label.new()
-	status.text = "Nachhaltigkeitsziel erreicht" if _data.get("sustainable", false) else "Fortschritt zum Nachhaltigkeitssieg"
+	status.text = tr("Nachhaltigkeitsziel erreicht") if _data.get("sustainable", false) else tr("Fortschritt zum Nachhaltigkeitssieg")
 	_sustainability.add_child(status)
 	var grid := GridContainer.new()
 	grid.columns = 3
@@ -210,7 +210,7 @@ func _build_sustainability() -> void:
 		var criterion: Dictionary = criteria[index]
 		var name_label := Label.new()
 		name_label.text = criterion.name
-		name_label.tooltip_text = CRITERION_HELP[index]
+		name_label.tooltip_text = tr(CRITERION_HELP[index])
 		name_label.mouse_filter = Control.MOUSE_FILTER_STOP
 		grid.add_child(name_label)
 		var progress := ProgressBar.new()
@@ -221,12 +221,12 @@ func _build_sustainability() -> void:
 		progress.max_value = criterion.goal
 		progress.value = criterion.years
 		progress.accessibility_name = criterion.name
-		progress.tooltip_text = CRITERION_HELP[index]
+		progress.tooltip_text = tr(CRITERION_HELP[index])
 		progress.add_theme_stylebox_override("background", _box(Color("#353d37")))
 		progress.add_theme_stylebox_override("fill", _box(Color("#cfb77f")))
 		grid.add_child(progress)
 		var years := Label.new()
-		years.text = "%d / %d Jahre" % [criterion.years, criterion.goal]
+		years.text = tr("%d / %d Jahre") % [criterion.years, criterion.goal]
 		grid.add_child(years)
 
 func _style_tabs() -> void:

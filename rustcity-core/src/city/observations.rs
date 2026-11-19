@@ -219,27 +219,6 @@ impl City {
         self.buildings.iter().map(|(p, b)| (p, b.kind, &b.stock))
     }
 
-    /// Price at a visible tile, including for an action the city rejects.
-    pub fn quote(&self, action: Action, p: Point) -> Option<i32> {
-        let visible = 1..self.side - 1;
-        if !visible.contains(&p.x) || !visible.contains(&p.y) {
-            return None;
-        }
-        Some(match action {
-            Action::Build(kind) => self.actual_kind(kind, p).cost(self.tech_level),
-            Action::Bulldoze => self
-                .building_at(p)
-                .map(|(k, _)| k.metadata().demolition_cost)
-                .unwrap_or_else(|| match self.terrain(p) {
-                    Some(Terrain::Desert) => 0,
-                    Some(Terrain::Water) => crate::rules::DRAIN_COST,
-                    _ => crate::rules::CLEAR_LAND_COST,
-                }),
-            Action::Flood => crate::rules::FLOOD_COST,
-            Action::Evacuate | Action::Query => 0,
-        })
-    }
-
     /// Resolves alternate groups such as bridges and high-technology wind power.
     pub fn building_kind_at_site(&self, kind: BuildingKind, p: Point) -> BuildingKind {
         self.actual_kind(kind, p)
