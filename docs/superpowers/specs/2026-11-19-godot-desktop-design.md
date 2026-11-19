@@ -22,7 +22,7 @@ Bauvorschau und Platzierung verwenden dieselben Kartenfelder. Beim Ziehen einer 
 
 ## Anbindung und Abnahme
 
-Gewählt wurde eine neue Godot-Oberfläche. Ein Umbau des bestehenden SDL-Renderers hätte die Wiederverwendung der bisherigen Dialoge erleichtert. Für Godot sprach die Möglichkeit, Kamera, Stadtmodelle, Materialien und Beleuchtung gemeinsam in einer Szene zu gestalten. Eine native Erweiterung übermittelt Spielzustand und Befehle zwischen Godot und dem beim Build gewählten C++- oder Rust-Kern. Der Kern entscheidet über Zulässigkeit und Kosten und übernimmt das Laden und Speichern.
+Gewählt wurde eine neue Godot-Oberfläche. Ein Umbau des bestehenden SDL-Renderers hätte die Wiederverwendung der bisherigen Dialoge erleichtert. Für Godot sprach die Möglichkeit, Kamera, Stadtmodelle, Materialien und Beleuchtung gemeinsam in einer Szene zu gestalten. Eine native Erweiterung übermittelt Spielzustand und Befehle zwischen Godot und dem Rust-Simulationskern. Der Kern entscheidet über Zulässigkeit und Kosten und übernimmt das Laden und Speichern.
 
 Als Referenz dient ein Viertel mit Wohnstraße, Markt, Industrie und Flussbrücke. Für die spätere Abnahme muss derselbe Markt aus vier Richtungen auswählbar sein. Eine gezogene Straße muss mit Vorschau, belegten Feldern und abgebuchten Kosten übereinstimmen. Ein bestehender Spielstand muss sich laden, weiterspielen und erneut speichern lassen.
 

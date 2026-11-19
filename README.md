@@ -44,7 +44,10 @@ cmake --build build --parallel --target package
 See [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) for a list of build
 configuration options.
 
-The desktop uses the C++ simulation by default. Configure with
+The freely rotatable 3D desktop opens on the market street of a playable riverside
+town. It uses Godot 4.5 and the RustCity simulation. See the [3D desktop build and controls](docs/GODOT_DESKTOP.md).
+
+The SDL desktop uses the C++ simulation by default. Configure with
 `-DLINCITY_CORE_BACKEND=rust` to run it with RustCity Core. The Rust library
 also runs independently with `cargo test --locked --manifest-path rustcity-core/Cargo.toml`.
 [Backend build instructions](docs/BUILD_OPTIONS.md#lincity_core_backend) · [Parity results](docs/rustcity-core-paritaet.md)
