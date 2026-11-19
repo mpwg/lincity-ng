@@ -1,0 +1,57 @@
+name: macOS Apple Silicon test build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install build dependencies
+        run: |
+          test "$(uname -m)" = arm64
+          brew install fmt libxml2 meson ninja pkgconf
+          rustc -vV
+          rustc -vV | grep 'host: aarch64-apple-darwin'
+          rustup update stable
+          rustup override set stable
+      - name: Install Godot and its macOS release template
+        run: |
+          base=https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable
+          curl -fsSL --retry 3 "$base/Godot_v4.5.1-stable_macos.universal.zip" -o "$RUNNER_TEMP/godot.zip"
+          curl -fsSL --retry 3 "$base/Godot_v4.5.1-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          printf '%s  %s\n' 65c27959d02aaacfc131ec7ecb90179ba8045200cb02982bf2be96d117010b8a "$RUNNER_TEMP/godot.zip" | shasum -a 256 -c
+          printf '%s  %s\n' 1998af37f1387684e2c211cdb483daf492fc64dc6b12096bddcdca25b6910c86 "$RUNNER_TEMP/templates.tpz" | shasum -a 256 -c
+          ditto -x -k "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP"
+          template_dir="$HOME/Library/Application Support/Godot/export_templates/4.5.1.stable"
+          mkdir -p "$template_dir"
+          unzip -j "$RUNNER_TEMP/templates.tpz" templates/macos.zip -d "$template_dir"
+      - name: Build the ARM64 Godot extension
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig"
+          curl -fsSL --retry 3 https://download.gnome.org/sources/libxml++/5.4/libxml++-5.4.0.tar.xz -o "$RUNNER_TEMP/libxml++.tar.xz"
+          printf '%s  %s\n' e9a23c436686a94698d2138e6bcbaf849121d63bfa0f50dc34fefbfd79566848 "$RUNNER_TEMP/libxml++.tar.xz" | shasum -a 256 -c
+          tar -xf "$RUNNER_TEMP/libxml++.tar.xz" -C "$RUNNER_TEMP"
+          meson setup "$RUNNER_TEMP/xml-build" "$RUNNER_TEMP/libxml++-5.4.0" --prefix "$RUNNER_TEMP/xml-prefix" --buildtype release -Dbuild-examples=false -Dbuild-tests=false -Dbuild-documentation=false
+          meson install -C "$RUNNER_TEMP/xml-build"
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/xml-prefix/lib/pkgconfig:$PKG_CONFIG_PATH"
+          cmake -S . -B build/godot-macos -G Ninja -DLINCITY_BUILD_GUI=OFF -DLINCITY_BUILD_GODOT=ON -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DGODOTCPP_TARGET=template_release -DCMAKE_PREFIX_PATH="$(brew --prefix fmt);$(brew --prefix libxml2)" -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-headerpad_max_install_names
+          cmake --build build/godot-macos --target lincity_godot --parallel
+      - name: Package and test the exported app
+        run: |
+          python3 tooling/release/package_godot_macos.py --godot "$RUNNER_TEMP/Godot.app/Contents/MacOS/Godot" --output build/macos-package --library-path "$RUNNER_TEMP/xml-prefix/lib" --library-path "$(brew --prefix)/lib" --library-path "$(brew --prefix libxml2)/lib" --library-path "$(brew --prefix fmt)/lib" --libxmlpp-source "$RUNNER_TEMP/libxml++.tar.xz"
+          ditto -c -k --sequesterRsrc --keepParent build/macos-package build/LinCity-NG-macOS-arm64.zip
+          shasum -a 256 build/LinCity-NG-macOS-arm64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: LinCity-NG-macOS-arm64
+          path: build/LinCity-NG-macOS-arm64.zip
+          if-no-files-found: error

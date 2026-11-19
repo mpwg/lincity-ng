@@ -10,7 +10,7 @@ func _check() -> void:
 	current_scene = game
 	game.speed = 0
 	if game.state.is_empty() or game.state.get("side", 0) < 1:
-		printerr("Die Startstadt fehlt im Linux-Paket.")
+		printerr("Die Startstadt fehlt im Spielpaket.")
 		quit(1)
 		return
 	var ok := true
@@ -36,7 +36,7 @@ func _check() -> void:
 		ok = ok and after.tiles == before.tiles and after.money == before.money
 		ok = ok and game.core.step().is_empty()
 	if not ok: printerr("Spielstart, Lizenzen, Bedienung oder Spielstandprüfung fehlgeschlagen.")
-	else: print("Linux-Paket geprüft.")
+	else: print("Spielpaket geprüft.")
 	quit(0 if ok else 1)
 
 func _click(position: Vector2, down: bool) -> void:

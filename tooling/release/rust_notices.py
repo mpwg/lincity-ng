@@ -17,10 +17,10 @@ def cargo(*args):
     )
 
 
-def notices():
-    metadata = json.loads(cargo("metadata", "--format-version", "1", "--filter-platform", TARGET))
+def notices(target=TARGET):
+    metadata = json.loads(cargo("metadata", "--format-version", "1", "--filter-platform", target))
     packages = {(p["name"], p["version"]): p for p in metadata["packages"] if p["source"]}
-    tree = cargo("tree", "--target", TARGET, "-e", "normal", "--prefix", "none", "--format", "{p}")
+    tree = cargo("tree", "--target", target, "-e", "normal", "--prefix", "none", "--format", "{p}")
     notices_by_text = defaultdict(list)
     for line in sorted(set(tree.splitlines())):
         name, version, *_ = line.split()
@@ -37,7 +37,8 @@ def notices():
             raise ValueError(f"Kein Lizenztext für {name} {version}")
         for file in license_files:
             notices_by_text[file.read_text().strip()].append(f"{name} {version} · {file.name}")
-    blocks = ["Rust-Abhängigkeiten von LinCity-NG für Linux x86_64"]
+    platform = "Linux x86_64" if target == TARGET else target
+    blocks = [f"Rust-Abhängigkeiten von LinCity-NG für {platform}"]
     for text, labels in notices_by_text.items():
         blocks.extend(["\n".join(labels), text])
     return "\n\n".join(blocks) + "\n"
