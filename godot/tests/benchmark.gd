@@ -9,6 +9,7 @@ var camera
 var intervals: Array[float] = []
 var last_usec := 0
 var frame := 0
+var start_day := 0
 var phase := 0
 var distances := [16.0, 110.0]
 var max_p95 := 0.0
@@ -38,6 +39,7 @@ func _start() -> void:
 		return
 	camera = game.camera
 	camera.center_on(Vector2i(47, 48))
+	start_day = game.state.time
 	game.speed = 4
 	camera.distance = distances[0]
 	camera.update_pose()
@@ -64,6 +66,11 @@ func _measure() -> void:
 	frame += 1
 	if intervals.size() < SAMPLES:
 		return
+	if game.state.time <= start_day:
+		printerr("Die Simulation ist während der Kameradrehung stehen geblieben.")
+		quit(2)
+		return
+	start_day = game.state.time
 	if draw_calls < 1 or primitives < 1000:
 		printerr("Keine gezeichnete Stadt. Fenster sichtbar halten oder --display-driver x11 verwenden.")
 		quit(2)

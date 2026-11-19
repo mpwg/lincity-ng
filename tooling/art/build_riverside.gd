@@ -68,7 +68,28 @@ func _initialize() -> void:
 	place(13, Vector2i(80, 17), 3)
 	for x in [68, 72, 76, 80]:
 		place(5, Vector2i(x, 8), 4)
+	# Connect the bridge and the suppliers to the established districts.
+	for y in range(30, 34):
+		place(ROAD, Vector2i(89, y), 1)
+	for y in range(31, 36):
+		place(ROAD, Vector2i(68, y), 1)
+	for y in range(12, 16):
+		place(ROAD, Vector2i(72, y), 1)
+	place(15, Vector2i(82, 19), 4)
+	place(41, Vector2i(75, 18), 2)
+	for x in range(78, 80):
+		for y in range(28, 30):
+			var index: int = y * 100 + x
+			if city.snapshot().tiles[index] in [43,44,45]:
+				city.apply(DEMOLISH, Vector2i(x,y))
 	if failures == 0:
+		# Let deliveries reach the newly built mill, market and homes.
+		for day in 24:
+			var error: String = city.step()
+			if not error.is_empty():
+				printerr(error)
+				quit(1)
+				return
 		city.set_focus(Vector2i(76, 31))
 		var error: String = city.save_city(OUTPUT)
 		if not error.is_empty():

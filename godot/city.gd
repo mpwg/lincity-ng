@@ -33,7 +33,7 @@ func _ready() -> void:
 		return
 	core = ClassDB.instantiate("CityWorld")
 	hud.tool_changed.connect(_select_tool)
-	hud.inspection_closed.connect(func(): selected = NO_CELL)
+	hud.inspection_closed.connect(_close_inspection)
 	hud.modal_opened.connect(_cancel_pointer)
 	hud.speed_changed.connect(func(value: int): speed = value; elapsed = 0)
 	hud.layer_selected.connect(_set_layer)
@@ -157,6 +157,10 @@ func _select_tool(id: int) -> void:
 	hover = NO_CELL
 	$Preview.mesh = null
 
+func _close_inspection() -> void:
+	selected = NO_CELL
+	_update_preview()
+
 func _inspect() -> void:
 	if selected == NO_CELL or state.is_empty():
 		return
@@ -254,13 +258,46 @@ static func selection(first: Vector2i, last: Vector2i, id: int, footprint: int, 
 				cells.append(first + Vector2i(x, y) * dir)
 	return cells
 
+# Draw a thin ribbon around the actual footprint. Its width follows zoom so
+# the selected field remains visible in both the street view and the overview.
+func _outline(mesh: ImmediateMesh, cell: Vector2i, extent: float, color: Color) -> void:
+	var inset := clampf(camera.distance * .0022, .016, .10)
+	var outer := PackedVector3Array()
+	var inner := PackedVector3Array()
+	for unit: Vector2 in [Vector2.ZERO, Vector2.RIGHT, Vector2.ONE, Vector2.DOWN]:
+		outer.append(Vector3(cell.x + unit.x * extent, .055, cell.y + unit.y * extent))
+		inner.append(Vector3(cell.x + inset + unit.x * (extent - 2 * inset), .055,
+			cell.y + inset + unit.y * (extent - 2 * inset)))
+	mesh.surface_set_color(color)
+	for i in 4:
+		var j := (i + 1) % 4
+		for point in [outer[i], outer[j], inner[j], outer[i], inner[j], inner[i]]:
+			mesh.surface_add_vertex(point)
+
 func _update_preview() -> void:
 	$Preview.mesh = null
-	if hover == NO_CELL or state.is_empty() or tool == -1:
-		hud.show_preview("")
+	if state.is_empty():
 		return
 	var mesh := ImmediateMesh.new()
-	mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+	if tool == -1:
+		hud.show_preview("")
+		var field := selected if selected != NO_CELL else hover
+		if field == NO_CELL:
+			return
+		var anchor: int = state.anchors[field.y * state.side + field.x]
+		if anchor < 0:
+			anchor = field.y * state.side + field.x
+		var cell := Vector2i(anchor % int(state.side), floori(float(anchor) / state.side))
+		var size := float(view.Models.SIZE[state.tiles[anchor]])
+		mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+		_outline(mesh, cell, size, BUILD_COLOR)
+		mesh.surface_end()
+		$Preview.mesh = mesh
+		return
+	if hover == NO_CELL:
+		hud.show_preview("")
+		return
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	var amount := 0
 	var cells := selection(start, hover, tool, int(tools_by_id.get(tool, {}).get("size", 1)), alternate)
 	var reason := ""
@@ -272,17 +309,12 @@ func _update_preview() -> void:
 			var index: int = state.anchors[cell.y * state.side + cell.x]
 			if index >= 0:
 				anchor = Vector2i(index % int(state.side), floori(float(index) / state.side))
-				extent = float(tools_by_id.get(int(state.tiles[index]), {}).get("size", 1))
-		mesh.surface_set_color(BUILD_COLOR if rule.allowed else INVALID_COLOR)
+				extent = float(view.Models.SIZE[state.tiles[index]])
 		if rule.allowed:
 			amount += int(rule.cost)
 		else:
 			reason = str(rule.get("reason", "Hier nicht möglich."))
-		var p := Vector3(anchor.x, 0.06, anchor.y)
-		var corners := [p, p + Vector3(extent, 0, 0), p + Vector3(extent, 0, extent), p + Vector3(0, 0, extent)]
-		for i in 4:
-			mesh.surface_add_vertex(corners[i])
-			mesh.surface_add_vertex(corners[(i + 1) % 4])
+		_outline(mesh, anchor, extent, BUILD_COLOR if rule.allowed else INVALID_COLOR)
 	mesh.surface_end()
 	$Preview.mesh = mesh
 	hud.show_preview(reason if cells.size() == 1 and not reason.is_empty() else "Kosten  %s $" % amount)

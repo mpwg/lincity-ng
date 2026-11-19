@@ -20,8 +20,27 @@ func _capture() -> void:
 	if game.state.is_empty():
 		quit(1)
 		return
+	# Advance the real opening to the first working shift and freeze both views
+	# on the same tick. The smokestack is driven by actual production.
+	var mill: int = 27 * int(game.state.side) + 80
+	for day in 64:
+		if game.state.operating[mill] != 0:
+			break
+		if not game.core.step().is_empty():
+			quit(1)
+			return
+		game.state = game.core.snapshot()
+	if game.state.operating[mill] == 0:
+		printerr("Die Fabrik am Fluss hat keine Waren produziert.")
+		quit(1)
+		return
+	game._refresh()
+	game.hud.set_speed(0)
 	for bridge in [false, true]:
 		game.camera.riverside_view(bridge)
+		# Use the live inspector at the same reproducible road location for both views.
+		var lane := Vector3(84.5, .12, 30.5) if bridge else Vector3(76.5, .025, 32.5)
+		game._point_at(game.camera.unproject_position(lane))
 		await process_frame
 		await process_frame
 		RenderingServer.force_draw(false)
