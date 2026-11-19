@@ -1,7 +1,7 @@
 //! Population, inventory, and fiscal accounts with independent reporting periods.
 //! Based on Lincity-NG stats.hpp and stats.cpp (GPL-2.0-or-later).
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::ops::{AddAssign, SubAssign};
 
 use crate::Commodity;
@@ -171,6 +171,7 @@ pub struct History {
     pub unnat_deaths: VecDeque<i32>,
     pub inventory: [VecDeque<Inventory>; COMMODITIES],
     pub tenants: VecDeque<Inventory>,
+    pub(crate) sample_presence: HashMap<&'static str, VecDeque<bool>>,
 }
 
 impl Default for History {
@@ -190,6 +191,44 @@ impl Default for History {
                 VecDeque::from([Inventory::default(); INVENTORY_SAMPLES])
             }),
             tenants: VecDeque::from([Inventory::default(); FISCAL_SAMPLES]),
+            sample_presence: HashMap::new(),
+        }
+    }
+}
+
+impl History {
+    /// Distinguishes a recorded zero from an empty slot in the history buffer.
+    pub fn has_sample(&self, series: &str, index: usize) -> bool {
+        self.sample_presence
+            .get(series)
+            .and_then(|samples| samples.get(index))
+            .copied()
+            .unwrap_or(false)
+    }
+
+    fn mark_month(&mut self) {
+        let mut mark = |name, len| {
+            let samples = self.sample_presence.entry(name).or_default();
+            samples.push_front(true);
+            samples.truncate(len);
+        };
+        for (name, len) in [
+            ("pop", self.pop.len()),
+            ("starve", self.starve.len()),
+            ("nojobs", self.nojobs.len()),
+            ("ppool", self.ppool.len()),
+            ("tech", self.tech.len()),
+            ("money", self.money.len()),
+            ("pollution", self.pollution.len()),
+            ("births", self.births.len()),
+            ("deaths", self.deaths.len()),
+            ("unnat_deaths", self.unnat_deaths.len()),
+            ("tenants", self.tenants.len()),
+        ] {
+            mark(name, len);
+        }
+        for (commodity, samples) in Commodity::ALL.into_iter().zip(&self.inventory) {
+            mark(commodity.save_name(), samples.len());
         }
     }
 }
@@ -248,6 +287,7 @@ impl Stats {
     pub fn monthly(&mut self) {
         let p = &mut self.population;
         let h = &mut self.history;
+        h.mark_month();
         let population = p.population_m.finalize();
         let housed = p.housed_m.finalize();
         record(&mut h.pop, population);

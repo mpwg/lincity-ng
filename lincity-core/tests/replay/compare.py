@@ -30,6 +30,10 @@ def read_days(stream):
 def checkpoint(path):
     with gzip.open(path) as stream:
         root = ET.parse(stream).getroot()
+    # Rust records which history slots are measured for its statistics UI.
+    # Compare the identical simulation values and all other persisted fields.
+    for series in root.findall("./globals/stats/history/*"):
+        series.attrib.pop("samples", None)
     # The save writer enumerates constructions by pointer. Match map entries
     # by their persisted identity while preserving ordered histories and queues.
     world_map = root.find("map")

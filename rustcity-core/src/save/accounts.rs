@@ -3,7 +3,7 @@ use super::{Element, integer, invalid};
 use crate::Commodity;
 use crate::rules::DAYS_PER_MONTH;
 use crate::rules::economy;
-use crate::stats::{Inventory, Stat, Stats};
+use crate::stats::{History, Inventory, Stat, Stats};
 use std::{collections::VecDeque, io};
 
 fn periods(s: &mut Stats) -> [(&'static str, &'static str, &mut Stat); 27] {
@@ -181,7 +181,9 @@ fn read_series<T: Default>(
     values: &mut VecDeque<T>,
     grow: bool,
     mut read: impl FnMut(&Element, &mut T) -> io::Result<()>,
-) -> io::Result<()> {
+) -> io::Result<VecDeque<bool>> {
+    let availability = node.attr("samples");
+    let mut samples = VecDeque::from(vec![false; values.len()]);
     for entry in node.elements() {
         let Some(i) = entry
             .name
@@ -192,12 +194,16 @@ fn read_series<T: Default>(
         };
         if i == values.len() && grow {
             values.push_back(T::default());
+            samples.push_back(false);
         }
         if let Some(value) = values.get_mut(i) {
             read(entry, value)?;
+            samples[i] = availability
+                .as_ref()
+                .is_none_or(|bits| bits.as_bytes().get(i) == Some(&b'1'));
         }
     }
-    Ok(())
+    Ok(samples)
 }
 
 fn read_stock(entry: &Element, stock: &mut Inventory) -> io::Result<()> {
@@ -237,9 +243,10 @@ pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
         }
     }
     if let Some(history) = root.child("history") {
+        let mut loaded_samples = std::collections::HashMap::new();
         for (name, values) in histories(s) {
             if let Some(node) = history.child(name) {
-                read_series(
+                let samples = read_series(
                     node,
                     values,
                     matches!(name, "pop" | "ppool" | "starve" | "nojobs"),
@@ -248,6 +255,7 @@ pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
                         Ok(())
                     },
                 )?;
+                loaded_samples.insert(name, samples);
             }
         }
         for (i, c) in Commodity::ALL.into_iter().enumerate() {
@@ -258,12 +266,15 @@ pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
                 if node.attr("capacity_mtd").is_some() {
                     s.inventory[i].capacity.acc = node.attr_i32("capacity_mtd")?;
                 }
-                read_series(node, &mut s.history.inventory[i], false, read_stock)?;
+                let samples = read_series(node, &mut s.history.inventory[i], false, read_stock)?;
+                loaded_samples.insert(c.save_name(), samples);
             }
         }
         if let Some(node) = history.child("tenants") {
-            read_series(node, &mut s.history.tenants, false, read_stock)?;
+            let samples = read_series(node, &mut s.history.tenants, false, read_stock)?;
+            loaded_samples.insert("tenants", samples);
         }
+        s.history.sample_presence = loaded_samples;
     }
     Ok(())
 }
@@ -271,9 +282,26 @@ pub(crate) fn load(s: &mut Stats, root: &Element) -> io::Result<()> {
 fn write_series<T>(
     node: &mut Element,
     values: &VecDeque<T>,
+    history: &History,
+    name: &str,
     mut set: impl FnMut(&mut Element, &T),
 ) {
     node.set_attr("size", values.len().to_string());
+    // Preserve gaps while keeping numeric slots readable by older clients.
+    let samples: String = (0..values.len())
+        .map(|i| {
+            if history.has_sample(name, i) {
+                '1'
+            } else {
+                '0'
+            }
+        })
+        .collect();
+    if samples.contains('0') {
+        node.set_attr("samples", samples);
+    } else {
+        node.remove_attr("samples");
+    }
     for (i, v) in values.iter().enumerate() {
         set(node.section(&format!("index_{i}")), v);
     }
@@ -318,7 +346,7 @@ pub(crate) fn store(s: &Stats, root: &mut Element, day: i32, cash: i32) {
     }
     let history = root.section("history");
     for (name, values) in histories(&mut report) {
-        write_series(history.section(name), values, |e, v| {
+        write_series(history.section(name), values, &s.history, name, |e, v| {
             e.set_text(v.to_string())
         });
     }
@@ -334,9 +362,21 @@ pub(crate) fn store(s: &Stats, root: &mut Element, day: i32, cash: i32) {
                 node.remove_attr(key);
             }
         }
-        write_series(node, &s.history.inventory[i], write_stock);
+        write_series(
+            node,
+            &s.history.inventory[i],
+            &s.history,
+            c.save_name(),
+            write_stock,
+        );
     }
-    write_series(history.section("tenants"), &s.history.tenants, write_stock);
+    write_series(
+        history.section("tenants"),
+        &s.history.tenants,
+        &s.history,
+        "tenants",
+        write_stock,
+    );
 }
 
 pub(crate) fn complete_globals(globals: &mut Element) {

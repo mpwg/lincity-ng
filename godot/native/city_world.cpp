@@ -6,16 +6,22 @@
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/packed_float64_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
-#include <godot_cpp/variant/packed_string_array.hpp>
 
 #include "DesktopWorld.hpp"
 #include "lincity/ConstructionReport.hpp"
+#include "lincity/sustainable.hpp"
 #include "MapOverlay.hpp"
 #include <godot_cpp/variant/packed_color_array.hpp>
 #include "lincity/modules/all_modules.hpp"
+#include "rustcity-legacy/src/view.rs.h"
 
 #include <fmt/format.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace {
 using godot::Array;
@@ -23,7 +29,6 @@ using godot::ClassDB;
 using godot::D_METHOD;
 using godot::Dictionary;
 using godot::PackedInt32Array;
-using godot::PackedStringArray;
 using godot::String;
 using godot::Vector2i;
 
@@ -122,6 +127,7 @@ protected:
     ClassDB::bind_method(D_METHOD("set_trade", "position", "id", "buy", "sell"), &CityWorld::set_trade);
     ClassDB::bind_method(D_METHOD("overlay", "id", "commodity"), &CityWorld::overlay, DEFVAL(0));
     ClassDB::bind_method(D_METHOD("finances"), &CityWorld::finances);
+    ClassDB::bind_method(D_METHOD("history"), &CityWorld::history);
     ClassDB::bind_method(D_METHOD("take_events"), &CityWorld::take_events);
     ClassDB::bind_method(D_METHOD("tile_resource", "position"), &CityWorld::tile_resource);
   }
@@ -248,6 +254,73 @@ public:
     expenses["Interest"] = e.interest.stat;
     result["income"] = income;
     result["expenses"] = expenses;
+    return result;
+  }
+  Dictionary history() const {
+    if(!city) return {};
+    const auto& history = city->stats.history;
+    const auto completed_months = std::max(0, city->total_time / NUMOF_DAYS_IN_MONTH);
+    const auto missing = std::numeric_limits<double>::quiet_NaN();
+    auto export_series = [&](const char* key, const auto& source, const auto convert) {
+      godot::PackedFloat64Array values;
+      const auto count = std::min(source.size(), std::size_t(completed_months));
+      const auto present = rustcity::view::history_presence(city->engine(), key, count);
+      values.resize(count);
+      auto* output = values.ptrw();
+      bool has_values = false;
+      for(std::size_t i = 0; i < count; ++i) {
+        output[i] = present[i] ? convert(source[i]) : missing;
+        has_values |= std::isfinite(output[i]);
+      }
+      if(!has_values) values.clear();
+      return values;
+    };
+    const auto raw = [](int value) { return double(value); };
+    const auto people = [](int days) { return double(days) / NUMOF_DAYS_IN_MONTH; };
+    const auto technology = [](int value) { return value * 100.0 / MAX_TECH_LEVEL; };
+    const auto fill = [missing](const Stats::Inventory<>& stock) {
+      return stock.capacity > 0 ? stock.amount * 100.0 / stock.capacity : missing;
+    };
+    Dictionary series;
+    series["population"] = export_series("pop", history.pop, people);
+    series["homeless"] = export_series("ppool", history.ppool, people);
+    series["starving"] = export_series("starve", history.starve, people);
+    series["unemployed"] = export_series("nojobs", history.nojobs, people);
+    series["births"] = export_series("births", history.births, raw);
+    series["deaths"] = export_series("deaths", history.deaths, raw);
+    series["unnatural_deaths"] = export_series("unnat_deaths", history.unnat_deaths, raw);
+    series["balance"] = export_series("money", history.money, raw);
+    series["tech"] = export_series("tech", history.tech, technology);
+    series["pollution"] = export_series("pollution", history.pollution, raw);
+    series["occupancy"] = export_series("tenants", history.tenants, fill);
+    Array commodities;
+    for(auto id = STUFF_INIT; id < STUFF_COUNT; ++id) {
+      Dictionary commodity;
+      commodity["name"] = localized(commodityName(id));
+      commodity["values"] = export_series(commodityStandardName(id), history.inventory[id], fill);
+      commodities.append(commodity);
+    }
+    const auto& sustain = city->stats.sustainability;
+    Array criteria;
+    const auto criterion = [&](const char* name, int years, int goal) {
+      Dictionary progress;
+      progress["name"] = String::utf8(name);
+      progress["years"] = years;
+      progress["goal"] = goal;
+      criteria.append(progress);
+    };
+    criterion("Kohle- und Erzabbau", sustain.mining_years, SUST_ORE_COAL_YEARS_NEEDED);
+    criterion("Handel über den Hafen", sustain.trade_years, SUST_PORT_YEARS_NEEDED);
+    criterion("Stadtfinanzen", sustain.money_years, SUST_MONEY_YEARS_NEEDED);
+    criterion("Bevölkerung", sustain.population_years, SUST_POP_YEARS_NEEDED);
+    criterion("Technologie", sustain.tech_years, SUST_TECH_YEARS_NEEDED);
+    criterion("Brandschutz", sustain.fire_years, SUST_FIRE_YEARS_NEEDED);
+    Dictionary result;
+    result["last_month"] = completed_months - 1;
+    result["series"] = series;
+    result["commodities"] = commodities;
+    result["sustainability"] = criteria;
+    result["sustainable"] = sustain.sustainable;
     return result;
   }
   Array tools() const {

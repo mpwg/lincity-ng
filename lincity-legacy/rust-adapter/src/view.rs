@@ -94,6 +94,7 @@ pub mod ffi {
         fn cars(engine: &Engine) -> Vec<Car>;
         fn report(engine: &Engine, x: i32, y: i32, production: bool) -> Vec<Row>;
         fn statistics(engine: &Engine) -> Statistics;
+        fn history_presence(engine: &Engine, series: &str, count: usize) -> Vec<u8>;
     }
     struct Period {
         previous: i32,
@@ -367,6 +368,13 @@ fn inventory(i: &rustcity_core::stats::Inventory) -> ffi::Inventory {
         capacity: i.capacity,
     }
 }
+fn history_presence(engine: &Engine, series: &str, count: usize) -> Vec<u8> {
+    let history = &engine.city.statistics().history;
+    (0..count)
+        .map(|index| u8::from(history.has_sample(series, index)))
+        .collect()
+}
+
 fn statistics(engine: &Engine) -> ffi::Statistics {
     let c = &engine.city;
     let r = c.report();

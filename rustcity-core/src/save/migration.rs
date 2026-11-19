@@ -111,7 +111,11 @@ fn history(old: &Element, new: &mut Element) -> io::Result<()> {
     for name in ["pop", "starve", "nojobs", "ppool"] {
         if let Some(s) = old.child(&format!("monthgraph_{name}")) {
             let out = history.section(name);
-            for (idx, num) in numbers(&s.text())?.into_iter().enumerate() {
+            let values = numbers(&s.text())?;
+            // 2130 stored quantized graph heights rather than person-days.
+            // Keep the original values for older readers and mark the measurements unavailable.
+            out.set_attr("samples", "0".repeat(values.len()));
+            for (idx, num) in values.into_iter().enumerate() {
                 out.set_child(&format!("index_{idx}"), num);
             }
         }
