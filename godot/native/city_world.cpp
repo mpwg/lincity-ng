@@ -6,6 +6,7 @@
 #include <godot_cpp/godot.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 
 #include "DesktopWorld.hpp"
@@ -107,6 +108,7 @@ protected:
     ClassDB::bind_method(D_METHOD("load_city", "path"), &CityWorld::load_city);
     ClassDB::bind_method(D_METHOD("save_city", "path"), &CityWorld::save_city);
     ClassDB::bind_method(D_METHOD("step"), &CityWorld::step);
+    ClassDB::bind_method(D_METHOD("advance_traffic", "millis"), &CityWorld::advance_traffic);
     ClassDB::bind_method(D_METHOD("snapshot"), &CityWorld::snapshot);
     ClassDB::bind_method(D_METHOD("tools"), &CityWorld::tools);
     ClassDB::bind_method(D_METHOD("preview", "id", "position"), &CityWorld::preview);
@@ -135,6 +137,20 @@ public:
     return run([&] { world().save(file_path(path)); });
   }
   String step() { return run([&] { world().do_time_step(); }); }
+
+  godot::PackedVector3Array advance_traffic(int64_t millis) {
+    godot::PackedVector3Array poses;
+    if(!city) return poses;
+    try {
+      auto cars = rustcity::advance_traffic(city->engine(), millis);
+      poses.resize(cars.size());
+      for(std::size_t i = 0; i < cars.size(); ++i)
+        poses.set(i, godot::Vector3(cars[i].x, cars[i].heading, cars[i].z));
+    } catch(const std::exception& error) {
+      ERR_PRINT(text(error.what()));
+    }
+    return poses;
+  }
 
   Dictionary snapshot() const {
     Dictionary result;

@@ -1,9 +1,11 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://city.gd" id="1"]
 [ext_resource type="Script" path="res://orbit_camera.gd" id="2"]
 [ext_resource type="Script" path="res://world/city_view.gd" id="3"]
 [ext_resource type="Script" path="res://ui/hud.gd" id="4"]
+
+[ext_resource type="Script" path="res://traffic/street_traffic.gd" id="5"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -36,6 +38,9 @@ directional_shadow_max_distance = 110.0
 
 [node name="World" type="Node3D" parent="."]
 script = ExtResource("3")
+
+[node name="Traffic" type="Node3D" parent="."]
+script = ExtResource("5")
 
 [node name="Camera" type="Camera3D" parent="."]
 current = true

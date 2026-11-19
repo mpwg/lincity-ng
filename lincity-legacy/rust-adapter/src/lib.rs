@@ -12,6 +12,11 @@ pub mod ffi {
         x: i32,
         y: i32,
     }
+    struct RoadPosition {
+        x: f32,
+        z: f32,
+        heading: i32,
+    }
     enum Climate {
         River,
         Desert,
@@ -84,6 +89,7 @@ pub mod ffi {
         fn load(path: &str) -> Result<Box<Engine>>;
         fn save(engine: &Engine, path: &str) -> Result<()>;
         fn tick(engine: &mut Engine) -> Result<()>;
+        fn advance_traffic(engine: &mut Engine, millis: u64) -> Result<Vec<RoadPosition>>;
         fn animate(engine: &mut Engine, millis: u64) -> Result<()>;
         fn set_traffic(engine: &mut Engine, traffic: Traffic) -> Result<()>;
         fn factory_operating(engine: &Engine, point: Point) -> bool;
@@ -175,6 +181,14 @@ fn save(engine: &Engine, path: &str) -> io::Result<()> {
 }
 fn tick(engine: &mut Engine) -> io::Result<()> {
     engine.city.tick()
+}
+fn advance_traffic(engine: &mut Engine, millis: u64) -> io::Result<Vec<ffi::RoadPosition>> {
+    engine.city.animate_vehicles(millis)?;
+    Ok(engine
+        .city
+        .traffic_positions()
+        .map(|(x, z, heading)| ffi::RoadPosition { x, z, heading })
+        .collect())
 }
 fn animate(engine: &mut Engine, millis: u64) -> io::Result<()> {
     engine.city.animate(millis)

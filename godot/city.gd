@@ -15,6 +15,8 @@ var tools_by_id := {}
 var tool := -1
 var speed := 1
 var elapsed := 0.0
+var traffic_time := 0.0
+var traffic_sample := 0.0
 var layer := 0
 var commodity := 0
 var start := NO_CELL
@@ -85,6 +87,9 @@ func _after_open(error: String) -> void:
 		hud.show_info(error)
 		return
 	selected = NO_CELL
+	traffic_time = 0.0
+	traffic_sample = 0.0
+	$Traffic.update_commuters(PackedVector3Array())
 	_select_tool(-1)
 	elapsed = 0
 	var available: Array = core.tools()
@@ -106,6 +111,7 @@ func _refresh() -> void:
 	state.overlay_id = layer
 	state.finances = core.finances()
 	view.update_city(state, layer != 0)
+	$Traffic.update_map(state)
 	state.focus = Vector2i(floori(camera.focus.x), floori(camera.focus.z)) if not restoring_camera else state.focus
 	hud.update_city(state)
 	_inspect()
@@ -122,6 +128,11 @@ func _set_layer(id: int, product: int) -> void:
 func _process(delta: float) -> void:
 	if state.is_empty() or speed <= 0 or hud.has_modal():
 		return
+	traffic_time += delta * speed
+	traffic_sample += delta
+	if traffic_sample >= 0.05:
+		$Traffic.update_commuters(core.advance_traffic(int(traffic_time * 1000)))
+		traffic_sample = fmod(traffic_sample, 0.05)
 	elapsed += delta * speed
 	if elapsed < 0.25:
 		return

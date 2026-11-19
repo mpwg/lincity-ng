@@ -30,6 +30,7 @@ pub(in crate::city) struct Vehicle {
     speed: u64,
     remaining_steps: i32,
     sprite: VehicleFrame,
+    road_position: (f32, f32),
 }
 
 impl City {
@@ -51,7 +52,16 @@ impl City {
         self.vehicles.iter().map(|v| v.sprite)
     }
 
-    pub(in crate::city) fn animate_vehicles(&mut self, time: u64) -> io::Result<()> {
+    /// Visible commuters in map units with their clockwise eighth-turn heading.
+    pub fn traffic_positions(&self) -> impl Iterator<Item = (f32, f32, i32)> + '_ {
+        self.vehicles
+            .iter()
+            .filter(|v| v.sprite.frame >= 0)
+            .map(|v| (v.road_position.0, v.road_position.1, v.direction))
+    }
+
+    /// Advance traffic alone for hosts that render buildings independently.
+    pub fn animate_vehicles(&mut self, time: u64) -> io::Result<()> {
         let mut vehicles = std::mem::take(&mut self.vehicles);
         let result = vehicles.iter_mut().try_for_each(|v| v.update(self, time));
         vehicles.retain(|v| v.remaining_steps > 0);
@@ -111,6 +121,7 @@ impl Vehicle {
             next_move: 0,
             speed: CAR_SPEED,
             remaining_steps: CAR_RANGE,
+            road_position: (0., 0.),
             sprite: VehicleFrame {
                 tile: point,
                 frame: -2,
@@ -246,6 +257,8 @@ impl Vehicle {
         // The original stores the world position in binary32 before projecting it.
         let x = f64::from((f64::from(self.prev.x) + (x + 0.25)) as f32);
         let y = f64::from((f64::from(self.prev.y) + (y + 0.25)) as f32);
+        // The sprite origin in the isometric renderer is offset from the lane.
+        self.road_position = (x as f32 + 0.75, y as f32 + 0.75);
         let tile = Point {
             x: (x.ceil() as i32).max(self.prev.x),
             y: (y.ceil() as i32).max(self.prev.y),
