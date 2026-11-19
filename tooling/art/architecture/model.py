@@ -456,6 +456,58 @@ def market(g):
             chimney(g, xx, y + 0.075, 0.79, 0.13)
 
 
+def delivery_truck(g, x, y, covered):
+    # A parked cab-over lorry sits between the chimney and the loading platform.
+    base = 0.031
+    g.box(x, y, base + 0.044, 0.146, 0.366, 0.026, "black")
+    g.box(x, y - 0.112, base + 0.063, 0.151, 0.108, 0.052, "green")
+    g.box(x, y - 0.104, base + 0.115, 0.144, 0.092, 0.045, "glass")
+    g.box(x, y - 0.106, base + 0.16, 0.152, 0.100, 0.012, "green")
+    g.box(x, y - 0.169, base + 0.080, 0.077, 0.008, 0.019, "metal")
+    for side in [-1, 1]:
+        g.box(x + side * 0.056, y - 0.169, base + 0.091, 0.021, 0.009, 0.014, "cream")
+    g.box(x, y + 0.055, base + 0.074, 0.16, 0.218, 0.027, "wood")
+    if covered:
+        g.box(x, y + 0.055, base + 0.101, 0.157, 0.214, 0.110, "cloth")
+    else:
+        for i in range(2):
+            g.box(
+                x + 0.012 * i,
+                y + 0.008 + i * 0.086,
+                base + 0.102,
+                0.118,
+                0.078,
+                0.066,
+                "crates",
+            )
+        for side in [-1, 1]:
+            g.box(
+                x + side * 0.078, y + 0.056, base + 0.101, 0.007, 0.214, 0.039, "wood"
+            )
+    # Place wheels on the paved yard and bevel the hubcaps against their dark sidewalls.
+    for side in [-1, 1]:
+        for axle in [-0.115, 0.112]:
+            points = [
+                (
+                    x + side * 0.081,
+                    y + axle + 0.033 * sin(a * pi / 4),
+                    base + 0.034 + 0.033 * cos(a * pi / 4),
+                )
+                for a in range(8)
+            ]
+            g.face(
+                points[::-1] if side == 1 else points,
+                "black",
+                [
+                    (0.5 + 0.46 * sin(a * pi / 4), 0.5 + 0.46 * cos(a * pi / 4))
+                    for a in range(8)
+                ],
+            )
+            g.box(
+                x + side * 0.081, y + axle, base + 0.027, 0.005, 0.015, 0.015, "metal"
+            )
+
+
 def industrial(g, group):
     heavy = group == 18
     size = 4 if heavy else 3
@@ -540,6 +592,7 @@ def industrial(g, group):
         )
     g.hip(ax, ay, 0.50, size * 0.30, size * 0.33, 0.14, "metal", 0.16)
     if g.lod <= 1:
+        delivery_truck(g, size * 0.39, -0.04, heavy)
         for j in range(4):
             xx = ax - 0.27 + j * 0.16
             yy = ay - size * 0.21

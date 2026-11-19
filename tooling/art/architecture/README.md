@@ -19,3 +19,13 @@ Der mitgelieferte PNG-Atlas genügt für den Export. Zum Ändern der gemalten Ma
 ```sh
 python3 tooling/art/architecture/atlas.py
 ```
+
+## Straßenfahrzeuge
+
+[Strassenfahrzeuge.blend](Strassenfahrzeuge.blend) enthält drei für LinCity-NG entworfene PKW. Das Stufenheck in Ecru, der blaugraue Kompaktwagen und der weinrote Kombi orientieren sich an mitteleuropäischen Fahrzeugformen der 1960er- bis 1980er-Jahre. Geometrie und Lackierung sind eigenständige Beiträge zum Projekt. Für alle drei Modelle gelten die Spieldatenlizenzen in [COPYING-data.txt](../../../COPYING-data.txt).
+
+```sh
+blender --background --python tooling/art/architecture/traffic.py
+```
+
+Jede der drei exportierten Dateien in `godot/art/traffic/` enthält ein Mesh namens Body mit einem opaken Material und Vertexfarben. Der Ursprung liegt zwischen den Achsen auf der Fahrbahn, die Scheinwerfer zeigen im Spiel in positive Z-Richtung. Die Lieferwagen auf den beiden Fabrikhöfen sind als Ausstattung direkt im jeweiligen Gebäudemodell enthalten.
