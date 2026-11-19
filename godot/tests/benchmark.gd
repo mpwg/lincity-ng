@@ -4,6 +4,7 @@ extends SceneTree
 # Reading the framebuffer waits for the GPU and adds a conservative transfer cost.
 const WARMUP := 100
 const SAMPLES := 400
+const ROCKET_98_START_DAY := 793565
 var game
 var camera
 var intervals: Array[float] = []
@@ -33,8 +34,8 @@ func _start() -> void:
 	root.add_child(game)
 	current_scene = game
 	game._load_city("res://opening/Rocket_98.scn.gz")
-	if game.state.is_empty():
-		printerr("Der Spielstand konnte nicht geladen werden.")
+	if game.state.get("time", -1) != ROCKET_98_START_DAY:
+		printerr("Messung braucht den unveränderten Referenzstand Rocket 98.")
 		quit(2)
 		return
 	camera = game.camera
