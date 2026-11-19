@@ -8,6 +8,9 @@ Ursprüngliches Projekt: https://github.com/lincity-ng/lincity-ng
 Grafik und Spieldaten
 Die klassischen Werkzeugsymbole, Hilfeillustrationen, Hilfetexte, Szenarien und Übersetzungen stammen aus LinCity-NG. Die neuen Stadtgebäude, Personenwagen, Fabriklieferwagen, Texturatlanten und HUD-Symbole sind Originalbeiträge zum LinCity-NG-Projekt (2026). Die Gebäudemodelle und Materialtexturen wurden für dieses Projekt erstellt. Die Blender-Quelldatei und die Generatoren liegen im Quellcode unter tooling/art/architecture, godot/world/authoring und tooling/art. Für die Spieldaten gelten die GNU General Public License und Creative Commons Namensnennung – Weitergabe unter gleichen Bedingungen 2.0 entsprechend Spieldaten.txt.
 
+Musik und Geräusche
+Die Original-Credits für Musik und Geräusche nennen Paulo Augusto, Robert van Herk und Pronobozo. „City Blues“ und „Architectural Contemplations“ stammen von Robert van Herk, „Lincity“ von Pronobozo. Es gelten die Lizenzbedingungen für Spieldaten.
+
 Godot Engine und godot-cpp
 Godot Engine und die C++-Anbindung stehen unter der MIT-Lizenz. Die Engine stellt die Originalnachweise und Lizenztexte ihrer mitgelieferten Drittkomponenten bereit.
 https://godotengine.org/license/
