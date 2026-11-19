@@ -122,7 +122,8 @@ protected:
     ClassDB::bind_method(D_METHOD("set_trade", "position", "id", "buy", "sell"), &CityWorld::set_trade);
     ClassDB::bind_method(D_METHOD("overlay", "id", "commodity"), &CityWorld::overlay, DEFVAL(0));
     ClassDB::bind_method(D_METHOD("finances"), &CityWorld::finances);
-    ClassDB::bind_method(D_METHOD("take_messages"), &CityWorld::take_messages);
+    ClassDB::bind_method(D_METHOD("take_events"), &CityWorld::take_events);
+    ClassDB::bind_method(D_METHOD("tile_resource", "position"), &CityWorld::tile_resource);
   }
 
 public:
@@ -351,9 +352,37 @@ public:
         throw std::runtime_error("Für dieses Gebäude oder diese Ware ist kein Handel möglich.");
     });
   }
-  PackedStringArray take_messages() {
-    PackedStringArray result;
-    if(city) while(auto message = city->popMessage()) result.append(text(message->str()));
+  String tile_resource(Vector2i v) const {
+    const auto* t = tile(v);
+    if(!t) return {};
+    const auto* building = t->getReportingConstruction();
+    const auto* resource = building ? building->getFrame().resourceGroup : t->getTileResourceGroup();
+    return resource ? text(resource->resourceID) : String{};
+  }
+
+  Array take_events() {
+    Array result;
+    if(!city) return result;
+    while(auto message = city->popMessage()) {
+      Dictionary event;
+      event["text"] = text(message->str());
+      if(dynamic_message_cast<SustainableEconomyMessage>(message))
+        event["kind"] = "economy";
+      else if(dynamic_message_cast<NoPeopleLeftMessage>(message))
+        event["kind"] = "loss";
+      else if(dynamic_message_cast<RocketReadyMessage>(message))
+        event["kind"] = "rocket_ready";
+      else if(auto rocket = dynamic_message_cast<RocketResultMessage>(message)) {
+        using Result = RocketResultMessage::LaunchResult;
+        switch(rocket->getResult()) {
+          case Result::FAIL: event["kind"] = "rocket_crash"; break;
+          case Result::SUCCESS: event["kind"] = "rocket_success"; break;
+          case Result::EVAC: event["kind"] = "rocket_evacuation"; break;
+          case Result::EVAC_WIN: event["kind"] = "evacuation"; break;
+        }
+      }
+      result.append(event);
+    }
     return result;
   }
 };

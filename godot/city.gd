@@ -87,6 +87,8 @@ func _after_open(error: String) -> void:
 		hud.show_info(error)
 		return
 	selected = NO_CELL
+	hud.events.clear()
+	hud.outcome_dialog.hide()
 	animation_time = 0.0
 	animation_sample = 0.0
 	$Traffic.update_commuters(PackedVector3Array())
@@ -116,8 +118,8 @@ func _refresh() -> void:
 	hud.update_city(state)
 	_inspect()
 	_update_preview()
-	for message in core.take_messages():
-		hud.show_event(str(message))
+	for event: Dictionary in core.take_events():
+		hud.show_event(event)
 
 func _set_layer(id: int, product: int) -> void:
 	layer = id

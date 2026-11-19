@@ -43,6 +43,19 @@ const SCENARIOS := {
 	"extreme_wetland.scn.gz": "Feuchtgebiet", "good_times.scn.gz": "Gute Zeiten",
 }
 
+const OUTCOMES := {
+	"economy": ["Sieg durch Nachhaltigkeit", "Deine Stadt hat alle Nachhaltigkeitsziele erreicht. Ihre Wirtschaft kann auf Dauer bestehen."],
+	"evacuation": ["Sieg durch Evakuierung", "Du hast die letzten Einwohnerinnen und Einwohner erfolgreich ins All evakuiert."],
+	"loss": ["Stadt verloren", "Die Bevölkerung deiner Stadt ist gestorben."],
+}
+const ROCKET_EVENTS := {
+	"rocket_ready": "Eine Rakete ist startbereit.",
+	"rocket_crash": "Die Rakete ist abgestürzt.",
+	"rocket_success": "Der Testflug war erfolgreich.",
+	"rocket_evacuation": "1.000 Menschen wurden evakuiert.",
+}
+
+var outcome_dialog := AcceptDialog.new()
 var surface := Control.new()
 var treasury := Label.new()
 var inhabitants := Label.new()
@@ -329,6 +342,8 @@ func _close_inspection() -> void:
 	inspection_closed.emit()
 
 func _dialogs() -> void:
+	surface.add_child(outcome_dialog)
+	outcome_dialog.ok_button_text = "Weiterbauen"
 	surface.add_child(catalog_dialog)
 	catalog_dialog.title = "Baukatalog"
 	catalog_dialog.ok_button_text = "Schließen"
@@ -421,7 +436,7 @@ func _dialogs() -> void:
 	launch_dialog.ok_button_text = "Starten"
 	launch_dialog.cancel_button_text = "Abbrechen"
 	launch_dialog.confirmed.connect(func(): launch_requested.emit())
-	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog]:
+	for dialog: Window in [catalog_dialog, save_dialog, load_dialog, new_dialog, report_dialog, help_dialog, credits_dialog, trade_dialog, survey_dialog, launch_dialog, outcome_dialog]:
 		dialog.theme = surface.theme
 		dialog.transient = true
 		dialog.exclusive = true
@@ -612,7 +627,15 @@ func _open_trade() -> void:
 		sell.toggled.connect(func(active: bool): trade_changed.emit(id, buy.button_pressed, active))
 	trade_dialog.popup_centered()
 
-func show_event(text: String) -> void:
+func show_event(event: Dictionary) -> void:
+	var kind: String = event.get("kind", "")
+	var outcome: Array = OUTCOMES.get(kind, [])
+	var text: String = ROCKET_EVENTS.get(kind, event.get("text", ""))
+	if not outcome.is_empty():
+		outcome_dialog.title = outcome[0]
+		outcome_dialog.dialog_text = outcome[1]
+		outcome_dialog.popup_centered(Vector2i(460, 170))
+		text = "%s – %s" % [outcome[0], outcome[1]]
 	if text.is_empty(): return
 	events.append(text)
 	if events.size() > 256: events.remove_at(0)
